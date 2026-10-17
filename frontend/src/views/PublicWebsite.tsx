@@ -1,11 +1,11 @@
 import { useState, useEffect, useRef } from 'react';
 import {
   Leaf, LogIn, Menu, X, ChevronRight, Zap,
-  LayoutDashboard, Brain, Lock, Smartphone,
+  LayoutDashboard, Brain,
   ClipboardList, BarChart3, Bird, Beef, Egg, Wheat,
   DollarSign, UserCheck, PieChart, TrendingUp,
-  Lightbulb, AlertCircle, CheckCircle2, Users, BookOpen,
-  Award, Globe, Shield, Star
+  Lightbulb, AlertCircle, CheckCircle2, Users,
+  Award, Globe, Star
 } from 'lucide-react';
 import './PublicWebsite.css';
 
@@ -311,7 +311,7 @@ export default function PublicWebsite({ onLogin, onNavigate }: PublicWebsiteProp
                 <div className="pub-feature-icon-circle" style={{background: bg, color}}><Icon size={22} /></div>
                 <h4 className="pub-feature-name">{name}</h4>
                 <p className="pub-feature-desc">{desc}</p>
-                <span className="pub-feature-badge">✓ Available</span>
+                <span className="pub-feature-badge">âœ“ Available</span>
               </div>
             </div>
           ))}
@@ -332,7 +332,7 @@ export default function PublicWebsite({ onLogin, onNavigate }: PublicWebsiteProp
           <div className="pub-section-header">
             <div className="pub-eyebrow-light"><Zap size={14} /> HOW IT WORKS</div>
             <h2 style={{color:'white'}}>From Sign-Up to Smart Farming in 5 Steps</h2>
-            <p className="pub-section-sub" style={{color:'rgba(255,255,255,0.82)'}}>Getting started is simple â€” your farm data starts working for you immediately.</p>
+            <p className="pub-section-sub" style={{color:'rgba(255,255,255,0.82)'}}>Getting started is simple Ã¢â‚¬â€ your farm data starts working for you immediately.</p>
           </div>
           <div className="pub-steps-container">
             <div className="pub-steps-line" />
@@ -377,7 +377,7 @@ export default function PublicWebsite({ onLogin, onNavigate }: PublicWebsiteProp
             <div className="founder-photo-wrapper">
               <img
                 src="/founder.jpg"
-                alt="Kagochi Brian Kahora â€” Founder and CEO of Kagochi Farm Enterprise"
+                alt="Kagochi Brian Kahora Ã¢â‚¬â€ Founder and CEO of Kagochi Farm Enterprise"
                 className="founder-photo"
               />
             </div>
@@ -390,7 +390,7 @@ export default function PublicWebsite({ onLogin, onNavigate }: PublicWebsiteProp
            
             <div className="pub-founder-contact">
     <Globe size={13} />
-    Contact: 0797 183 251 — Brian Kagochi
+    Contact: 0797 183 251 â€” Brian Kagochi
   </div>
             
 <div className="pub-founder-info">
