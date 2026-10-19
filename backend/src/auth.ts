@@ -56,8 +56,8 @@ export function verifySessionToken(token: string): { userId: string; tokenVersio
 export function sessionCookieOptions(): CookieOptions {
   return {
     httpOnly: true,
-    secure: config.cookieSecure,
-    sameSite: "strict",
+    secure: config.isProduction ? true : config.cookieSecure,
+    sameSite: config.isProduction ? "none" : "strict",
     path: "/",
     maxAge: config.sessionHours * 60 * 60 * 1000,
   };

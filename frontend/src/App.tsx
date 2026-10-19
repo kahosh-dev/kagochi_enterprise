@@ -26,7 +26,6 @@ import {
   login,
   register,
   logout,
-  getToken,
   googleSignIn,
 } from "./services/authService";
 
@@ -80,22 +79,20 @@ function App() {
      CHECK LOGIN
      ===================================================== */
 
-  useEffect(() => {
-    async function checkAuthentication() {
-      const token = getToken();
-      if (!token) { setLoadingAuth(false); return; }
-      try {
-        const currentUser = await getCurrentUser();
-        setUser(currentUser);
-      } catch {
-        logout();
-        setUser(null);
-      } finally {
-        setLoadingAuth(false);
-      }
+ useEffect(() => {
+  async function checkAuthentication() {
+    try {
+      const currentUser = await getCurrentUser();
+      setUser(currentUser);
+    } catch {
+      setUser(null);
+    } finally {
+      setLoadingAuth(false);
     }
-    checkAuthentication();
-  }, []);
+  }
+
+  checkAuthentication();
+}, []);
 
   /* =====================================================
      GOOGLE SIGN-IN BUTTON

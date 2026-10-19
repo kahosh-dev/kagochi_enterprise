@@ -9,8 +9,6 @@ import type {
   AdviceItem,
 } from "../types/farm";
 
-import { getToken } from "./authService";
-
 const API_URL = (import.meta.env.VITE_API_URL ?? "http://localhost:3001").replace(/\/+$/, "");
 
 const STORAGE_KEYS = {
@@ -19,40 +17,25 @@ const STORAGE_KEYS = {
   advice: "kukumifugo_advice",
 };
 
-function getAuthHeaders(): HeadersInit {
-  const token = getToken();
 
-  if (!token) {
-    throw new Error("You must be logged in.");
-  }
-
-  return {
-    "Content-Type": "application/json",
-    Authorization: `Bearer ${token}`,
-  };
-}
 
 async function apiRequest<T>(
   endpoint: string,
   options: RequestInit = {}
 ): Promise<T> {
-  const response = await fetch(
-    `${API_URL}${endpoint}`,
-    {
-      ...options,
-      headers: {
-        ...getAuthHeaders(),
-        ...(options.headers || {}),
-      },
-    }
-  );
+  const response = await fetch(`${API_URL}${endpoint}`, {
+    ...options,
+    credentials: "include",
+    headers: {
+      "Content-Type": "application/json",
+      ...(options.headers || {}),
+    },
+  });
 
   const data = await response.json();
 
   if (!response.ok) {
-    throw new Error(
-      data.error || "Request failed."
-    );
+    throw new Error(data.error || "Request failed.");
   }
 
   return data;
