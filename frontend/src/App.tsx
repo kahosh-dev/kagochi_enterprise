@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { Eye, EyeOff } from "lucide-react";
 import "./App.css";
 import PublicWebsite from "./views/PublicWebsite";
 
@@ -65,6 +66,7 @@ function App() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const[showPassword, setShowPassword] = useState(false);
   const [poultryCount, setPoultryCount] = useState(0);
   const [livestockCount, setLivestockCount] = useState(0);
   const [productionCount, setProductionCount] = useState(0);
@@ -273,16 +275,53 @@ function App() {
               />
             </div>
 
-            <div className="auth-field">
-              <label>Password</label>
-              <input
-                type="password"
-                placeholder="Enter your password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                onKeyDown={(e) => { if (e.key === "Enter") handleAuth(); }}
-              />
-            </div>
+           <div className="auth-field">
+  <label htmlFor="auth-password">Password</label>
+
+  <div style={{ position: "relative", width: "100%" }}>
+    <input
+      id="auth-password"
+      type={showPassword ? "text" : "password"}
+      placeholder="Enter your password"
+      value={password}
+      autoComplete={
+        authMode === "login" ? "current-password" : "new-password"
+      }
+      onChange={(e) => setPassword(e.target.value)}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") handleAuth();
+      }}
+      style={{
+        width: "100%",
+        boxSizing: "border-box",
+        paddingRight: "46px",
+      }}
+    />
+
+    <button
+      type="button"
+      onClick={() => setShowPassword((visible) => !visible)}
+      aria-label={showPassword ? "Hide password" : "Show password"}
+      aria-pressed={showPassword}
+      style={{
+        position: "absolute",
+        right: "10px",
+        top: "50%",
+        transform: "translateY(-50%)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: "4px",
+        border: "none",
+        background: "transparent",
+        color: "#64748b",
+        cursor: "pointer",
+      }}
+    >
+      {showPassword ? <EyeOff size={19} /> : <Eye size={19} />}
+    </button>
+  </div>
+</div>
 
             {authError && <div className="auth-error">{authError}</div>}
 
