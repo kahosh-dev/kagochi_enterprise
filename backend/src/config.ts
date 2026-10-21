@@ -30,6 +30,7 @@ export const config = {
   geminiApiKey: process.env.GEMINI_API_KEY?.trim() || null,
   geminiModel: process.env.GEMINI_MODEL?.trim() || "gemini-3.5-flash",
   databasePath: resolveDatabasePath(process.env.DATABASE_PATH),
+  databaseUrl: process.env.DATABASE_URL?.trim() || null,
   corsOrigins: (process.env.CORS_ORIGINS ?? "http://localhost:5173")
     .split(",")
     .map((origin) => origin.trim())

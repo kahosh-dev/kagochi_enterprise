@@ -6,11 +6,12 @@ import { FakeAi } from "./helpers.js";
 
 const { createApp } = await import("../src/app.js");
 const store = await import("../src/database.js");
+const { sqliteStore } = await import("../src/sqliteStore.js");
 const { hashPassword } = await import("../src/auth.js");
 
 const PASSWORD = "Correct-horse-42";
 const fakeAi = new FakeAi();
-const app = createApp({ ai: fakeAi });
+const app = createApp({ store: sqliteStore, ai: fakeAi });
 const today = new Date().toISOString().slice(0, 10);
 
 async function makeUser(email: string, role: "farmer" | "admin" = "farmer") {
@@ -254,7 +255,7 @@ describe("AI advisor", () => {
   });
 
   it("returns 503 with fallback when no AI key is configured", async () => {
-    const noAiApp = createApp({ ai: null });
+    const noAiApp = createApp({ store: sqliteStore, ai: null });
     const agent = request.agent(noAiApp);
     await agent.post("/api/auth/login").send({ email: "bob@example.com", password: PASSWORD });
     const res = await agent.post("/api/farm-advice").send({});
@@ -265,7 +266,7 @@ describe("AI advisor", () => {
 
 describe("rate limiting", () => {
   it("blocks repeated failed logins with 429", async () => {
-    const limitedApp = createApp({ ai: null });
+    const limitedApp = createApp({ store: sqliteStore, ai: null });
     let last = 0;
     for (let i = 0; i < 11; i++) {
       last = (await request(limitedApp).post("/api/auth/login").send({ email: "alice@example.com", password: "wrong-pass-1" })).status;

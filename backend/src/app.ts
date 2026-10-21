@@ -20,7 +20,6 @@ import {
   verifyPassword,
   verifySessionToken,
 } from "./auth.js";
-import * as store from "./database.js";
 import {
   adminCreateUserSchema,
   adminUpdateUserSchema,
@@ -34,7 +33,12 @@ import {
   validationDetails,
 } from "./schemas.js";
 import { type AiClient, buildAdvicePrompt, buildChatPrompt, createGeminiClient } from "./ai.js";
-import { buildFarmContext, loadFarmRecords, today } from "./farmContext.js";
+import type { FarmStore, UserRow, ResourceName } from "./store.js";
+import {
+  buildFarmContextFromStore,
+  loadFarmRecordsFromStore,
+  today,
+} from "./farmContextStore.js";
 import { makePeriod, summarizeFarm } from "./analytics.js";
 
 declare global {
@@ -47,11 +51,14 @@ declare global {
 }
 
 export interface AppOptions {
+  /** Database adapter selected by the server or tests. */
+  store: FarmStore;
+
   /** Inject a fake AI client in tests; defaults to Gemini when GEMINI_API_KEY is set. */
   ai?: AiClient | null;
 }
 
-function publicUser(row: store.UserRow): AuthUser {
+function publicUser(row: UserRow): AuthUser {
   return { id: row.id, name: row.name, email: row.email, role: row.role === "admin" ? "admin" : "farmer" };
 }
 
@@ -64,13 +71,16 @@ function parse<T>(schema: ZodType<T>, body: unknown, res: Response, message: str
   return result.data;
 }
 
-function isUniqueViolation(error: unknown) {
-  return (error as { code?: string })?.code === "SQLITE_CONSTRAINT_UNIQUE";
+function isUniqueViolation(error: unknown): boolean {
+  const code = (error as { code?: string })?.code;
+  return code === "SQLITE_CONSTRAINT_UNIQUE" || code === "23505";
 }
 
-export function createApp(options: AppOptions = {}) {
+export function createApp(options: AppOptions) {
+  const store = options.store;
   const ai = options.ai === undefined ? createGeminiClient() : options.ai;
   const app = express();
+
 
   app.disable("x-powered-by");
   app.use(helmet());
@@ -118,17 +128,37 @@ export function createApp(options: AppOptions = {}) {
   const api = express.Router();
   api.use(apiLimiter);
 
-  function requireAuth(req: Request, res: Response, next: NextFunction) {
-    const token = req.cookies?.[SESSION_COOKIE];
-    const session = typeof token === "string" ? verifySessionToken(token) : null;
-    const user = session ? store.findUserById(session.userId) : undefined;
-    if (!session || !user || user.token_version !== session.tokenVersion) {
-      if (token) res.clearCookie(SESSION_COOKIE, clearSessionCookieOptions());
-      res.status(401).json({ error: "Please log in to continue." });
-      return;
+    async function requireAuth(
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ) {
+    try {
+      const token = req.cookies?.[SESSION_COOKIE];
+      const session =
+        typeof token === "string" ? verifySessionToken(token) : null;
+
+      const user = session
+        ? await store.findUserById(session.userId)
+        : undefined;
+
+      if (
+        !session ||
+        !user ||
+        user.token_version !== session.tokenVersion
+      ) {
+        if (token) {
+          res.clearCookie(SESSION_COOKIE, clearSessionCookieOptions());
+        }
+        res.status(401).json({ error: "Please log in to continue." });
+        return;
+      }
+
+      req.user = publicUser(user);
+      next();
+    } catch (error) {
+      next(error);
     }
-    req.user = publicUser(user);
-    next();
   }
 
   function requireAdmin(req: Request, res: Response, next: NextFunction) {
@@ -139,7 +169,7 @@ export function createApp(options: AppOptions = {}) {
     next();
   }
 
-  function startSession(res: Response, user: store.UserRow) {
+function startSession(res: Response, user: UserRow) {
     res.cookie(SESSION_COOKIE, createSessionToken(user.id, user.token_version), sessionCookieOptions());
   }
 
@@ -154,7 +184,7 @@ export function createApp(options: AppOptions = {}) {
   api.post("/auth/login", loginLimiter, async (req, res) => {
     const data = parse(loginSchema, req.body, res, "Invalid email or password.");
     if (!data) return;
-    const user = store.findUserByEmail(data.email);
+    const user = await store.findUserByEmail(data.email);
     const passwordOk = await verifyPassword(data.password, user?.password_hash ?? DUMMY_PASSWORD_HASH);
     if (!user || !passwordOk) {
       res.status(401).json({ error: "Invalid email or password." });
@@ -171,24 +201,41 @@ export function createApp(options: AppOptions = {}) {
     }
     const data = parse(registerSchema, req.body, res, "Invalid registration details.");
     if (!data) return;
-    if (store.findUserByEmail(data.email)) {
+    if (await store.findUserByEmail(data.email)) {
       res.status(409).json({ error: "An account with this email already exists." });
       return;
     }
     const id = crypto.randomUUID();
-    store.createUser(id, data.name, data.email, await hashPassword(data.password));
-    if (data.farmName) {
-      store.createFarm(crypto.randomUUID(), id, data.farmName, data.location ?? "", data.phone ?? "");
-    }
-    const user = store.findUserById(id)!;
+    await store.createUser(
+  id,
+  data.name,
+  data.email,
+  await hashPassword(data.password),
+);
+
+if (data.farmName) {
+  await store.createFarm(
+    crypto.randomUUID(),
+    id,
+    data.farmName,
+    data.location ?? "",
+    data.phone ?? "",
+  );
+}
+
+const user = await store.findUserById(id);
+
+if (!user) {
+  throw new Error("The newly created user could not be retrieved.");
+}
     startSession(res, user);
     res.status(201).json({ user: publicUser(user) });
   });
 
-  api.post("/auth/logout", (req, res) => {
+  api.post("/auth/logout", async (req, res) => {
     const token = req.cookies?.[SESSION_COOKIE];
     const session = typeof token === "string" ? verifySessionToken(token) : null;
-    if (session) store.incrementTokenVersion(session.userId);
+    if (session) await store.incrementTokenVersion(session.userId);
     res.clearCookie(SESSION_COOKIE, clearSessionCookieOptions());
     res.json({ message: "Logged out." });
   });
@@ -199,56 +246,103 @@ export function createApp(options: AppOptions = {}) {
 
   /* ----------------------------- Farm records ---------------------------- */
 
-  for (const resource of Object.keys(resourceDefinitions) as store.ResourceName[]) {
+
+  for (const resource of Object.keys(resourceDefinitions) as ResourceName[]) {
     const { label, schema, toColumns } = resourceDefinitions[resource];
     const path = `/farm/${resource}`;
 
-    api.get(path, requireAuth, (req, res) => {
-      res.json({ [resource]: store.listRecords(resource, req.user!.id) });
+    api.get(path, requireAuth, async (req, res) => {
+      const records = await store.listRecords(resource, req.user!.id);
+      res.json({ [resource]: records });
     });
 
-    api.post(path, requireAuth, (req, res) => {
-      const data = parse(schema, req.body, res, `Invalid ${label.toLowerCase()} details.`);
+    api.post(path, requireAuth, async (req, res) => {
+      const data = parse(
+        schema,
+        req.body,
+        res,
+        `Invalid ${label.toLowerCase()} details.`,
+      );
       if (!data) return;
+
       const id = crypto.randomUUID();
-      store.createRecord(resource, id, req.user!.id, toColumns(data as never));
+
+      await store.createRecord(
+        resource,
+        id,
+        req.user!.id,
+        toColumns(data as never),
+      );
+
       res.status(201).json({ message: `${label} saved.`, id });
     });
 
-    api.put(`${path}/:id`, requireAuth, (req, res) => {
+    api.put(`${path}/:id`, requireAuth, async (req, res) => {
       const id = idParamSchema.safeParse(req.params.id);
+
       if (!id.success) {
         res.status(404).json({ error: `${label} not found.` });
         return;
       }
-      const data = parse(schema, req.body, res, `Invalid ${label.toLowerCase()} details.`);
+
+      const data = parse(
+        schema,
+        req.body,
+        res,
+        `Invalid ${label.toLowerCase()} details.`,
+      );
       if (!data) return;
-      const result = store.updateRecord(resource, id.data, req.user!.id, toColumns(data as never));
+
+      const result = await store.updateRecord(
+        resource,
+        id.data,
+        req.user!.id,
+        toColumns(data as never),
+      );
+
       if (result.changes === 0) {
         res.status(404).json({ error: `${label} not found.` });
         return;
       }
+
       res.json({ message: `${label} updated.` });
     });
 
-    api.delete(`${path}/:id`, requireAuth, (req, res) => {
+    api.delete(`${path}/:id`, requireAuth, async (req, res) => {
       const id = idParamSchema.safeParse(req.params.id);
-      const result = id.success ? store.deleteRecord(resource, id.data, req.user!.id) : { changes: 0 };
+
+      const result = id.success
+        ? await store.deleteRecord(resource, id.data, req.user!.id)
+        : { changes: 0 };
+
       if (result.changes === 0) {
         res.status(404).json({ error: `${label} not found.` });
         return;
       }
+
       res.json({ message: `${label} deleted.` });
     });
   }
 
+
   /* ------------------------------- Analytics ------------------------------ */
 
-  api.get("/farm/summary", requireAuth, (req, res) => {
-    const query = parse(summaryQuerySchema, req.query, res, "Invalid analytics period.");
+
+  api.get("/farm/summary", requireAuth, async (req, res) => {
+    const query = parse(
+      summaryQuerySchema,
+      req.query,
+      res,
+      "Invalid analytics period.",
+    );
     if (!query) return;
+
     const period = makePeriod(query.to ?? today(), query.days);
-    res.json({ summary: summarizeFarm(loadFarmRecords(req.user!.id), period) });
+    const records = await loadFarmRecordsFromStore(store, req.user!.id);
+
+    res.json({
+      summary: summarizeFarm(records, period),
+    });
   });
 
   /* ---------------------------------- AI --------------------------------- */
@@ -279,7 +373,11 @@ export function createApp(options: AppOptions = {}) {
     if (!data) return;
     if (!ai) return aiUnavailable(res, "advice");
     try {
-      const context = buildFarmContext(req.user!.id, data.periodDays ?? 30);
+      const context = await buildFarmContextFromStore(
+  store,
+  req.user!.id,
+  data.periodDays ?? 30,
+);
       const advice = await ai.generate(buildAdvicePrompt(context));
       res.json({ advice, fallback: false, periodDays: context.period.days });
     } catch (error) {
@@ -292,7 +390,7 @@ export function createApp(options: AppOptions = {}) {
     if (!data) return;
     if (!ai) return aiUnavailable(res, "answer");
     try {
-      const context = buildFarmContext(req.user!.id, 30);
+      const context = await buildFarmContextFromStore(store, req.user!.id, 30);
       const answer = await ai.generate(buildChatPrompt(context, data.question, data.history ?? []));
       res.json({ answer, fallback: false });
     } catch (error) {
@@ -302,37 +400,64 @@ export function createApp(options: AppOptions = {}) {
 
   /* -------------------------------- Admin -------------------------------- */
 
-  api.get("/admin/users", requireAuth, requireAdmin, (_req, res) => {
-    res.json({ users: store.getAllUsers() });
+
+  api.get("/admin/users", requireAuth, requireAdmin, async (_req, res) => {
+    res.json({ users: await store.getAllUsers() });
   });
 
   api.post("/admin/users", requireAuth, requireAdmin, async (req, res) => {
     const data = parse(adminCreateUserSchema, req.body, res, "Invalid account details.");
     if (!data) return;
-    if (store.findUserByEmail(data.email)) {
+
+    if (await store.findUserByEmail(data.email)) {
       res.status(409).json({ error: "An account with this email already exists." });
       return;
     }
+
     const id = crypto.randomUUID();
-    store.createUser(id, data.name, data.email, await hashPassword(data.password), data.role);
+
+    try {
+      await store.createUser(
+        id,
+        data.name,
+        data.email,
+        await hashPassword(data.password),
+        data.role,
+      );
+    } catch (error) {
+      if (isUniqueViolation(error)) {
+        res.status(409).json({ error: "An account with this email already exists." });
+        return;
+      }
+      throw error;
+    }
+
     res.status(201).json({ message: "Account created.", id });
   });
 
-  api.put("/admin/users/:id", requireAuth, requireAdmin, (req, res) => {
+  api.put("/admin/users/:id", requireAuth, requireAdmin, async (req, res) => {
     const data = parse(adminUpdateUserSchema, req.body, res, "Invalid account details.");
     if (!data) return;
+
     const id = String(req.params.id);
-    const target = store.findUserById(id);
+    const target = await store.findUserById(id);
+
     if (!target) {
       res.status(404).json({ error: "User not found." });
       return;
     }
-    if (target.role === "admin" && data.role !== "admin" && store.countAdmins() <= 1) {
+
+    if (
+      target.role === "admin" &&
+      data.role !== "admin" &&
+      (await store.countAdmins()) <= 1
+    ) {
       res.status(409).json({ error: "The last administrator cannot be demoted." });
       return;
     }
+
     try {
-      store.adminUpdateUser(id, data.name, data.email, data.role);
+      await store.adminUpdateUser(id, data.name, data.email, data.role);
     } catch (error) {
       if (isUniqueViolation(error)) {
         res.status(409).json({ error: "Another account already uses this email." });
@@ -340,22 +465,28 @@ export function createApp(options: AppOptions = {}) {
       }
       throw error;
     }
+
     res.json({ message: "User updated." });
   });
 
-  api.delete("/admin/users/:id", requireAuth, requireAdmin, (req, res) => {
+  api.delete("/admin/users/:id", requireAuth, requireAdmin, async (req, res) => {
     const id = String(req.params.id);
+
     if (id === req.user!.id) {
       res.status(409).json({ error: "You cannot delete your own account while logged in." });
       return;
     }
-    const result = store.adminDeleteUser(id);
+
+    const result = await store.adminDeleteUser(id);
+
     if (result.changes === 0) {
       res.status(404).json({ error: "User not found." });
       return;
     }
+
     res.json({ message: "User and their farm records deleted." });
   });
+
 
   app.use("/api", api);
   app.use("/api", (_req, res) => {

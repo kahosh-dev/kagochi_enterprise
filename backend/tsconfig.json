@@ -12,5 +12,9 @@
     "src/**/*.ts",
     "scripts/**/*.ts",
     "test/**/*.ts"
+  ],
+  "exclude": [
+    "scripts/inspect-source-databases.ts",
+    "scripts/review-wal-snapshot.ts"
   ]
 }
