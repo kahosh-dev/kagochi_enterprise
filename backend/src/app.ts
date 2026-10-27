@@ -181,6 +181,77 @@ function startSession(res: Response, user: UserRow) {
 
   /* --------------------------------- Auth -------------------------------- */
 
+  // Google Identity Services sends a signed ID token. Verify it with Google's
+  // tokeninfo endpoint and require the expected OAuth audience before trusting
+  // the email. Existing account/session handling remains the same as password login.
+  api.post("/auth/google", loginLimiter, async (req, res) => {
+    const credential =
+      typeof req.body?.credential === "string" ? req.body.credential.trim() : "";
+
+    if (!credential) {
+      res.status(400).json({ error: "Google credential is required." });
+      return;
+    }
+
+    if (!config.googleClientId) {
+      res.status(503).json({ error: "Google sign-in is not configured on the backend." });
+      return;
+    }
+
+    try {
+      const verification = await fetch(
+        `https://oauth2.googleapis.com/tokeninfo?id_token=${encodeURIComponent(credential)}`,
+      );
+
+      if (!verification.ok) {
+        res.status(401).json({ error: "Google could not verify this sign-in. Please try again." });
+        return;
+      }
+
+      const claims = (await verification.json()) as {
+        aud?: string;
+        iss?: string;
+        exp?: string;
+        email?: string;
+        email_verified?: string;
+      };
+
+      const expiresAt = Number(claims.exp);
+      const validIssuer =
+        claims.iss === "accounts.google.com" ||
+        claims.iss === "https://accounts.google.com";
+
+      if (
+        claims.aud !== config.googleClientId ||
+        !validIssuer ||
+        !Number.isFinite(expiresAt) ||
+        expiresAt <= Math.floor(Date.now() / 1000) ||
+        claims.email_verified !== "true" ||
+        typeof claims.email !== "string" ||
+        !claims.email.trim()
+      ) {
+        res.status(401).json({ error: "Google sign-in token is invalid or expired." });
+        return;
+      }
+
+      // Google sign-in is for an existing Kagochi account; it does not bypass
+      // the application's registration policy or create a new account silently.
+      const user = await store.findUserByEmail(claims.email);
+      if (!user) {
+        res.status(403).json({
+          error: "No Kagochi account exists for this Google email. Ask the farm administrator to create your account first.",
+        });
+        return;
+      }
+
+      startSession(res, user);
+      res.json({ user: publicUser(user) });
+    } catch (error) {
+      console.error("Google token verification failed:", (error as Error)?.message ?? "Unknown error");
+      res.status(502).json({ error: "Google sign-in could not be verified right now. Please try again." });
+    }
+  });
+
   api.post("/auth/login", loginLimiter, async (req, res) => {
     const data = parse(loginSchema, req.body, res, "Invalid email or password.");
     if (!data) return;
