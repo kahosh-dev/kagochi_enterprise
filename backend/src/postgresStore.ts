@@ -1,4 +1,3 @@
-
 import { postgresPool } from "./postgres.js";
 import { resourceTables } from "./store.js";
 import type {
@@ -27,11 +26,27 @@ function orderedValues(
   return resourceTables[resource].columns.map((column) => {
     const value = values[column];
 
-    if (value === undefined) {
-      throw new Error(`Missing value for ${column}`);
+    if (value !== undefined && value !== null) {
+      return value;
     }
 
-    return value;
+    if (column === "stage") return "adult";
+    if (column === "category") return "cow";
+    if (column === "sex") return "female";
+    if (column === "status") return "active";
+    if (column === "destination") return "produced";
+    if (
+      column === "purchase_price" ||
+      column === "selling_price" ||
+      column === "cost" ||
+      column === "booster_interval_days" ||
+      column === "age_days_due" ||
+      column === "quantity"
+    ) {
+      return 0;
+    }
+
+    return "";
   });
 }
 

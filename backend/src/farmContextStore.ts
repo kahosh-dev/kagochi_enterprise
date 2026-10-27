@@ -1,5 +1,5 @@
 import type { FarmStore, RecordRow } from "./store.js";
-import { makePeriod, summarizeFarm } from "./analytics.js";
+import { makePeriod, makeCustomPeriod, summarizeFarm } from "./analytics.js";
 
 export interface FarmRecords {
   poultry: RecordRow[];
@@ -7,21 +7,45 @@ export interface FarmRecords {
   production: RecordRow[];
   feeding: RecordRow[];
   expenses: RecordRow[];
+  income?: RecordRow[];
+  vaccinations?: RecordRow[];
+  vaccination_schedules?: RecordRow[];
 }
 
 export async function loadFarmRecordsFromStore(
   store: FarmStore,
   ownerId: string,
 ): Promise<FarmRecords> {
-  const [poultry, livestock, production, feeding, expenses] = await Promise.all([
+  const [
+    poultry,
+    livestock,
+    production,
+    feeding,
+    expenses,
+    income,
+    vaccinations,
+    vaccination_schedules,
+  ] = await Promise.all([
     store.listRecords("poultry", ownerId),
     store.listRecords("livestock", ownerId),
     store.listRecords("production", ownerId),
     store.listRecords("feeding", ownerId),
     store.listRecords("expenses", ownerId),
+    store.listRecords("income", ownerId),
+    store.listRecords("vaccinations", ownerId),
+    store.listRecords("vaccination_schedules", ownerId),
   ]);
 
-  return { poultry, livestock, production, feeding, expenses };
+  return {
+    poultry,
+    livestock,
+    production,
+    feeding,
+    expenses,
+    income,
+    vaccinations,
+    vaccination_schedules,
+  };
 }
 
 export function today(): string {
@@ -31,10 +55,15 @@ export function today(): string {
 export async function buildFarmContextFromStore(
   store: FarmStore,
   ownerId: string,
-  periodDays: number,
+  periodDays: number = 30,
+  to?: string,
+  from?: string,
 ) {
   const records = await loadFarmRecordsFromStore(store, ownerId);
-  const summary = summarizeFarm(records, makePeriod(today(), periodDays));
+  const targetTo = to || today();
+  const period = from ? makeCustomPeriod(from, targetTo) : makePeriod(targetTo, periodDays);
+
+  const summary = summarizeFarm(records, period);
   const { thresholds: _thresholds, ...context } = summary;
   return context;
 }

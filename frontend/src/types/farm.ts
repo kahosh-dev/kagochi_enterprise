@@ -13,6 +13,10 @@ export interface PoultryBatch {
   currentCount: number;
   ageWeeks: number;
   dateAdded: string;
+  stage?: string; // chicks, broilers, layers, kienyeji, growers, adult
+  source?: string;
+  purchasePrice?: number;
+  notes?: string;
 }
 
 export interface LivestockAnimal {
@@ -22,6 +26,12 @@ export interface LivestockAnimal {
   breed: string;
   ageYears: number;
   dateAdded: string;
+  category?: "calf" | "heifer" | "cow" | "bull" | string;
+  tagNumber?: string;
+  sex?: "female" | "male" | string;
+  damId?: string;
+  status?: "active" | "sold" | "transferred" | "deceased" | string;
+  notes?: string;
 }
 
 export interface ProductionRecord {
@@ -30,6 +40,9 @@ export interface ProductionRecord {
   quantity: number;
   unit: string;
   date: string;
+  destination?: "produced" | "sold" | "home_use" | "damaged" | string;
+  sellingPrice?: number;
+  notes?: string;
 }
 
 export interface FeedingRecord {
@@ -39,6 +52,9 @@ export interface FeedingRecord {
   quantity: number;
   unit: string;
   date: string;
+  cost?: number;
+  supplier?: string;
+  notes?: string;
 }
 
 export interface ExpenseRecord {
@@ -47,6 +63,43 @@ export interface ExpenseRecord {
   description: string;
   amount: number;
   date: string;
+}
+
+export interface IncomeRecord {
+  id: string;
+  category: string;
+  description: string;
+  amount: number;
+  date: string;
+  quantity?: number;
+  unit?: string;
+}
+
+export interface VaccinationRecord {
+  id: string;
+  species: "poultry" | "cattle" | string;
+  targetType: "batch" | "animal" | string;
+  targetId: string;
+  targetName: string;
+  vaccineName: string;
+  disease: string;
+  dateAdministered?: string;
+  dateDue: string;
+  dose?: string;
+  administeredBy?: string;
+  status: "scheduled" | "due" | "completed" | "overdue" | "cancelled" | string;
+  notes?: string;
+}
+
+export interface VaccinationSchedule {
+  id: string;
+  species: "poultry" | "cattle" | string;
+  category: string;
+  vaccineName: string;
+  targetDisease: string;
+  ageDaysDue: number;
+  boosterIntervalDays?: number;
+  notes?: string;
 }
 
 export interface ReminderItem {
@@ -63,4 +116,109 @@ export interface AdviceItem {
   message: string;
   priority: "low" | "medium" | "high";
   date: string;
+}
+
+export interface FarmSummaryData {
+  period: { from: string; to: string; days: number };
+  previousPeriod: { from: string; to: string; days: number };
+  population: {
+    poultry: {
+      batchCount: number;
+      initialBirds: number;
+      currentBirds: number;
+      layerBirds: number;
+      chickBirds: number;
+      broilerBirds: number;
+      totalLosses: number;
+      lossPercent: number | null;
+      batches: any[];
+      batchesAboveLossThreshold: number;
+    };
+    livestock: {
+      animalCount: number;
+      calvesCount: number;
+      heifersCount: number;
+      cowsCount: number;
+      bullsCount: number;
+      byType: { type: string; count: number }[];
+    };
+  };
+  production: {
+    lines: {
+      type: string;
+      unit: string;
+      total: number;
+      recordCount: number;
+      daysWithRecords: number;
+      averagePerRecordedDay: number | null;
+      previousTotal: number;
+      changePercent: number | null;
+    }[];
+    eggsProduced: number;
+    eggsSold: number;
+    milkProduced: number;
+    milkSold: number;
+    lastEggRecord: string | null;
+  };
+  feeding: {
+    totalsByUnit: {
+      unit: string;
+      total: number;
+      recordCount: number;
+      averagePerDay: number;
+      previousTotal: number;
+      changePercent: number | null;
+    }[];
+    byFeedType: { animalType: string; feedType: string; unit: string; total: number }[];
+    totalFeedCost: number;
+  };
+  expenses: {
+    currency: string;
+    total: number;
+    recordCount: number;
+    averagePerDay: number;
+    previousTotal: number;
+    changePercent: number | null;
+    byCategory: { category: string; total: number; sharePercent: number | null }[];
+  };
+  income: {
+    currency: string;
+    total: number;
+    recordCount: number;
+    averagePerDay: number;
+    previousTotal: number;
+    changePercent: number | null;
+    byCategory: { category: string; total: number; sharePercent: number | null }[];
+  };
+  vaccinations: {
+    dueTodayCount: number;
+    upcoming7DaysCount: number;
+    upcoming30DaysCount: number;
+    overdueCount: number;
+    completedCount: number;
+    dueToday: any[];
+    upcoming7Days: any[];
+    upcoming30Days: any[];
+    overdue: any[];
+  };
+  financial: {
+    revenueAvailable: boolean;
+    totalIncome: number;
+    totalExpenses: number;
+    operatingProfitOrLoss: number;
+    netMarginPercent: number | null;
+    isProfitable: boolean;
+    cashReceived: number;
+    cashPaid: number;
+    previousOperatingProfitOrLoss: number;
+    note: string;
+  };
+  indicators: Record<string, any>;
+  rules: {
+    id: string;
+    severity: "info" | "warning";
+    condition: string;
+    finding: string;
+    recommendation: string;
+  }[];
 }

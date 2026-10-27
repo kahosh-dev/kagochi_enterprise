@@ -39,7 +39,7 @@ import {
   loadFarmRecordsFromStore,
   today,
 } from "./farmContextStore.js";
-import { makePeriod, summarizeFarm } from "./analytics.js";
+import { makePeriod, makeCustomPeriod, summarizeFarm } from "./analytics.js";
 
 declare global {
   // eslint-disable-next-line @typescript-eslint/no-namespace
@@ -337,7 +337,10 @@ if (!user) {
     );
     if (!query) return;
 
-    const period = makePeriod(query.to ?? today(), query.days);
+    const toDate = query.to ?? today();
+    const period = query.from
+      ? makeCustomPeriod(query.from, toDate)
+      : makePeriod(toDate, query.days);
     const records = await loadFarmRecordsFromStore(store, req.user!.id);
 
     res.json({
@@ -374,10 +377,12 @@ if (!user) {
     if (!ai) return aiUnavailable(res, "advice");
     try {
       const context = await buildFarmContextFromStore(
-  store,
-  req.user!.id,
-  data.periodDays ?? 30,
-);
+        store,
+        req.user!.id,
+        data.periodDays ?? 30,
+        data.to,
+        data.from,
+      );
       const advice = await ai.generate(buildAdvicePrompt(context));
       res.json({ advice, fallback: false, periodDays: context.period.days });
     } catch (error) {
@@ -390,7 +395,13 @@ if (!user) {
     if (!data) return;
     if (!ai) return aiUnavailable(res, "answer");
     try {
-      const context = await buildFarmContextFromStore(store, req.user!.id, 30);
+      const context = await buildFarmContextFromStore(
+        store,
+        req.user!.id,
+        data.periodDays ?? 30,
+        data.to,
+        data.from,
+      );
       const answer = await ai.generate(buildChatPrompt(context, data.question, data.history ?? []));
       res.json({ answer, fallback: false });
     } catch (error) {

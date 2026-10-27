@@ -1,4 +1,4 @@
-﻿export interface UserRow {
+export interface UserRow {
   id: string;
   name: string;
   email: string;
@@ -19,28 +19,43 @@ export interface FarmRow {
 export const resourceTables = {
   poultry: {
     table: "poultry_batches",
-    columns: ["breed", "purpose", "initial_count", "current_count", "age_weeks", "date_added"],
+    columns: ["breed", "purpose", "initial_count", "current_count", "age_weeks", "date_added", "stage", "source", "purchase_price", "notes"],
     dateColumn: "date_added",
   },
   livestock: {
     table: "livestock",
-    columns: ["name", "type", "breed", "age_years", "date_added"],
+    columns: ["name", "type", "breed", "age_years", "date_added", "category", "tag_number", "sex", "dam_id", "status", "notes"],
     dateColumn: "date_added",
   },
   production: {
     table: "production",
-    columns: ["type", "quantity", "unit", "date"],
+    columns: ["type", "quantity", "unit", "date", "destination", "selling_price", "notes"],
     dateColumn: "date",
   },
   feeding: {
     table: "feeding",
-    columns: ["animal_type", "feed_type", "quantity", "unit", "date"],
+    columns: ["animal_type", "feed_type", "quantity", "unit", "date", "cost", "supplier", "notes"],
     dateColumn: "date",
   },
   expenses: {
     table: "expenses",
     columns: ["category", "description", "amount", "date"],
     dateColumn: "date",
+  },
+  income: {
+    table: "income",
+    columns: ["category", "description", "amount", "date", "quantity", "unit"],
+    dateColumn: "date",
+  },
+  vaccinations: {
+    table: "vaccinations",
+    columns: ["species", "target_type", "target_id", "target_name", "vaccine_name", "disease", "date_administered", "date_due", "dose", "administered_by", "status", "notes"],
+    dateColumn: "date_due",
+  },
+  vaccination_schedules: {
+    table: "vaccination_schedules",
+    columns: ["species", "category", "vaccine_name", "target_disease", "age_days_due", "booster_interval_days", "notes"],
+    dateColumn: "age_days_due",
   },
 } as const;
 

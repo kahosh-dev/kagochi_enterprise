@@ -1,26 +1,35 @@
-﻿import { config } from "./config.js";
+import { config } from "./config.js";
 import { createApp } from "./app.js";
 import { initializePostgresSchema, postgresPool } from "./postgres.js";
 import { postgresStore } from "./postgresStore.js";
+import { sqliteStore } from "./sqliteStore.js";
 
 async function main(): Promise<void> {
-  // Ensure the PostgreSQL tables exist before accepting requests.
-  await initializePostgresSchema();
+  const isPostgres = Boolean(config.databaseUrl);
 
-  const app = createApp({ store: postgresStore });
+  if (isPostgres) {
+    await initializePostgresSchema();
+  }
+
+  const store = isPostgres ? postgresStore : sqliteStore;
+  const app = createApp({ store });
 
   const server = app.listen(config.port, () => {
     console.log(`Kagochi Farm AI backend running on port ${config.port}`);
-    console.log("Database: PostgreSQL");
+    console.log(`Database: ${isPostgres ? "PostgreSQL" : "SQLite (" + config.databasePath + ")"}`);
   });
 
   const shutdown = (signal: string): void => {
     console.log(`${signal} received. Shutting down...`);
 
     server.close(() => {
-      void postgresPool.end().then(() => {
+      if (isPostgres && postgresPool) {
+        void postgresPool.end().then(() => {
+          process.exit(0);
+        });
+      } else {
         process.exit(0);
-      });
+      }
     });
   };
 
@@ -29,7 +38,7 @@ async function main(): Promise<void> {
 }
 
 main().catch((error: unknown) => {
-  console.error("Failed to start Kagochi with PostgreSQL.");
+  console.error("Failed to start Kagochi server.");
 
   if (error instanceof Error) {
     console.error(error.message);

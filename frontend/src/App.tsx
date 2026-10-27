@@ -15,6 +15,7 @@ import ExpensesView from "./views/ExpensesView";
 import PerformanceView from "./views/PerformanceView";
 import AdvisorView from "./views/AdvisorView";
 import AdminView from "./views/AdminView";
+import VaccinationsView from "./views/VaccinationsView";
 
 import {
   loadPoultry,
@@ -102,10 +103,14 @@ function App() {
      ===================================================== */
 
   useEffect(() => {
-    if (user || !GOOGLE_CLIENT_ID || !googleButtonRef.current) return;
+    // Only initialise when the login page is visible and the user is not signed in
+    if (user || publicView !== 'login' || !GOOGLE_CLIENT_ID) return;
+
+    // The ref might not be set yet on first paint — poll until it is
+    let cancelled = false;
 
     function initGoogle() {
-      if (!window.google || !googleButtonRef.current) return;
+      if (cancelled || !window.google || !googleButtonRef.current) return;
 
       window.google.accounts.id.initialize({
         client_id: GOOGLE_CLIENT_ID,
@@ -127,21 +132,29 @@ function App() {
       window.google.accounts.id.renderButton(googleButtonRef.current, {
         theme: "outline",
         size: "large",
-        width: "100%",
+        width: "360",
         text: "continue_with",
         shape: "rectangular",
+        logo_alignment: "left",
       });
     }
 
-    if (window.google) {
-      initGoogle();
-    } else {
-      const interval = setInterval(() => {
-        if (window.google) { initGoogle(); clearInterval(interval); }
-      }, 300);
-      return () => clearInterval(interval);
-    }
-  }, [user, googleButtonRef.current]);
+    // Retry every 300 ms until both the GIS script and the DOM ref are ready
+    const interval = setInterval(() => {
+      if (googleButtonRef.current && window.google) {
+        initGoogle();
+        clearInterval(interval);
+      }
+    }, 300);
+
+    // Also try immediately in case everything is already ready
+    initGoogle();
+
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, [user, publicView, authMode]); // re-run when login page opens or mode switches
 
   /* =====================================================
      LOAD DASHBOARD DATA
@@ -471,6 +484,7 @@ function App() {
         {activeView === "expenses" && <ExpensesView />}
         {activeView === "performance" && <PerformanceView />}
         {activeView === "advisor" && <AdvisorView />}
+        {activeView === "vaccinations" && <VaccinationsView />}
         {activeView === "admin" && <AdminView />}
       </div>
 

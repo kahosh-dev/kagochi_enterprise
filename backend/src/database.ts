@@ -1,5 +1,6 @@
 import Database from "better-sqlite3";
 import { config } from "./config.js";
+import { resourceTables, type ResourceName, type RecordValues, type RecordRow, type UserRow } from "./store.js";
 
 export const db = new Database(config.databasePath);
 
@@ -7,9 +8,9 @@ db.pragma("journal_mode = WAL");
 db.pragma("foreign_keys = ON");
 
 /*
- * Schema. Table and column names are unchanged from the original version so
- * existing kagochi.db files keep working; new columns are added by the
- * migration step below.
+ * Schema. Table and column names are backward-compatible so
+ * existing kagochi.db files keep working; new columns and tables are added
+ * non-destructively by the migration step below.
  */
 db.exec(`
   CREATE TABLE IF NOT EXISTS users (
@@ -39,6 +40,10 @@ db.exec(`
     current_count INTEGER NOT NULL,
     age_weeks INTEGER NOT NULL,
     date_added TEXT NOT NULL,
+    stage TEXT NOT NULL DEFAULT 'adult',
+    source TEXT NOT NULL DEFAULT '',
+    purchase_price REAL NOT NULL DEFAULT 0,
+    notes TEXT NOT NULL DEFAULT '',
     FOREIGN KEY (owner_id) REFERENCES users(id) ON DELETE CASCADE
   );
 
@@ -50,6 +55,12 @@ db.exec(`
     breed TEXT NOT NULL,
     age_years REAL NOT NULL,
     date_added TEXT NOT NULL,
+    category TEXT NOT NULL DEFAULT 'cow',
+    tag_number TEXT NOT NULL DEFAULT '',
+    sex TEXT NOT NULL DEFAULT 'female',
+    dam_id TEXT NOT NULL DEFAULT '',
+    status TEXT NOT NULL DEFAULT 'active',
+    notes TEXT NOT NULL DEFAULT '',
     FOREIGN KEY (owner_id) REFERENCES users(id) ON DELETE CASCADE
   );
 
@@ -60,6 +71,9 @@ db.exec(`
     quantity REAL NOT NULL,
     unit TEXT NOT NULL,
     date TEXT NOT NULL,
+    destination TEXT NOT NULL DEFAULT 'produced',
+    selling_price REAL NOT NULL DEFAULT 0,
+    notes TEXT NOT NULL DEFAULT '',
     FOREIGN KEY (owner_id) REFERENCES users(id) ON DELETE CASCADE
   );
 
@@ -71,6 +85,9 @@ db.exec(`
     quantity REAL NOT NULL,
     unit TEXT NOT NULL,
     date TEXT NOT NULL,
+    cost REAL NOT NULL DEFAULT 0,
+    supplier TEXT NOT NULL DEFAULT '',
+    notes TEXT NOT NULL DEFAULT '',
     FOREIGN KEY (owner_id) REFERENCES users(id) ON DELETE CASCADE
   );
 
@@ -83,24 +100,100 @@ db.exec(`
     date TEXT NOT NULL,
     FOREIGN KEY (owner_id) REFERENCES users(id) ON DELETE CASCADE
   );
+
+  CREATE TABLE IF NOT EXISTS income (
+    id TEXT PRIMARY KEY,
+    owner_id TEXT NOT NULL,
+    category TEXT NOT NULL,
+    description TEXT NOT NULL,
+    amount REAL NOT NULL,
+    date TEXT NOT NULL,
+    quantity REAL NOT NULL DEFAULT 0,
+    unit TEXT NOT NULL DEFAULT '',
+    FOREIGN KEY (owner_id) REFERENCES users(id) ON DELETE CASCADE
+  );
+
+  CREATE TABLE IF NOT EXISTS vaccinations (
+    id TEXT PRIMARY KEY,
+    owner_id TEXT NOT NULL,
+    species TEXT NOT NULL,
+    target_type TEXT NOT NULL,
+    target_id TEXT NOT NULL,
+    target_name TEXT NOT NULL,
+    vaccine_name TEXT NOT NULL,
+    disease TEXT NOT NULL,
+    date_administered TEXT NOT NULL DEFAULT '',
+    date_due TEXT NOT NULL,
+    dose TEXT NOT NULL DEFAULT '',
+    administered_by TEXT NOT NULL DEFAULT '',
+    status TEXT NOT NULL DEFAULT 'scheduled',
+    notes TEXT NOT NULL DEFAULT '',
+    FOREIGN KEY (owner_id) REFERENCES users(id) ON DELETE CASCADE
+  );
+
+  CREATE TABLE IF NOT EXISTS vaccination_schedules (
+    id TEXT PRIMARY KEY,
+    owner_id TEXT NOT NULL,
+    species TEXT NOT NULL,
+    category TEXT NOT NULL,
+    vaccine_name TEXT NOT NULL,
+    target_disease TEXT NOT NULL,
+    age_days_due INTEGER NOT NULL,
+    booster_interval_days INTEGER NOT NULL DEFAULT 0,
+    notes TEXT NOT NULL DEFAULT '',
+    FOREIGN KEY (owner_id) REFERENCES users(id) ON DELETE CASCADE
+  );
 `);
 
 /*
  * Non-destructive migrations: only add what is missing.
- * role: "farmer" (default) or "admin".
- * token_version: incremented on logout/password reset to revoke sessions.
  */
 function hasColumn(table: string, column: string): boolean {
-  const columns = db.prepare(`PRAGMA table_info(${table})`).all() as { name: string }[];
-  return columns.some((c) => c.name === column);
+  try {
+    const columns = db.prepare(`PRAGMA table_info(${table})`).all() as { name: string }[];
+    return columns.some((c) => c.name === column);
+  } catch {
+    return false;
+  }
 }
 
-if (!hasColumn("users", "role")) {
-  db.exec("ALTER TABLE users ADD COLUMN role TEXT NOT NULL DEFAULT 'farmer'");
+function ensureColumn(table: string, column: string, def: string) {
+  if (!hasColumn(table, column)) {
+    try {
+      db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${def}`);
+    } catch {
+      // ignore if already exists
+    }
+  }
 }
-if (!hasColumn("users", "token_version")) {
-  db.exec("ALTER TABLE users ADD COLUMN token_version INTEGER NOT NULL DEFAULT 0");
-}
+
+// User migrations
+ensureColumn("users", "role", "TEXT NOT NULL DEFAULT 'farmer'");
+ensureColumn("users", "token_version", "INTEGER NOT NULL DEFAULT 0");
+
+// Poultry migrations
+ensureColumn("poultry_batches", "stage", "TEXT NOT NULL DEFAULT 'adult'");
+ensureColumn("poultry_batches", "source", "TEXT NOT NULL DEFAULT ''");
+ensureColumn("poultry_batches", "purchase_price", "REAL NOT NULL DEFAULT 0");
+ensureColumn("poultry_batches", "notes", "TEXT NOT NULL DEFAULT ''");
+
+// Livestock migrations
+ensureColumn("livestock", "category", "TEXT NOT NULL DEFAULT 'cow'");
+ensureColumn("livestock", "tag_number", "TEXT NOT NULL DEFAULT ''");
+ensureColumn("livestock", "sex", "TEXT NOT NULL DEFAULT 'female'");
+ensureColumn("livestock", "dam_id", "TEXT NOT NULL DEFAULT ''");
+ensureColumn("livestock", "status", "TEXT NOT NULL DEFAULT 'active'");
+ensureColumn("livestock", "notes", "TEXT NOT NULL DEFAULT ''");
+
+// Production migrations
+ensureColumn("production", "destination", "TEXT NOT NULL DEFAULT 'produced'");
+ensureColumn("production", "selling_price", "REAL NOT NULL DEFAULT 0");
+ensureColumn("production", "notes", "TEXT NOT NULL DEFAULT ''");
+
+// Feeding migrations
+ensureColumn("feeding", "cost", "REAL NOT NULL DEFAULT 0");
+ensureColumn("feeding", "supplier", "TEXT NOT NULL DEFAULT ''");
+ensureColumn("feeding", "notes", "TEXT NOT NULL DEFAULT ''");
 
 db.exec(`
   CREATE INDEX IF NOT EXISTS idx_poultry_owner ON poultry_batches(owner_id, date_added);
@@ -108,21 +201,14 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_production_owner ON production(owner_id, date);
   CREATE INDEX IF NOT EXISTS idx_feeding_owner ON feeding(owner_id, date);
   CREATE INDEX IF NOT EXISTS idx_expenses_owner ON expenses(owner_id, date);
+  CREATE INDEX IF NOT EXISTS idx_income_owner ON income(owner_id, date);
+  CREATE INDEX IF NOT EXISTS idx_vaccinations_owner ON vaccinations(owner_id, date_due);
+  CREATE INDEX IF NOT EXISTS idx_vac_schedules_owner ON vaccination_schedules(owner_id, species, category);
 `);
 
 /* ------------------------------------------------------------------ */
 /* Users                                                              */
 /* ------------------------------------------------------------------ */
-
-export interface UserRow {
-  id: string;
-  name: string;
-  email: string;
-  password_hash: string;
-  role: string;
-  token_version: number;
-  created_at: string;
-}
 
 const userColumns = "id, name, email, password_hash, role, token_version, created_at";
 
@@ -202,45 +288,10 @@ export function findFarmByOwnerId(ownerId: string) {
 }
 
 /* ------------------------------------------------------------------ */
-/* Farm records (poultry, livestock, production, feeding, expenses)   */
+/* Farm records                                                       */
 /* ------------------------------------------------------------------ */
 
-/*
- * Every farm record table has the same shape: id, owner_id, data columns.
- * Table and column names below are fixed constants (never user input), and
- * every query filters by owner_id so a user can only touch their own rows.
- */
-export const resourceTables = {
-  poultry: {
-    table: "poultry_batches",
-    columns: ["breed", "purpose", "initial_count", "current_count", "age_weeks", "date_added"],
-    dateColumn: "date_added",
-  },
-  livestock: {
-    table: "livestock",
-    columns: ["name", "type", "breed", "age_years", "date_added"],
-    dateColumn: "date_added",
-  },
-  production: {
-    table: "production",
-    columns: ["type", "quantity", "unit", "date"],
-    dateColumn: "date",
-  },
-  feeding: {
-    table: "feeding",
-    columns: ["animal_type", "feed_type", "quantity", "unit", "date"],
-    dateColumn: "date",
-  },
-  expenses: {
-    table: "expenses",
-    columns: ["category", "description", "amount", "date"],
-    dateColumn: "date",
-  },
-} as const;
-
-export type ResourceName = keyof typeof resourceTables;
-export type RecordValues = Record<string, string | number>;
-export type RecordRow = { id: string } & Record<string, string | number>;
+export { resourceTables, type ResourceName, type RecordValues, type RecordRow, type UserRow };
 
 export function listRecords(resource: ResourceName, ownerId: string): RecordRow[] {
   const { table, columns, dateColumn } = resourceTables[resource];
@@ -252,8 +303,23 @@ export function listRecords(resource: ResourceName, ownerId: string): RecordRow[
 function orderedValues(resource: ResourceName, values: RecordValues) {
   return resourceTables[resource].columns.map((column) => {
     const value = values[column];
-    if (value === undefined) throw new Error(`Missing value for ${column}`);
-    return value;
+    if (value !== undefined && value !== null) return value;
+    if (column === "stage") return "adult";
+    if (column === "category") return "cow";
+    if (column === "sex") return "female";
+    if (column === "status") return "active";
+    if (column === "destination") return "produced";
+    if (
+      column === "purchase_price" ||
+      column === "selling_price" ||
+      column === "cost" ||
+      column === "booster_interval_days" ||
+      column === "age_days_due" ||
+      column === "quantity"
+    ) {
+      return 0;
+    }
+    return "";
   });
 }
 

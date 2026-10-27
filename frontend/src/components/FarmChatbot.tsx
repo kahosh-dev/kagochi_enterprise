@@ -1,344 +1,234 @@
 import { useState } from "react";
-
-import {
-  loadPoultry,
-  loadLivestock,
-  loadProduction,
-  loadFeeding,
-  loadExpenses,
-} from "../services/storage";
-
 import {
   chatWithFarmAI,
   type ChatMessage,
-  type FarmAIData,
 } from "../services/aiService";
+import {
+  Sparkles,
+  Send,
+  Calendar,
+  AlertCircle,
+  RotateCcw,
+  Bot,
+  User,
+} from "lucide-react";
 
-async function getFarmData(): Promise<FarmAIData> {
-  const [
-    poultry,
-    livestock,
-    production,
-    feeding,
-    expenses,
-  ] = await Promise.all([
-    loadPoultry(),
-    loadLivestock(),
-    loadProduction(),
-    loadFeeding(),
-    loadExpenses(),
-  ]);
+type ChatPeriod = "today" | "yesterday" | "7d" | "30d" | "month";
 
-  return {
-    poultry,
-    livestock,
-    production,
-    feeding,
-    expenses,
-  };
-}
-
-function FarmChatbot() {
+export default function FarmChatbot() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [question, setQuestion] = useState("");
+  const [period, setPeriod] = useState<ChatPeriod>("today");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  async function sendMessage() {
-    const trimmedQuestion = question.trim();
+  const todayStr = new Date().toISOString().slice(0, 10);
 
-    if (!trimmedQuestion || loading) {
-      return;
+  function getPeriodOptions(p: ChatPeriod) {
+    if (p === "today") return { periodDays: 1, to: todayStr, from: todayStr };
+    if (p === "yesterday") {
+      const y = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+      return { periodDays: 1, to: y, from: y };
     }
+    if (p === "7d") return { periodDays: 7, to: todayStr };
+    if (p === "30d") return { periodDays: 30, to: todayStr };
+    if (p === "month") {
+      const startOfMonth = `${todayStr.slice(0, 7)}-01`;
+      return { to: todayStr, from: startOfMonth };
+    }
+    return { periodDays: 1, to: todayStr };
+  }
+
+  async function handleSend(customText?: string) {
+    const q = (customText || question).trim();
+    if (!q || loading) return;
 
     setError("");
-
-    const userMessage: ChatMessage = {
-      role: "user",
-      text: trimmedQuestion,
-    };
-
-    const updatedMessages = [...messages, userMessage];
-
-    setMessages(updatedMessages);
+    const userMsg: ChatMessage = { role: "user", text: q };
+    const updated = [...messages, userMsg];
+    setMessages(updated);
     setQuestion("");
     setLoading(true);
 
     try {
-      const farmData = await getFarmData();
-
-      const answer = await chatWithFarmAI(
-        trimmedQuestion,
-        farmData,
-        messages
-      );
-
-      const assistantMessage: ChatMessage = {
-        role: "assistant",
-        text: answer,
-      };
-
-      setMessages([
-        ...updatedMessages,
-        assistantMessage,
-      ]);
-    } catch (error) {
-      console.error("Farm AI chat error:", error);
-
-      setError(
-        error instanceof Error
-          ? error.message
-          : "Unable to contact the AI assistant."
-      );
+      const opts = getPeriodOptions(period);
+      const answer = await chatWithFarmAI(q, undefined, messages, opts);
+      setMessages([...updated, { role: "assistant", text: answer }]);
+    } catch (err) {
+      console.error(err);
+      setError(err instanceof Error ? err.message : "Failed to get AI response.");
     } finally {
       setLoading(false);
     }
   }
 
-  function askSuggestedQuestion(text: string) {
-    setQuestion(text);
-  }
-
-  function handleKeyDown(
-    event: React.KeyboardEvent<HTMLInputElement>
-  ) {
-    if (event.key === "Enter") {
-      sendMessage();
-    }
-  }
-
-  function clearChat() {
-    setMessages([]);
-    setError("");
-    setQuestion("");
-  }
-
   return (
-    <section className="farm-chatbot">
-      {/* Header */}
-      <div className="farm-chat-header">
-        <div className="farm-chat-title">
-          <div className="farm-chat-avatar">
-            <img src="https://images.unsplash.com/photo-1677442135703-1787eea5ce01?w=80&q=70" alt="AI" className="chat-avatar-img" />
+    <div className="card-box farm-chatbot-container">
+      {/* Chat header */}
+      <div className="chat-header-bar">
+        <div className="chat-header-left">
+          <div className="chat-avatar">
+            <Sparkles size={20} color="#16a34a" />
           </div>
-
           <div>
-            <span className="farm-chat-eyebrow">
-              KAGOCHI FARM AI
+            <h4 style={{ margin: 0, fontSize: 16 }}>Farm Assistant Chat</h4>
+            <span style={{ fontSize: 12, color: "#64748b" }}>
+              Grounded in real recorded farm data only. Never fabricates figures.
             </span>
-
-            <h2>Farm AI Assistant</h2>
-
-            <p>
-              Ask questions and get insights from your farm records.
-            </p>
           </div>
         </div>
 
-        <div className="farm-chat-online">
-          <span></span>
-          AI Online
-        </div>
-      </div>
-
-      {/* Chat area */}
-      <div className="farm-chat-body">
-
-        {/* Empty state */}
-        {messages.length === 0 && (
-          <div className="farm-chat-welcome">
-
-            <div className="farm-chat-welcome-icon">
-              <img src="https://images.unsplash.com/photo-1677442135703-1787eea5ce01?w=80&q=70" alt="AI" className="chat-welcome-img" />
-            </div>
-
-            <h3>
-              Hello, Farmer! 👋
-            </h3>
-
-            <p>
-              I can help you understand your poultry,
-              livestock, feeding, production and expense
-              records.
-            </p>
-
-            <div className="farm-chat-suggestions">
-
-              <button type="button" onClick={() => askSuggestedQuestion("How are my poultry performing?")}>
-                <img src="https://images.unsplash.com/photo-1548550023-2bdb3c5beed7?w=80&q=70" alt="Poultry" className="suggestion-img" />
-                <div><strong>Poultry Performance</strong><small>Analyse my poultry records</small></div>
-              </button>
-
-              <button type="button" onClick={() => askSuggestedQuestion("Which part of my farm needs more attention?")}>
-                <img src="https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=80&q=70" alt="Analytics" className="suggestion-img" />
-                <div><strong>Farm Attention</strong><small>Find areas that need attention</small></div>
-              </button>
-
-              <button type="button" onClick={() => askSuggestedQuestion("How can I monitor my farm expenses?")}>
-                <img src="https://images.unsplash.com/photo-1554224155-6726b3ff858f?w=80&q=70" alt="Expenses" className="suggestion-img" />
-                <div><strong>Farm Expenses</strong><small>Understand my farm costs</small></div>
-              </button>
-
-              <button type="button" onClick={() => askSuggestedQuestion("How can I improve my farm production?")}>
-                <img src="https://images.unsplash.com/photo-1506976785307-8732e854ad03?w=80&q=70" alt="Production" className="suggestion-img" />
-                <div><strong>Production</strong><small>Improve farm production</small></div>
-              </button>
-
-            </div>
-          </div>
-        )}
-
-        {/* Messages */}
-        {messages.length > 0 && (
-          <div className="farm-chat-messages">
-
-            {messages.map((message, index) => (
-              <div
-                key={index}
-                className={`farm-chat-message ${
-                  message.role === "user"
-                    ? "user-message"
-                    : "assistant-message"
-                }`}
-              >
-
-                <div className="farm-message-avatar">
-                  <img
-                    src={message.role === "user"
-                      ? "https://images.unsplash.com/photo-1500382017468-9049fed747ef?w=80&q=70"
-                      : "https://images.unsplash.com/photo-1677442135703-1787eea5ce01?w=80&q=70"}
-                    alt={message.role === "user" ? "You" : "AI"}
-                    className="chat-msg-avatar-img"
-                  />
-                </div>
-
-                <div className="farm-message-content">
-
-                  <span className="farm-message-name">
-                    {message.role === "user"
-                      ? "You"
-                      : "Kagochi Farm AI"}
-                  </span>
-
-                  <div className="farm-message-bubble">
-                    {message.text
-                      .split("\n")
-                      .map((line, lineIndex) => (
-                        <p key={lineIndex}>
-                          {line || "\u00A0"}
-                        </p>
-                      ))}
-                  </div>
-
-                </div>
-              </div>
-            ))}
-
-            {/* AI thinking */}
-            {loading && (
-              <div className="farm-chat-message assistant-message">
-
-                <div className="farm-message-avatar">
-                  <img src="https://images.unsplash.com/photo-1677442135703-1787eea5ce01?w=80&q=70" alt="AI" className="chat-msg-avatar-img" />
-                </div>
-
-                <div className="farm-message-content">
-
-                  <span className="farm-message-name">
-                    Kagochi Farm AI
-                  </span>
-
-                  <div className="farm-message-bubble thinking-bubble">
-                    <div className="farm-thinking">
-                      <span></span>
-                      <span></span>
-                      <span></span>
-                    </div>
-
-                    <small>
-                      Analysing your farm...
-                    </small>
-                  </div>
-
-                </div>
-              </div>
-            )}
-
-          </div>
-        )}
-
-        {/* Error */}
-        {error && (
-          <div className="farm-chat-error">
-            <span>⚠️</span>
-
-            <div>
-              <strong>AI connection problem</strong>
-              <p>{error}</p>
-            </div>
-
-            <button
-              type="button"
-              onClick={() => setError("")}
-            >
-              ×
-            </button>
-          </div>
-        )}
-
-      </div>
-
-      {/* Input area */}
-      <div className="farm-chat-footer">
-
-        {messages.length > 0 && (
-          <button
-            type="button"
-            className="farm-clear-chat"
-            onClick={clearChat}
-          >
-            🗑 Clear chat
-          </button>
-        )}
-
-        <div className="farm-chat-input-wrapper">
-
-          <span className="farm-input-icon">
-            <img src="https://images.unsplash.com/photo-1677442135703-1787eea5ce01?w=80&q=70" alt="AI" className="input-icon-img" />
+        {/* Period Selector Chips */}
+        <div className="chat-period-chips">
+          <span style={{ fontSize: 12, color: "#64748b", display: "flex", alignItems: "center", gap: 4 }}>
+            <Calendar size={13} /> Analyzing:
           </span>
-
-          <input
-            type="text"
-            value={question}
-            onChange={(event) =>
-              setQuestion(event.target.value)
-            }
-            onKeyDown={handleKeyDown}
-            placeholder="Ask your farm assistant..."
-            disabled={loading}
-          />
-
           <button
             type="button"
-            className="farm-send-button"
-            onClick={sendMessage}
-            disabled={
-              loading || !question.trim()
-            }
-            aria-label="Send message"
+            className={`period-btn ${period === "today" ? "active" : ""}`}
+            onClick={() => setPeriod("today")}
           >
-            {loading ? "..." : "➤"}
+            Today
           </button>
-
+          <button
+            type="button"
+            className={`period-btn ${period === "yesterday" ? "active" : ""}`}
+            onClick={() => setPeriod("yesterday")}
+          >
+            Yesterday
+          </button>
+          <button
+            type="button"
+            className={`period-btn ${period === "7d" ? "active" : ""}`}
+            onClick={() => setPeriod("7d")}
+          >
+            Last 7d
+          </button>
+          <button
+            type="button"
+            className={`period-btn ${period === "month" ? "active" : ""}`}
+            onClick={() => setPeriod("month")}
+          >
+            This Month
+          </button>
         </div>
-
-        <small className="farm-chat-hint">
-          Press <strong>Enter</strong> to send
-        </small>
-
       </div>
-    </section>
+
+      {/* Suggested Questions */}
+      <div className="suggested-questions-row">
+        <span className="suggested-label">Common questions:</span>
+        <button
+          type="button"
+          className="suggested-chip"
+          onClick={() => handleSend("Did my farm make a profit today?")}
+        >
+          💰 Did my farm make a profit?
+        </button>
+        <button
+          type="button"
+          className="suggested-chip"
+          onClick={() => handleSend("Which expenses were unusually high?")}
+        >
+          💸 Which expenses were highest?
+        </button>
+        <button
+          type="button"
+          className="suggested-chip"
+          onClick={() => handleSend("Which vaccinations are due today or overdue?")}
+        >
+          💉 Are any vaccinations due?
+        </button>
+        <button
+          type="button"
+          className="suggested-chip"
+          onClick={() => handleSend("How is egg and milk production doing?")}
+        >
+          🥚 Egg & Milk production trends?
+        </button>
+        <button
+          type="button"
+          className="suggested-chip"
+          onClick={() => handleSend("What are the key things I should check tomorrow?")}
+        >
+          📋 What should I check tomorrow?
+        </button>
+      </div>
+
+      {/* Chat Messages */}
+      <div className="chat-messages-scroll">
+        {messages.length === 0 ? (
+          <div className="chat-empty-state">
+            <Bot size={40} color="#94a3b8" />
+            <p><strong>Ask your Farm Assistant anything about your farm records.</strong></p>
+            <p style={{ fontSize: 13, color: "#64748b" }}>
+              Select a question above or type your own question below.
+            </p>
+          </div>
+        ) : (
+          messages.map((m, idx) => (
+            <div key={idx} className={`chat-message ${m.role === "user" ? "user-msg" : "bot-msg"}`}>
+              <div className="msg-avatar">
+                {m.role === "user" ? <User size={16} /> : <Bot size={16} />}
+              </div>
+              <div className="msg-bubble">
+                <p style={{ whiteSpace: "pre-wrap", margin: 0 }}>{m.text}</p>
+              </div>
+            </div>
+          ))
+        )}
+
+        {loading && (
+          <div className="chat-message bot-msg">
+            <div className="msg-avatar"><Bot size={16} /></div>
+            <div className="msg-bubble loading-bubble">
+              <span className="typing-dot" />
+              <span className="typing-dot" />
+              <span className="typing-dot" />
+              <span style={{ fontSize: 12, marginLeft: 8, color: "#64748b" }}>Analyzing records...</span>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {error && (
+        <div className="daily-alert error-alert" style={{ margin: "8px 16px" }}>
+          <AlertCircle size={15} /> <span>{error}</span>
+        </div>
+      )}
+
+      {/* Chat Input Bar */}
+      <div className="chat-input-row">
+        <input
+          type="text"
+          className="chat-text-input"
+          placeholder="Ask a question about your farm (e.g. How much did I spend on feed?)..."
+          value={question}
+          onChange={(e) => setQuestion(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") handleSend();
+          }}
+          disabled={loading}
+        />
+        <button
+          type="button"
+          className="btn-chat-send"
+          onClick={() => handleSend()}
+          disabled={loading || !question.trim()}
+          aria-label="Send"
+        >
+          <Send size={18} />
+        </button>
+        {messages.length > 0 && (
+          <button
+            type="button"
+            className="btn-chat-clear"
+            onClick={() => setMessages([])}
+            title="Reset conversation"
+          >
+            <RotateCcw size={16} />
+          </button>
+        )}
+      </div>
+    </div>
   );
 }
-
-export default FarmChatbot;
