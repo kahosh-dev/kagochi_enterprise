@@ -67,7 +67,10 @@ function App() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const[showPassword, setShowPassword] = useState(false);
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [registrationEnabled, setRegistrationEnabled] = useState<boolean | null>(null);
   const [poultryCount, setPoultryCount] = useState(0);
   const [livestockCount, setLivestockCount] = useState(0);
   const [productionCount, setProductionCount] = useState(0);
@@ -77,6 +80,23 @@ function App() {
   const [publicView, setPublicView] = useState<'home' | 'about' | 'features' | 'how-it-works' | 'founder' | 'login'>('home');
 
   const googleButtonRef = useRef<HTMLDivElement>(null);
+  const authApiUrl = (import.meta.env.VITE_API_URL ?? "http://localhost:3001").replace(/\/+$/, "");
+
+  useEffect(() => {
+    let active = true;
+    fetch(`${authApiUrl}/api/health`, { credentials: "include" })
+      .then((response) => {
+        if (!response.ok) throw new Error("Unable to check registration settings.");
+        return response.json() as Promise<{ registrationEnabled?: boolean }>;
+      })
+      .then((data) => {
+        if (active) setRegistrationEnabled(data.registrationEnabled === true);
+      })
+      .catch(() => {
+        if (active) setRegistrationEnabled(false);
+      });
+    return () => { active = false; };
+  }, [authApiUrl]);
 
   /* =====================================================
      CHECK LOGIN
@@ -181,13 +201,31 @@ function App() {
 
   async function handleAuth() {
     setAuthError("");
-    if (!email.trim() || !password.trim()) {
-      setAuthError("Please enter your email and password.");
+    if (!email.trim() || !password) {
+      setAuthError("Enter your email address and password to continue.");
       return;
     }
-    if (authMode === "register" && !name.trim()) {
-      setAuthError("Please enter your name.");
+    if (!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email.trim())) {
+      setAuthError("Enter a valid email address.");
       return;
+    }
+    if (authMode === "register") {
+      if (registrationEnabled !== true) {
+        setAuthError("Self-registration is currently disabled. Ask the farm administrator to create your account.");
+        return;
+      }
+      if (name.trim().length < 2) {
+        setAuthError("Enter your name (at least 2 characters).");
+        return;
+      }
+      if (password.length < 10 || password.length > 128 || !/[A-Za-z]/.test(password) || !/[0-9]/.test(password)) {
+        setAuthError("Use 10–128 characters and include at least one letter and one number.");
+        return;
+      }
+      if (password !== confirmPassword) {
+        setAuthError("Your passwords do not match.");
+        return;
+      }
     }
     try {
       setAuthLoading(true);
@@ -197,9 +235,12 @@ function App() {
           : await login(email.trim(), password);
       if (response.user) setUser(response.user);
       else { const u = await getCurrentUser(); setUser(u); }
-      setName(""); setEmail(""); setPassword("");
+      setName("");
+      setEmail("");
+      setPassword("");
+      setConfirmPassword("");
     } catch (error) {
-      setAuthError(error instanceof Error ? error.message : "Authentication failed.");
+      setAuthError(error instanceof Error ? error.message : "Authentication failed. Check your connection and try again.");
     } finally {
       setAuthLoading(false);
     }
@@ -246,7 +287,7 @@ function App() {
           <FarmBackground />
 
           {/* Frosted-glass form card */}
-          <div className="auth-card" role="main">
+          <div className="auth-card" role="main" aria-labelledby="auth-title">
 
             {/* Back to website link */}
             <button
@@ -271,7 +312,7 @@ function App() {
 
             {/* Heading */}
             <div className="auth-heading-block">
-              <h1 className="auth-title">
+              <h1 className="auth-title" id="auth-title">
                 {isRegister ? "Create Account" : "Welcome Back"}
               </h1>
               <p className="auth-description">
@@ -292,6 +333,8 @@ function App() {
                   value={name}
                   autoComplete="name"
                   onChange={(e) => setName(e.target.value)}
+                  required
+                  maxLength={100}
                 />
               </div>
             )}
@@ -306,6 +349,8 @@ function App() {
                 value={email}
                 autoComplete="email"
                 onChange={(e) => setEmail(e.target.value)}
+                required
+                maxLength={150}
               />
             </div>
 
@@ -320,7 +365,10 @@ function App() {
                   value={password}
                   autoComplete={isRegister ? "new-password" : "current-password"}
                   onChange={(e) => setPassword(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === "Enter") handleAuth(); }}
+                  onKeyDown={(e) => { if (e.key === "Enter" && (!isRegister || confirmPassword)) handleAuth(); }}
+                  required
+                  maxLength={128}
+                  aria-describedby={isRegister ? "auth-password-requirements" : undefined}
                 />
                 <button
                   type="button"
@@ -332,6 +380,11 @@ function App() {
                   {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                 </button>
               </div>
+              {isRegister && (
+                <p className="auth-password-requirements" id="auth-password-requirements">
+                  Use 10–128 characters, including at least one letter and one number.
+                </p>
+              )}
               {/* Password strength indicator — register only */}
               {isRegister && password.length > 0 && (
                 <div className="auth-pw-strength">
@@ -358,6 +411,48 @@ function App() {
               )}
             </div>
 
+            {isRegister && (
+              <div className="auth-field">
+                <label htmlFor="auth-confirm-password">Confirm password</label>
+                <div className="auth-password-wrap">
+                  <input
+                    id="auth-confirm-password"
+                    type={showConfirmPassword ? "text" : "password"}
+                    placeholder="Enter your password again"
+                    value={confirmPassword}
+                    autoComplete="new-password"
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === "Enter") handleAuth(); }}
+                    required
+                    maxLength={128}
+                    aria-invalid={confirmPassword.length > 0 && confirmPassword !== password}
+                    aria-describedby={confirmPassword.length > 0 && confirmPassword !== password ? "auth-confirm-error" : undefined}
+                  />
+                  <button
+                    type="button"
+                    className="auth-toggle-pw"
+                    onClick={() => setShowConfirmPassword((value) => !value)}
+                    aria-label={showConfirmPassword ? "Hide confirmation password" : "Show confirmation password"}
+                    aria-pressed={showConfirmPassword}
+                  >
+                    {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                  </button>
+                </div>
+                {confirmPassword.length > 0 && confirmPassword !== password && (
+                  <span className="auth-inline-error" id="auth-confirm-error">Passwords do not match yet.</span>
+                )}
+              </div>
+            )}
+
+            {isRegister && registrationEnabled === false && (
+              <div className="auth-notice" role="status">
+                Self-registration is disabled. Please ask the farm administrator to create your account.
+              </div>
+            )}
+            {isRegister && registrationEnabled === null && (
+              <div className="auth-notice" role="status">Checking account registration settings…</div>
+            )}
+
             {/* Error message */}
             {authError && (
               <div className="auth-error" role="alert">
@@ -370,7 +465,7 @@ function App() {
             <button
               className="auth-button"
               onClick={handleAuth}
-              disabled={authLoading}
+              disabled={authLoading || (isRegister && registrationEnabled !== true)}
               aria-busy={authLoading}
             >
               {authLoading ? (
@@ -402,20 +497,21 @@ function App() {
 
             {/* Switch mode */}
             <div className="auth-switch">
-              <span>
-                {isRegister
-                  ? "Already have an account?"
-                  : "Don't have an account?"}
-              </span>
-              <button
-                className="auth-switch-btn"
-                onClick={() => {
-                  setAuthError("");
-                  setAuthMode(isRegister ? "login" : "register");
-                }}
-              >
-                {isRegister ? "Sign In" : "Create account"}
-              </button>
+              {isRegister ? (
+                <>
+                  <span>Already have an account?</span>
+                  <button type="button" className="auth-switch-btn" onClick={() => { setAuthError(""); setAuthMode("login"); setConfirmPassword(""); }}>Sign In</button>
+                </>
+              ) : registrationEnabled === true ? (
+                <>
+                  <span>New to Kagochi Farm?</span>
+                  <button type="button" className="auth-switch-btn" onClick={() => { setAuthError(""); setAuthMode("register"); setConfirmPassword(""); }}>Create account</button>
+                </>
+              ) : registrationEnabled === false ? (
+                <span>Need access? Contact your farm administrator.</span>
+              ) : (
+                <span>Checking account options…</span>
+              )}
             </div>
           </div>
         </div>
