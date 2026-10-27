@@ -28,6 +28,7 @@ export const config = {
   port: Number(process.env.PORT ?? 3001),
   jwtSecret: required("JWT_SECRET"),
   geminiApiKey: process.env.GEMINI_API_KEY?.trim() || null,
+  googleClientId: process.env.GOOGLE_CLIENT_ID?.trim() || null,
   geminiModel: process.env.GEMINI_MODEL?.trim() || "gemini-3.5-flash",
   databasePath: resolveDatabasePath(process.env.DATABASE_PATH),
   databaseUrl: process.env.DATABASE_URL?.trim() || null,
