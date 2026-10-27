@@ -71,6 +71,7 @@ function App() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [registrationEnabled, setRegistrationEnabled] = useState<boolean | null>(null);
+  const [googleButtonReady, setGoogleButtonReady] = useState(false);
   const [poultryCount, setPoultryCount] = useState(0);
   const [livestockCount, setLivestockCount] = useState(0);
   const [productionCount, setProductionCount] = useState(0);
@@ -80,7 +81,6 @@ function App() {
   const [publicView, setPublicView] = useState<'home' | 'about' | 'features' | 'how-it-works' | 'founder' | 'login'>('home');
 
   const googleButtonRef = useRef<HTMLDivElement>(null);
-  const googleInitializedRef = useRef(false);
   const authApiUrl = (import.meta.env.VITE_API_URL ?? "http://localhost:3001").replace(/\/+$/, "");
 
   useEffect(() => {
@@ -125,6 +125,7 @@ function App() {
   useEffect(() => {
     // The auth form is mounted only after the visitor chooses Sign In.
     // Re-run when that view opens so the asynchronous Google SDK can render.
+    setGoogleButtonReady(false);
     if (user || publicView !== "login" || !GOOGLE_CLIENT_ID || !googleButtonRef.current) return;
 
     let attempts = 0;
@@ -159,7 +160,7 @@ function App() {
         shape: "rectangular",
         logo_alignment: "left",
       });
-      googleInitializedRef.current = true;
+      setGoogleButtonReady(true);
       return true;
     };
 
@@ -168,13 +169,13 @@ function App() {
         attempts += 1;
         if (initGoogle() || attempts >= 50) {
           if (interval) clearInterval(interval);
+          if (attempts >= 50) setGoogleButtonReady(false);
         }
       }, 200);
     }
 
     return () => {
       if (interval) clearInterval(interval);
-      googleInitializedRef.current = false;
     };
   }, [user, publicView]);
 
@@ -516,17 +517,23 @@ function App() {
             </div>
 
             {/* Google Sign-In button — rendered by GIS SDK */}
-            {GOOGLE_CLIENT_ID ? (
+            {GOOGLE_CLIENT_ID && (
               <div
                 ref={googleButtonRef}
                 className="google-signin-wrapper"
                 aria-label="Sign in with Google"
               />
-            ) : (
-              <div className="auth-google-unavailable" role="status">
+            )}
+            {!googleButtonReady && (
+              <button
+                type="button"
+                className="auth-google-fallback"
+                onClick={() => setAuthError("Google sign-in is not ready in this deployment. Check VITE_GOOGLE_CLIENT_ID and the Google Identity Services allowed origins in Netlify and Google Cloud Console.")}
+                aria-label="Continue with Google"
+              >
                 <span className="auth-google-mark" aria-hidden="true">G</span>
-                <span><strong>Google sign-in is unavailable</strong><small>Set VITE_GOOGLE_CLIENT_ID in this Netlify deploy's environment variables to enable it.</small></span>
-              </div>
+                <span>Continue with Google</span>
+              </button>
             )}
 
             {/* Switch mode */}
