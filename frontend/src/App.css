@@ -4100,3 +4100,60 @@ main {
     transform: none !important;
   }
 }
+
+
+.auth-google-fallback {
+  display: flex;
+  width: 100%;
+  min-height: 48px;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 8px 14px;
+  border: 1px solid #d9dfd8;
+  border-radius: 12px;
+  background: #fff;
+  color: #27372b;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 650;
+  cursor: pointer;
+  transition: background .18s ease, border-color .18s ease, box-shadow .18s ease;
+}
+
+.auth-google-fallback:hover {
+  background: #f8faf7;
+  border-color: #b9c8b8;
+  box-shadow: 0 3px 12px rgba(25,55,32,.07);
+  transform: none;
+}
+
+.auth-google-fallback:focus-visible {
+  outline: 3px solid #87b98b;
+  outline-offset: 3px;
+}
+
+.auth-google-mark {
+  display: inline-grid;
+  width: 25px;
+  height: 25px;
+  flex: 0 0 25px;
+  place-items: center;
+  border-radius: 50%;
+  color: #4285f4;
+  background: #fff;
+  font-family: Arial, sans-serif;
+  font-size: 20px;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.auth-google-fallback .auth-google-mark {
+  border: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .auth-google-fallback {
+    transition: none;
+  }
+}
