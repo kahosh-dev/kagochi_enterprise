@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Eye, EyeOff, Leaf, LogIn, UserPlus, ArrowLeft } from "lucide-react";
+import { Eye, EyeOff, Leaf, LogIn, UserPlus, ArrowLeft, Bird, Beef, Egg, Wheat, ShieldCheck, TrendingUp } from "lucide-react";
 import "./App.css";
 import PublicWebsite from "./views/PublicWebsite";
 import FarmBackground from "./components/FarmBackground";
@@ -80,6 +80,7 @@ function App() {
   const [publicView, setPublicView] = useState<'home' | 'about' | 'features' | 'how-it-works' | 'founder' | 'login'>('home');
 
   const googleButtonRef = useRef<HTMLDivElement>(null);
+  const googleInitializedRef = useRef(false);
   const authApiUrl = (import.meta.env.VITE_API_URL ?? "http://localhost:3001").replace(/\/+$/, "");
 
   useEffect(() => {
@@ -122,11 +123,18 @@ function App() {
      ===================================================== */
 
   useEffect(() => {
-    if (user || !GOOGLE_CLIENT_ID || !googleButtonRef.current) return;
+    // The auth form is mounted only after the visitor chooses Sign In.
+    // Re-run when that view opens so the asynchronous Google SDK can render.
+    if (user || publicView !== "login" || !GOOGLE_CLIENT_ID || !googleButtonRef.current) return;
 
-    function initGoogle() {
-      if (!window.google || !googleButtonRef.current) return;
+    let attempts = 0;
+    let interval: ReturnType<typeof setInterval> | undefined;
 
+    const initGoogle = () => {
+      const target = googleButtonRef.current;
+      if (!window.google || !target) return false;
+
+      target.replaceChildren();
       window.google.accounts.id.initialize({
         client_id: GOOGLE_CLIENT_ID,
         callback: async (response) => {
@@ -135,33 +143,40 @@ function App() {
             setAuthError("");
             const res = await googleSignIn(response.credential);
             if (res.user) setUser(res.user);
-            else { const u = await getCurrentUser(); setUser(u); }
-          } catch (e) {
-            setAuthError(e instanceof Error ? e.message : "Google sign-in failed.");
+            else { const current = await getCurrentUser(); setUser(current); }
+          } catch (error) {
+            setAuthError(error instanceof Error ? error.message : "Google sign-in failed. Please try again.");
           } finally {
             setAuthLoading(false);
           }
         },
       });
-
-      window.google.accounts.id.renderButton(googleButtonRef.current, {
+      window.google.accounts.id.renderButton(target, {
         theme: "outline",
         size: "large",
-        width: "100%",
+        width: Math.min(360, Math.max(260, target.clientWidth || 320)),
         text: "continue_with",
         shape: "rectangular",
+        logo_alignment: "left",
       });
+      googleInitializedRef.current = true;
+      return true;
+    };
+
+    if (!initGoogle()) {
+      interval = setInterval(() => {
+        attempts += 1;
+        if (initGoogle() || attempts >= 50) {
+          if (interval) clearInterval(interval);
+        }
+      }, 200);
     }
 
-    if (window.google) {
-      initGoogle();
-    } else {
-      const interval = setInterval(() => {
-        if (window.google) { initGoogle(); clearInterval(interval); }
-      }, 300);
-      return () => clearInterval(interval);
-    }
-  }, [user, googleButtonRef.current]);
+    return () => {
+      if (interval) clearInterval(interval);
+      googleInitializedRef.current = false;
+    };
+  }, [user, publicView]);
 
   /* =====================================================
      LOAD DASHBOARD DATA
@@ -285,6 +300,24 @@ function App() {
         <div className="auth-page">
           {/* Animated farm background — behind everything */}
           <FarmBackground />
+
+          {/* Farm-focused visual panel; Lucide icons stay crisp at every screen size. */}
+          <aside className="auth-showcase" aria-label="Farm management at a glance">
+            <div className="auth-showcase-kicker"><span className="auth-live-dot" /> SMART FARMING, MADE SIMPLE</div>
+            <h2>Better decisions.<br /><span>Healthier returns.</span></h2>
+            <p>One clear workspace for your poultry, livestock, production and farm finances.</p>
+            <div className="auth-showcase-icons" aria-hidden="true">
+              <div className="auth-farm-icon auth-farm-icon--bird"><Bird size={25} strokeWidth={1.8} /><span>Poultry</span></div>
+              <div className="auth-farm-icon auth-farm-icon--cattle"><Beef size={25} strokeWidth={1.8} /><span>Livestock</span></div>
+              <div className="auth-farm-icon auth-farm-icon--eggs"><Egg size={25} strokeWidth={1.8} /><span>Production</span></div>
+              <div className="auth-farm-icon auth-farm-icon--feed"><Wheat size={25} strokeWidth={1.8} /><span>Feeding</span></div>
+            </div>
+            <div className="auth-showcase-promise">
+              <div className="auth-promise-icon"><TrendingUp size={19} /></div>
+              <div><strong>Farm data that works for you</strong><span>Track records, spot trends and plan with confidence.</span></div>
+            </div>
+            <div className="auth-showcase-security"><ShieldCheck size={16} /> Secure access to your farm workspace</div>
+          </aside>
 
           {/* Frosted-glass form card */}
           <div className="auth-card" role="main" aria-labelledby="auth-title">
@@ -490,8 +523,9 @@ function App() {
                 aria-label="Sign in with Google"
               />
             ) : (
-              <div className="auth-google-unavailable">
-                Google Sign-In is not configured.
+              <div className="auth-google-unavailable" role="status">
+                <span className="auth-google-mark" aria-hidden="true">G</span>
+                <span><strong>Google sign-in is unavailable</strong><small>Set VITE_GOOGLE_CLIENT_ID in this Netlify deploy's environment variables to enable it.</small></span>
               </div>
             )}
 
