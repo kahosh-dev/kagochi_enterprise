@@ -110,12 +110,12 @@ export function createApp(options: AppOptions) {
 
   const apiLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: 600, standardHeaders: true, legacyHeaders: false });
   const loginLimiter = rateLimit({
-    windowMs: 15 * 60 * 1000,
+    windowMs: 1 * 60 * 1000,
     limit: 10,
     skipSuccessfulRequests: true,
     standardHeaders: true,
     legacyHeaders: false,
-    message: { error: "Too many failed login attempts. Please wait 15 minutes and try again." },
+    message: { error: "Too many failed login attempts. Please wait 1 minute and try again." },
   });
   const aiLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
