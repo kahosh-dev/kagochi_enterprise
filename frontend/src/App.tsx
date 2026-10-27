@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from "react";
-import { Eye, EyeOff } from "lucide-react";
+import { Eye, EyeOff, Leaf, LogIn, UserPlus, ArrowLeft } from "lucide-react";
 import "./App.css";
 import PublicWebsite from "./views/PublicWebsite";
+import FarmBackground from "./components/FarmBackground";
 
 import Header from "./components/Header";
 import SideNav from "./components/SideNav";
@@ -238,118 +239,182 @@ function App() {
 
   if (!user) {
     if (publicView === 'login') {
+      const isRegister = authMode === "register";
       return (
         <div className="auth-page">
-          <div className="auth-card">
-            <button className="auth-back-link" onClick={() => setPublicView('home')}>
-              ← Back to Website
-            </button>
-            <div className="auth-logo">🌿</div>
-            <p className="page-eyebrow">KAGOCHI FARM ENTERPRISE</p>
-            <h1>{authMode === "login" ? "Welcome Back" : "Create Farm Account"}</h1>
-            <p className="auth-description">
-              {authMode === "login"
-                ? "Sign in to access your farm analytics and decision support system."
-                : "Create an account to securely manage your farm records."}
-            </p>
+          {/* Animated farm background — behind everything */}
+          <FarmBackground />
 
-            {authMode === "register" && (
+          {/* Frosted-glass form card */}
+          <div className="auth-card" role="main">
+
+            {/* Back to website link */}
+            <button
+              className="auth-back-link"
+              onClick={() => setPublicView('home')}
+              aria-label="Back to website"
+            >
+              <ArrowLeft size={15} />
+              Back to website
+            </button>
+
+            {/* Brand logo */}
+            <div className="auth-logo-row">
+              <div className="auth-logo">
+                <Leaf size={28} strokeWidth={2} />
+              </div>
+              <div className="auth-brand-text">
+                <span className="auth-brand-name">Kagochi</span>
+                <span className="auth-brand-sub">Farm Enterprise</span>
+              </div>
+            </div>
+
+            {/* Heading */}
+            <div className="auth-heading-block">
+              <h1 className="auth-title">
+                {isRegister ? "Create Account" : "Welcome Back"}
+              </h1>
+              <p className="auth-description">
+                {isRegister
+                  ? "Join Kagochi Farm Enterprise and start managing your farm smarter."
+                  : "Sign in to access your farm analytics and decision support."}
+              </p>
+            </div>
+
+            {/* Name field — register only */}
+            {isRegister && (
               <div className="auth-field">
-                <label>Full Name</label>
+                <label htmlFor="auth-name">Full Name</label>
                 <input
+                  id="auth-name"
                   type="text"
-                  placeholder="Enter your name"
+                  placeholder="Enter your full name"
                   value={name}
+                  autoComplete="name"
                   onChange={(e) => setName(e.target.value)}
                 />
               </div>
             )}
 
+            {/* Email */}
             <div className="auth-field">
-              <label>Email Address</label>
+              <label htmlFor="auth-email">Email Address</label>
               <input
+                id="auth-email"
                 type="email"
                 placeholder="Enter your email"
                 value={email}
+                autoComplete="email"
                 onChange={(e) => setEmail(e.target.value)}
               />
             </div>
 
-           <div className="auth-field">
-  <label htmlFor="auth-password">Password</label>
-
-  <div style={{ position: "relative", width: "100%" }}>
-    <input
-      id="auth-password"
-      type={showPassword ? "text" : "password"}
-      placeholder="Enter your password"
-      value={password}
-      autoComplete={
-        authMode === "login" ? "current-password" : "new-password"
-      }
-      onChange={(e) => setPassword(e.target.value)}
-      onKeyDown={(e) => {
-        if (e.key === "Enter") handleAuth();
-      }}
-      style={{
-        width: "100%",
-        boxSizing: "border-box",
-        paddingRight: "46px",
-      }}
-    />
-
-    <button
-      type="button"
-      onClick={() => setShowPassword((visible) => !visible)}
-      aria-label={showPassword ? "Hide password" : "Show password"}
-      aria-pressed={showPassword}
-      style={{
-        position: "absolute",
-        right: "10px",
-        top: "50%",
-        transform: "translateY(-50%)",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        padding: "4px",
-        border: "none",
-        background: "transparent",
-        color: "#64748b",
-        cursor: "pointer",
-      }}
-    >
-      {showPassword ? <EyeOff size={19} /> : <Eye size={19} />}
-    </button>
-  </div>
-</div>
-
-            {authError && <div className="auth-error">{authError}</div>}
-
-            <button className="auth-button" onClick={handleAuth} disabled={authLoading}>
-              {authLoading
-                ? "Please wait..."
-                : authMode === "login"
-                ? "Sign In"
-                : "Create Account"}
-            </button>
-
-            <div className="auth-divider">
-              <span>or</span>
+            {/* Password with show/hide */}
+            <div className="auth-field">
+              <label htmlFor="auth-password">Password</label>
+              <div className="auth-password-wrap">
+                <input
+                  id="auth-password"
+                  type={showPassword ? "text" : "password"}
+                  placeholder={isRegister ? "Create a password" : "Enter your password"}
+                  value={password}
+                  autoComplete={isRegister ? "new-password" : "current-password"}
+                  onChange={(e) => setPassword(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === "Enter") handleAuth(); }}
+                />
+                <button
+                  type="button"
+                  className="auth-toggle-pw"
+                  onClick={() => setShowPassword((v) => !v)}
+                  aria-label={showPassword ? "Hide password" : "Show password"}
+                  aria-pressed={showPassword}
+                >
+                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
+              </div>
+              {/* Password strength indicator — register only */}
+              {isRegister && password.length > 0 && (
+                <div className="auth-pw-strength">
+                  <div className="auth-pw-bars">
+                    {[1, 2, 3, 4].map((level) => {
+                      const strength = password.length < 6 ? 1
+                        : password.length < 8 ? 2
+                        : /[A-Z]/.test(password) && /[0-9]/.test(password) ? 4 : 3;
+                      return (
+                        <div
+                          key={level}
+                          className={`auth-pw-bar${strength >= level ? ` active s${strength}` : ''}`}
+                        />
+                      );
+                    })}
+                  </div>
+                  <span className="auth-pw-label">
+                    {password.length < 6 ? "Too short"
+                      : password.length < 8 ? "Weak"
+                      : /[A-Z]/.test(password) && /[0-9]/.test(password) ? "Strong"
+                      : "Good"}
+                  </span>
+                </div>
+              )}
             </div>
 
-            <div ref={googleButtonRef} className="google-signin-wrapper"></div>
+            {/* Error message */}
+            {authError && (
+              <div className="auth-error" role="alert">
+                <span className="auth-error-icon">⚠</span>
+                {authError}
+              </div>
+            )}
 
+            {/* Primary action button */}
+            <button
+              className="auth-button"
+              onClick={handleAuth}
+              disabled={authLoading}
+              aria-busy={authLoading}
+            >
+              {authLoading ? (
+                <span className="auth-btn-spinner" />
+              ) : isRegister ? (
+                <><UserPlus size={17} /> Create Account</>
+              ) : (
+                <><LogIn size={17} /> Sign In</>
+              )}
+            </button>
+
+            {/* Divider */}
+            <div className="auth-divider" aria-hidden="true">
+              <span>or continue with</span>
+            </div>
+
+            {/* Google Sign-In button — rendered by GIS SDK */}
+            {GOOGLE_CLIENT_ID ? (
+              <div
+                ref={googleButtonRef}
+                className="google-signin-wrapper"
+                aria-label="Sign in with Google"
+              />
+            ) : (
+              <div className="auth-google-unavailable">
+                Google Sign-In is not configured.
+              </div>
+            )}
+
+            {/* Switch mode */}
             <div className="auth-switch">
               <span>
-                {authMode === "login" ? "Don't have an account?" : "Already have an account?"}
+                {isRegister
+                  ? "Already have an account?"
+                  : "Don't have an account?"}
               </span>
               <button
+                className="auth-switch-btn"
                 onClick={() => {
                   setAuthError("");
-                  setAuthMode(authMode === "login" ? "register" : "login");
+                  setAuthMode(isRegister ? "login" : "register");
                 }}
               >
-                {authMode === "login" ? "Create account" : "Sign in"}
+                {isRegister ? "Sign In" : "Create account"}
               </button>
             </div>
           </div>
