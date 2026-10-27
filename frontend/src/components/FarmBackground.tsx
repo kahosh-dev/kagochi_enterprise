@@ -7,6 +7,7 @@ import "./FarmBackground.css";
 export default function FarmBackground() {
   return (
     <div className="farm-background" aria-hidden="true">
+      <div className="farm-background__photo" />
       <div className="farm-background__sky" />
       <svg
         className="farm-background__landscape"
@@ -52,6 +53,13 @@ export default function FarmBackground() {
           <ellipse cx="835" cy="112" rx="36" ry="24" />
         </g>
 
+        {/* Distant birds drift slowly across the open sky. */}
+        <g className="farm-background__birds" fill="none" stroke="#263e32" strokeWidth="3.2" strokeLinecap="round" opacity=".62">
+          <path d="M465 250 q12 -13 24 0 q12 -13 24 0" />
+          <path d="M535 285 q8 -9 16 0 q8 -9 16 0" />
+          <path d="M410 300 q7 -8 14 0 q7 -8 14 0" />
+        </g>
+
         <path d="M0 450 C150 380 250 405 385 445 S620 465 760 400 S1010 365 1160 425 S1320 445 1440 390 V900 H0Z" fill="url(#farm-far-hills)" />
         <path d="M0 520 C170 440 300 480 455 520 S710 530 850 460 S1120 455 1260 510 S1370 520 1440 480 V900 H0Z" fill="#5d8050" />
         <path d="M0 620 C160 510 320 555 500 610 S790 625 960 550 S1230 555 1440 600 V900 H0Z" fill="url(#farm-near-hills)" />
@@ -73,6 +81,22 @@ export default function FarmBackground() {
           <rect x="1149" y="496" width="19" height="34" rx="2" fill="#e7c77c" opacity=".72" />
           <rect x="1129" y="496" width="12" height="12" fill="#f4d99a" opacity=".68" />
           <rect x="1180" y="496" width="12" height="12" fill="#f4d99a" opacity=".68" />
+        </g>
+
+        {/* Small livestock silhouettes add depth to the distant pasture. */}
+        <g className="farm-background__livestock" opacity=".76" fill="#1d3b2a">
+          <g transform="translate(285 625) scale(.72)">
+            <ellipse cx="0" cy="0" rx="27" ry="15" />
+            <ellipse cx="24" cy="-8" rx="10" ry="10" />
+            <path d="M17 -17 l-7 -8 l13 4 M29 -17 l8 -7 l-2 12" />
+            <path d="M-17 9 l-2 24 l6 0 l5 -22 M8 9 l2 24 l6 0 l-1 -25 M-29 -4 l-13 -9 l2 -4 l17 9" />
+          </g>
+          <g transform="translate(355 646) scale(.46)">
+            <ellipse cx="0" cy="0" rx="26" ry="15" />
+            <ellipse cx="24" cy="-8" rx="10" ry="10" />
+            <path d="M17 -17 l-7 -8 l13 4 M29 -17 l8 -7 l-2 12" />
+            <path d="M-17 9 l-2 24 l6 0 l5 -22 M8 9 l2 24 l6 0 l-1 -25" />
+          </g>
         </g>
 
         <path d="M0 770 Q180 700 340 760 T690 750 T1040 730 T1440 760 V900 H0Z" fill="#173c29" opacity=".8" />
