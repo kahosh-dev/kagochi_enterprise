@@ -8,11 +8,21 @@
   background: #c9d9d0;
 }
 
+.farm-background__photo {
+  position: absolute;
+  inset: -3%;
+  background-image: url("https://images.unsplash.com/photo-1500382017468-9049fed747ef?auto=format&fit=crop&w=2400&q=85");
+  background-size: cover;
+  background-position: center 54%;
+  transform: scale(1.02);
+  animation: farm-photo-drift 38s ease-in-out infinite alternate;
+}
+
 .farm-background__sky {
   position: absolute;
   inset: 0;
   background:
-    linear-gradient(180deg, #8fb8cb 0%, #c6d9d5 36%, #f2dba9 67%, #718e59 100%);
+    linear-gradient(180deg, rgba(95, 142, 160, .24) 0%, rgba(198, 217, 213, .12) 36%, rgba(242, 219, 169, .28) 67%, rgba(113, 142, 89, .28) 100%);
 }
 
 .farm-background__landscape {
@@ -43,6 +53,15 @@
   animation: farm-crops-sway 7s ease-in-out infinite alternate;
 }
 
+.farm-background__birds {
+  animation: farm-birds-glide 28s linear infinite alternate;
+}
+
+.farm-background__livestock {
+  transform-origin: 320px 645px;
+  animation: farm-livestock-shift 9s ease-in-out infinite alternate;
+}
+
 .farm-background__farmhouse {
   transform-origin: 1160px 530px;
 }
@@ -64,6 +83,21 @@
   background: linear-gradient(0deg, rgba(8, 30, 19, .28), transparent);
 }
 
+@keyframes farm-photo-drift {
+  from { transform: scale(1.02) translate3d(-.6%, 0, 0); }
+  to { transform: scale(1.11) translate3d(.8%, -1%, 0); }
+}
+
+@keyframes farm-birds-glide {
+  from { translate: -12px 0; }
+  to { translate: 38px -10px; }
+}
+
+@keyframes farm-livestock-shift {
+  from { translate: 0 0; }
+  to { translate: 4px -1px; }
+}
+
 @keyframes farm-cloud-drift {
   from { translate: -1.5% 0; }
   to { translate: 2% 1.5%; }
@@ -80,6 +114,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+.farm-background__photo,
   .farm-background *,
   .farm-background *::before,
   .farm-background *::after {
@@ -89,6 +124,10 @@
 }
 
 @media (max-width: 700px) {
+.farm-background__photo {
+    background-position: 58% center;
+  }
+
   .farm-background__landscape {
     width: auto;
     min-width: 100%;
