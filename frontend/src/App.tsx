@@ -391,7 +391,7 @@ function App() {
                   <div className="auth-pw-bars">
                     {[1, 2, 3, 4].map((level) => {
                       const strength = password.length < 6 ? 1
-                        : password.length < 8 ? 2
+                        : password.length < 10 ? 2
                         : /[A-Z]/.test(password) && /[0-9]/.test(password) ? 4 : 3;
                       return (
                         <div
@@ -403,9 +403,9 @@ function App() {
                   </div>
                   <span className="auth-pw-label">
                     {password.length < 6 ? "Too short"
-                      : password.length < 8 ? "Weak"
-                      : /[A-Z]/.test(password) && /[0-9]/.test(password) ? "Strong"
-                      : "Good"}
+                      : password.length < 10 ? "Use 10+ characters"
+                      : /[A-Za-z]/.test(password) && /[0-9]/.test(password) ? "Meets requirements"
+                      : "Add a letter and a number"}
                   </span>
                 </div>
               )}
