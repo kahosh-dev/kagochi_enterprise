@@ -7,6 +7,10 @@ import type {
   ExpenseRecord,
   ReminderItem,
   AdviceItem,
+  PopulationEvent,
+  SurvivorSummary,
+  MortalitySummary,
+  VaccinationRecord,
 } from "../types/farm";
 
 const API_URL = (import.meta.env.VITE_API_URL ?? "http://localhost:3001").replace(/\/+$/, "");
@@ -483,4 +487,163 @@ export function loadAdvice(): AdviceItem[] {
   } catch {
     return [];
   }
+}
+
+/* =====================================================
+   POPULATION EVENTS
+   ===================================================== */
+
+function mapPopulationEvent(row: any): PopulationEvent {
+  return {
+    id:          String(row.id),
+    species:     row.species,
+    targetId:    row.target_id,
+    targetName:  row.target_name,
+    eventType:   row.event_type,
+    count:       Number(row.count),
+    date:        row.date,
+    reason:      row.reason ?? '',
+    notes:       row.notes ?? '',
+  };
+}
+
+export async function loadPopulationEvents(params?: {
+  species?: string;
+  targetId?: string;
+}): Promise<PopulationEvent[]> {
+  const qs = new URLSearchParams();
+  if (params?.species)  qs.set('species',  params.species);
+  if (params?.targetId) qs.set('targetId', params.targetId);
+  const query = qs.toString() ? `?${qs}` : '';
+  const data = await apiRequest<{ populationEvents: any[] }>(`/api/farm/population-events${query}`);
+  return (data.populationEvents || []).map(mapPopulationEvent);
+}
+
+export async function addPopulationEvent(
+  event: Omit<PopulationEvent, 'id'>
+): Promise<{ id: string; warning?: string }> {
+  return apiRequest<{ id: string; message: string; warning?: string }>(
+    '/api/farm/population-events',
+    {
+      method: 'POST',
+      body: JSON.stringify({
+        species:    event.species,
+        targetId:   event.targetId,
+        targetName: event.targetName,
+        eventType:  event.eventType,
+        count:      event.count,
+        date:       event.date,
+        reason:     event.reason,
+        notes:      event.notes,
+      }),
+    }
+  );
+}
+
+export async function deletePopulationEvent(id: string): Promise<void> {
+  await apiRequest(`/api/farm/population-events/${encodeURIComponent(id)}`, { method: 'DELETE' });
+}
+
+/* =====================================================
+   SURVIVOR SUMMARY
+   ===================================================== */
+
+export async function loadSurvivorSummary(params?: {
+  species?: string;
+  targetId?: string;
+}): Promise<SurvivorSummary> {
+  const qs = new URLSearchParams();
+  if (params?.species)  qs.set('species',  params.species);
+  if (params?.targetId) qs.set('targetId', params.targetId);
+  const query = qs.toString() ? `?${qs}` : '';
+  return apiRequest<SurvivorSummary>(`/api/farm/survivor-summary${query}`);
+}
+
+/* =====================================================
+   MORTALITY SUMMARY
+   ===================================================== */
+
+export async function loadMortalitySummary(params?: {
+  from?: string;
+  to?: string;
+  period?: string;
+  species?: string;
+  targetId?: string;
+}): Promise<MortalitySummary> {
+  const qs = new URLSearchParams();
+  if (params?.from)     qs.set('from',     params.from);
+  if (params?.to)       qs.set('to',       params.to);
+  if (params?.period)   qs.set('period',   params.period);
+  if (params?.species)  qs.set('species',  params.species);
+  if (params?.targetId) qs.set('targetId', params.targetId);
+  const query = qs.toString() ? `?${qs}` : '';
+  return apiRequest<MortalitySummary>(`/api/farm/mortality-summary${query}`);
+}
+
+/* =====================================================
+   VACCINATIONS
+   ===================================================== */
+
+function mapVaccination(row: any): VaccinationRecord {
+  return {
+    id:               String(row.id),
+    species:          row.species,
+    targetId:         row.target_id ?? '',
+    targetName:       row.target_name,
+    vaccineName:      row.vaccine_name,
+    dateDue:          row.date_due,
+    dateAdministered: row.date_administered ?? null,
+    status:           row.status ?? 'upcoming',
+    countVaccinated:  Number(row.count_vaccinated ?? 0),
+    notes:            row.notes ?? '',
+  };
+}
+
+export async function loadVaccinations(): Promise<VaccinationRecord[]> {
+  const data = await apiRequest<{ vaccinations: any[] }>('/api/farm/vaccinations');
+  return (data.vaccinations || []).map(mapVaccination);
+}
+
+export async function addVaccination(
+  v: Omit<VaccinationRecord, 'id'>
+): Promise<VaccinationRecord> {
+  const data = await apiRequest<{ message: string; id: string }>('/api/farm/vaccinations', {
+    method: 'POST',
+    body: JSON.stringify({
+      species:          v.species,
+      targetId:         v.targetId,
+      targetName:       v.targetName,
+      vaccineName:      v.vaccineName,
+      dateDue:          v.dateDue,
+      dateAdministered: v.dateAdministered ?? null,
+      status:           v.status,
+      countVaccinated:  v.countVaccinated,
+      notes:            v.notes,
+    }),
+  });
+  return { ...v, id: data.id };
+}
+
+export async function updateVaccination(
+  id: string,
+  v: Omit<VaccinationRecord, 'id'>
+): Promise<void> {
+  await apiRequest(`/api/farm/vaccinations/${encodeURIComponent(id)}`, {
+    method: 'PUT',
+    body: JSON.stringify({
+      species:          v.species,
+      targetId:         v.targetId,
+      targetName:       v.targetName,
+      vaccineName:      v.vaccineName,
+      dateDue:          v.dateDue,
+      dateAdministered: v.dateAdministered ?? null,
+      status:           v.status,
+      countVaccinated:  v.countVaccinated,
+      notes:            v.notes,
+    }),
+  });
+}
+
+export async function deleteVaccination(id: string): Promise<void> {
+  await apiRequest(`/api/farm/vaccinations/${encodeURIComponent(id)}`, { method: 'DELETE' });
 }

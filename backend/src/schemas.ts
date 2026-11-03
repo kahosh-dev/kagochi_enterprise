@@ -78,6 +78,42 @@ export const expenseSchema = z.object({
   date: isoDate,
 });
 
+export const vaccinationSchema = z.object({
+  species:          z.enum(["poultry", "cattle"]),
+  targetId:         z.string().trim().max(100).default(""),
+  targetName:       text(150),
+  vaccineName:      text(150),
+  dateDue:          isoDate,
+  dateAdministered: isoDate.nullable().optional(),
+  status:           z.enum(["upcoming", "due_today", "overdue", "completed", "cancelled"]).default("upcoming"),
+  countVaccinated:  z.number().int().min(0).max(1_000_000).default(0),
+  notes:            z.string().trim().max(500).default(""),
+});
+
+export const populationEventSchema = z.object({
+  species:    z.enum(["poultry", "cattle"]),
+  targetId:   z.string().trim().min(1).max(100),
+  targetName: text(150),
+  eventType:  z.enum(["addition", "death", "sale", "transfer_in", "transfer_out"]),
+  count:      z.number().int().min(1, "Count must be at least 1.").max(100_000),
+  date:       isoDate,
+  reason:     z.string().trim().max(300).default(""),
+  notes:      z.string().trim().max(500).default(""),
+});
+
+export const mortalityQuerySchema = z.object({
+  species:  z.enum(["poultry", "cattle"]).optional(),
+  targetId: z.string().trim().max(100).optional(),
+  from:     isoDate.optional(),
+  to:       isoDate.optional(),
+  period:   z.enum(["daily", "weekly", "monthly", "yearly"]).default("daily"),
+});
+
+export const survivorQuerySchema = z.object({
+  species:  z.enum(["poultry", "cattle"]).optional(),
+  targetId: z.string().trim().max(100).optional(),
+});
+
 interface ResourceDefinition {
   label: string;
   schema: z.ZodType;
@@ -137,6 +173,21 @@ export const resourceDefinitions: Record<ResourceName, ResourceDefinition> = {
       description: d.description,
       amount: d.amount,
       date: d.date,
+    }),
+  },
+  vaccinations: {
+    label: "Vaccination record",
+    schema: vaccinationSchema,
+    toColumns: (d: z.infer<typeof vaccinationSchema>) => ({
+      species:           d.species,
+      target_id:         d.targetId,
+      target_name:       d.targetName,
+      vaccine_name:      d.vaccineName,
+      date_due:          d.dateDue,
+      date_administered: d.dateAdministered ?? null,
+      status:            d.status,
+      count_vaccinated:  d.countVaccinated,
+      notes:             d.notes,
     }),
   },
 };

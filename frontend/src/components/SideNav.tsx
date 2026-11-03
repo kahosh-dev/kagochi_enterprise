@@ -20,9 +20,17 @@ const NAV_SECTIONS = [
     items: [
       { id: "poultry", label: "Poultry", img: "https://images.unsplash.com/photo-1548550023-2bdb3c5beed7?w=80&q=70", description: "Manage batches" },
       { id: "livestock", label: "Livestock", img: "https://images.unsplash.com/photo-1570042225831-d98fa7577f1e?w=80&q=70", description: "Manage animals" },
+      { id: "vaccinations", label: "Vaccinations", img: "https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?w=80&q=70", description: "Vaccine schedule" },
       { id: "production", label: "Production", img: "https://images.unsplash.com/photo-1506976785307-8732e854ad03?w=80&q=70", description: "Eggs & milk" },
       { id: "feeding", label: "Feeding", img: "https://images.unsplash.com/photo-1625246333195-78d9c38ad449?w=80&q=70", description: "Feed records" },
       { id: "expenses", label: "Expenses", img: "https://images.unsplash.com/photo-1554224155-6726b3ff858f?w=80&q=70", description: "Farm costs" },
+    ],
+  },
+  {
+    label: "POPULATION TRACKING",
+    items: [
+      { id: "survivors", label: "Survivor Tracking", img: "https://images.unsplash.com/photo-1548550023-2bdb3c5beed7?w=80&q=70", description: "Population ledger" },
+      { id: "mortality", label: "Mortality Monitor", img: "https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=80&q=70", description: "Death rate trends" },
     ],
   },
   {

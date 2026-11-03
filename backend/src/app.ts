@@ -32,10 +32,18 @@ import {
   resourceDefinitions,
   summaryQuerySchema,
   validationDetails,
+  populationEventSchema,
+  mortalityQuerySchema,
+  survivorQuerySchema,
 } from "./schemas.js";
 import { type AiClient, buildAdvicePrompt, buildChatPrompt, createGeminiClient } from "./ai.js";
 import { buildFarmContext, loadFarmRecords, today } from "./farmContext.js";
-import { makePeriod, summarizeFarm } from "./analytics.js";
+import { makePeriod, summarizeFarm, buildSurvivorSummary, buildMortaltySeries, addDays } from "./analytics.js";
+import {
+  listPopulationEvents,
+  createPopulationEvent,
+  deletePopulationEvent as deletePopulationEventDb,
+} from "./database.js";
 
 declare global {
   // eslint-disable-next-line @typescript-eslint/no-namespace
@@ -249,6 +257,102 @@ export function createApp(options: AppOptions = {}) {
     if (!query) return;
     const period = makePeriod(query.to ?? today(), query.days);
     res.json({ summary: summarizeFarm(loadFarmRecords(req.user!.id), period) });
+  });
+
+  /* ---------------------- Population Events Routes ----------------------- */
+
+  api.get("/farm/population-events", requireAuth, (req, res) => {
+    const query = survivorQuerySchema.safeParse(req.query);
+    const species = query.success ? query.data.species : undefined;
+    const targetId = query.success ? query.data.targetId : undefined;
+    const events = listPopulationEvents(req.user!.id, species, targetId);
+    res.json({ populationEvents: events });
+  });
+
+  api.post("/farm/population-events", requireAuth, (req, res) => {
+    const data = parse(populationEventSchema, req.body, res, "Invalid population event details.");
+    if (!data) return;
+
+    // Check for duplicate death events
+    let warning: string | undefined;
+    if (data.eventType === 'death') {
+      const existing = listPopulationEvents(req.user!.id, data.species, data.targetId);
+      const duplicate = existing.find(
+        (e) => e.event_type === 'death' && e.date === data.date && e.count === data.count,
+      );
+      if (duplicate) {
+        warning = "A death event with the same date and count already exists for this animal or batch. Please check for duplicates.";
+      }
+    }
+
+    const id = crypto.randomUUID();
+    try {
+      createPopulationEvent(id, req.user!.id, {
+        species:     data.species,
+        target_id:   data.targetId,
+        target_name: data.targetName,
+        event_type:  data.eventType,
+        count:       data.count,
+        date:        data.date,
+        reason:      data.reason,
+        notes:       data.notes,
+      });
+    } catch (error) {
+      if ((error as Error).message === 'NEGATIVE_POPULATION') {
+        res.status(409).json({ error: "This would make the population go negative. Check the count." });
+        return;
+      }
+      throw error;
+    }
+
+    if (warning) {
+      res.json({ message: "Population event recorded.", id, warning });
+    } else {
+      res.status(201).json({ message: "Population event recorded.", id });
+    }
+  });
+
+  api.delete("/farm/population-events/:id", requireAuth, (req, res) => {
+    const id = idParamSchema.safeParse(req.params.id);
+    if (!id.success) {
+      res.status(404).json({ error: "Population event not found." });
+      return;
+    }
+    const result = deletePopulationEventDb(id.data, req.user!.id);
+    if (result.changes === 0) {
+      res.status(404).json({ error: "Population event not found." });
+      return;
+    }
+    res.json({ message: "Population event deleted." });
+  });
+
+  api.get("/farm/survivor-summary", requireAuth, (req, res) => {
+    const query = survivorQuerySchema.safeParse(req.query);
+    const species = query.success ? query.data.species : undefined;
+    const targetId = query.success ? query.data.targetId : undefined;
+    const events = listPopulationEvents(req.user!.id, species, targetId);
+    const poultryBatches = store.listRecords("poultry", req.user!.id);
+    const livestock = store.listRecords("livestock", req.user!.id);
+    const summary = buildSurvivorSummary(events as any, poultryBatches, livestock);
+    res.json(summary);
+  });
+
+  api.get("/farm/mortality-summary", requireAuth, (req, res) => {
+    const rawQuery = req.query;
+    const todayStr = today();
+    const from = typeof rawQuery.from === 'string' ? rawQuery.from : addDays(todayStr, -30);
+    const to   = typeof rawQuery.to   === 'string' ? rawQuery.to   : todayStr;
+    const period = (["daily","weekly","monthly","yearly"] as const).includes(rawQuery.period as any)
+      ? (rawQuery.period as "daily"|"weekly"|"monthly"|"yearly")
+      : "daily";
+    const species  = typeof rawQuery.species  === 'string' ? rawQuery.species  : undefined;
+    const targetId = typeof rawQuery.targetId === 'string' ? rawQuery.targetId : undefined;
+
+    const events        = listPopulationEvents(req.user!.id);
+    const poultryBatches = store.listRecords("poultry", req.user!.id);
+    const livestock      = store.listRecords("livestock", req.user!.id);
+    const series = buildMortaltySeries(events as any, poultryBatches, livestock, from, to, period, species, targetId);
+    res.json({ series, from, to, period });
   });
 
   /* ---------------------------------- AI --------------------------------- */
