@@ -14,12 +14,16 @@ import ExpensesView from "./views/ExpensesView";
 import PerformanceView from "./views/PerformanceView";
 import AdvisorView from "./views/AdvisorView";
 import AdminView from "./views/AdminView";
+import SurvivorView from "./views/SurvivorView";
+import MortalityView from "./views/MortalityView";
+import VaccinationsView from "./views/VaccinationsView";
 
 import {
   loadPoultry,
   loadLivestock,
   loadProduction,
   loadExpenses,
+  loadSurvivorSummary,
 } from "./services/storage";
 
 import {
@@ -74,6 +78,7 @@ function App() {
   const [loadingFarmData, setLoadingFarmData] = useState(false);
   const [sideNavOpen, setSideNavOpen] = useState(false);
   const [publicView, setPublicView] = useState<'home' | 'about' | 'features' | 'how-it-works' | 'founder' | 'login'>('home');
+  const [survivorSummary, setSurvivorSummary] = useState({ totalPoultryBirds: 0, totalLivestockAnimals: 0 });
 
   const googleButtonRef = useRef<HTMLDivElement>(null);
 
@@ -164,6 +169,10 @@ function App() {
         setExpenseTotal(
           expenses.reduce((t, e) => t + Number(e.amount), 0)
         );
+        // Load survivor summary separately — don't break dashboard if it fails
+        loadSurvivorSummary().then((s) => setSurvivorSummary(s)).catch((err) => {
+          console.error("Failed to load survivor summary:", err);
+        });
       } catch (error) {
         console.error("Failed to load dashboard data:", error);
       } finally {
@@ -214,6 +223,7 @@ function App() {
     setActiveView("home");
     setPoultryCount(0); setLivestockCount(0);
     setProductionCount(0); setExpenseTotal(0);
+    setSurvivorSummary({ totalPoultryBirds: 0, totalLivestockAnimals: 0 });
   }
 
   /* =====================================================
@@ -396,6 +406,8 @@ function App() {
             livestockCount={livestockCount}
             productionCount={productionCount}
             expenseTotal={expenseTotal}
+            totalPoultryBirds={survivorSummary.totalPoultryBirds}
+            totalLivestockActive={survivorSummary.totalLivestockAnimals}
             onNavigate={setActiveView}
           />
         )}
@@ -407,6 +419,9 @@ function App() {
         {activeView === "performance" && <PerformanceView />}
         {activeView === "advisor" && <AdvisorView />}
         {activeView === "admin" && <AdminView />}
+        {activeView === "survivors" && <SurvivorView />}
+        {activeView === "mortality" && <MortalityView />}
+        {activeView === "vaccinations" && <VaccinationsView />}
       </div>
 
       {loadingFarmData && (

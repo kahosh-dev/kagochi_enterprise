@@ -3,6 +3,8 @@ interface HomeViewProps {
   livestockCount: number;
   productionCount: number;
   expenseTotal: number;
+  totalPoultryBirds: number;
+  totalLivestockActive: number;
   onNavigate: (view: string) => void;
 }
 
@@ -23,6 +25,8 @@ function HomeView({
   livestockCount,
   productionCount,
   expenseTotal,
+  totalPoultryBirds,
+  totalLivestockActive,
   onNavigate,
 }: HomeViewProps) {
   return (
@@ -110,6 +114,55 @@ function HomeView({
           </div>
         </div>
 
+      </section>
+
+      {/* Population Overview tiles */}
+      <section className="dashboard-section">
+        <div className="section-heading">
+          <div>
+            <h3>Population Overview</h3>
+            <p>Live survivor counts based on recorded events.</p>
+          </div>
+        </div>
+        <div className="dashboard-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))' }}>
+          <div
+            className="dashboard-card image-card"
+            onClick={() => onNavigate("survivors")}
+            style={{ cursor: "pointer", background: 'linear-gradient(135deg, #065f46, #10b981)' }}
+          >
+            <div className="card-image-overlay" style={{ position: 'relative', padding: '1.5rem' }}>
+              <p className="card-label" style={{ color: '#a7f3d0' }}>🐓 Birds Surviving</p>
+              <h3 style={{ color: '#fff', fontSize: '2rem', margin: '0.25rem 0' }}>{totalPoultryBirds.toLocaleString()}</h3>
+              <p className="card-description" style={{ color: '#a7f3d0', marginBottom: '0.75rem' }}>Alive after all events</p>
+              <button
+                className="secondary-action"
+                style={{ fontSize: '0.8rem', padding: '0.3rem 0.75rem' }}
+                onClick={(e) => { e.stopPropagation(); onNavigate("survivors"); }}
+              >
+                View Survivors →
+              </button>
+            </div>
+          </div>
+
+          <div
+            className="dashboard-card image-card"
+            onClick={() => onNavigate("mortality")}
+            style={{ cursor: "pointer", background: 'linear-gradient(135deg, #7c3aed, #a78bfa)' }}
+          >
+            <div className="card-image-overlay" style={{ position: 'relative', padding: '1.5rem' }}>
+              <p className="card-label" style={{ color: '#ede9fe' }}>🐄 Livestock Active</p>
+              <h3 style={{ color: '#fff', fontSize: '2rem', margin: '0.25rem 0' }}>{totalLivestockActive.toLocaleString()}</h3>
+              <p className="card-description" style={{ color: '#ede9fe', marginBottom: '0.75rem' }}>Animals with survivors &gt; 0</p>
+              <button
+                className="secondary-action"
+                style={{ fontSize: '0.8rem', padding: '0.3rem 0.75rem' }}
+                onClick={(e) => { e.stopPropagation(); onNavigate("mortality"); }}
+              >
+                View Details →
+              </button>
+            </div>
+          </div>
+        </div>
       </section>
 
       {/* Quick actions */}
