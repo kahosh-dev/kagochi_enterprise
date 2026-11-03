@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { loadFarmSummary } from "../services/storage";
 import type { FarmSummaryData } from "../types/farm";
 import {
@@ -6,14 +6,7 @@ import {
   TrendingDown,
   Coins,
   Calendar,
-  Filter,
   Download,
-  AlertCircle,
-  CheckCircle2,
-  PieChart,
-  BarChart3,
-  Egg,
-  Milk,
 } from "lucide-react";
 
 type ReportPeriodKey = "daily" | "weekly" | "monthly" | "quarterly" | "annual" | "custom";
@@ -23,7 +16,7 @@ export default function PerformanceView() {
   const [customFrom, setCustomFrom] = useState("");
   const [customTo, setCustomTo] = useState("");
   const [summary, setSummary] = useState<FarmSummaryData | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [_loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState("");
 
   const todayStr = new Date().toISOString().slice(0, 10);
@@ -76,9 +69,6 @@ export default function PerformanceView() {
   const profitOrLoss = summary?.financial.operatingProfitOrLoss ?? 0;
   const isProfitable = profitOrLoss >= 0;
   const netMargin = summary?.financial.netMarginPercent;
-
-  const prevPnl = summary?.financial.previousOperatingProfitOrLoss ?? 0;
-  const pnlChange = profitOrLoss - prevPnl;
 
   const incomeCategories = summary?.income.byCategory ?? [];
   const expenseCategories = summary?.expenses.byCategory ?? [];
@@ -345,3 +335,4 @@ export default function PerformanceView() {
     </div>
   );
 }
+

@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { PoultryBatch } from "../types/farm";
 import {
   loadPoultry,
@@ -11,20 +11,14 @@ import {
   ChickenIcon,
 } from "../components/FarmIcons";
 import {
-  Plus,
   Edit2,
   Trash2,
   AlertTriangle,
-  CheckCircle,
-  HelpCircle,
-  ChevronDown,
-  Info,
-  Calendar,
 } from "lucide-react";
 
 export default function PoultryView() {
   const [poultry, setPoultry] = useState<PoultryBatch[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [_loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [filterStage, setFilterStage] = useState<string>("all");
 
@@ -537,3 +531,5 @@ export default function PoultryView() {
     </div>
   );
 }
+
+

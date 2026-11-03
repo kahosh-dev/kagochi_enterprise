@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   loadLivestock,
   addLivestock,
@@ -10,22 +10,16 @@ import {
   CowIcon,
   CalfIcon,
   HeiferIcon,
-  BullIcon,
 } from "../components/FarmIcons";
 import {
-  Plus,
   Edit2,
   Trash2,
   ArrowRight,
-  Filter,
-  CheckCircle,
-  AlertCircle,
-  Tag,
 } from "lucide-react";
 
 export default function LivestockView() {
   const [animals, setAnimals] = useState<LivestockAnimal[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [_loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
 
@@ -69,10 +63,6 @@ export default function LivestockView() {
   );
   const countHeifers = useMemo(
     () => animals.filter((a) => a.category === "heifer" || (a.category !== "calf" && a.category !== "cow" && a.category !== "bull" && a.ageYears >= 1 && a.ageYears < 2.5 && a.sex !== "male")).length,
-    [animals]
-  );
-  const countBulls = useMemo(
-    () => animals.filter((a) => a.category === "bull" || a.sex === "male").length,
     [animals]
   );
   const countCows = useMemo(
@@ -535,3 +525,6 @@ export default function LivestockView() {
     </div>
   );
 }
+
+
+

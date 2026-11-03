@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   loadVaccinations,
   addVaccination,
@@ -24,33 +24,27 @@ import {
   Clock,
   Plus,
   Trash2,
-  Edit2,
-  Filter,
 } from "lucide-react";
-import {
-  ChickenIcon,
-  CowIcon,
-} from "../components/FarmIcons";
 
 export default function VaccinationsView() {
   const [activeTab, setActiveTab] = useState<"reminders" | "schedules" | "add">("reminders");
   const [vaccinations, setVaccinations] = useState<VaccinationRecord[]>([]);
   const [schedules, setSchedules] = useState<VaccinationSchedule[]>([]);
-  const [poultry, setPoultry] = useState<PoultryBatch[]>([]);
-  const [animals, setAnimals] = useState<LivestockAnimal[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [_poultry, setPoultry] = useState<PoultryBatch[]>([]);
+  const [_animals, setAnimals] = useState<LivestockAnimal[]>([]);
+  const [_loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
   // Form states for new vaccination
   const [species, setSpecies] = useState<"poultry" | "cattle">("poultry");
   const [targetType, setTargetType] = useState<"batch" | "animal">("batch");
-  const [targetId, setTargetId] = useState("");
+  const [targetId, _setTargetId] = useState("");
   const [targetName, setTargetName] = useState("");
   const [vaccineName, setVaccineName] = useState("");
   const [disease, setDisease] = useState("");
   const [dateDue, setDateDue] = useState(new Date().toISOString().slice(0, 10));
   const [dose, setDose] = useState("");
-  const [administeredBy, setAdministeredBy] = useState("Farm Vet");
+  const [administeredBy, _setAdministeredBy] = useState("Farm Vet");
   const [notes, setNotes] = useState("");
 
   // Schedule form state
@@ -616,3 +610,5 @@ export default function VaccinationsView() {
     </div>
   );
 }
+
+
