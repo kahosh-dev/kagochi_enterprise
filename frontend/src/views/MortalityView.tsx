@@ -17,14 +17,30 @@ function addDays(date: Date, days: number): Date {
 function getPreset(preset: string): { from: string; to: string } {
   const today = new Date();
   switch (preset) {
-    case "7d":  return { from: formatDate(addDays(today, -6)),   to: formatDate(today) };
-    case "30d": return { from: formatDate(addDays(today, -29)),  to: formatDate(today) };
-    case "90d": return { from: formatDate(addDays(today, -89)),  to: formatDate(today) };
+    case "today": {
+      const t = formatDate(today);
+      return { from: t, to: t };
+    }
+    case "week": {
+      // ISO Monday of the current week
+      const day = today.getUTCDay(); // 0=Sun, 1=Mon, ...
+      const diffToMonday = (day === 0 ? -6 : 1 - day);
+      const monday = addDays(today, diffToMonday);
+      return { from: formatDate(monday), to: formatDate(today) };
+    }
+    case "month": {
+      const y = today.getUTCFullYear();
+      const m = String(today.getUTCMonth() + 1).padStart(2, "0");
+      return { from: `${y}-${m}-01`, to: formatDate(today) };
+    }
     case "year": {
       const y = today.getUTCFullYear();
       return { from: `${y}-01-01`, to: formatDate(today) };
     }
-    default: return { from: formatDate(addDays(today, -29)), to: formatDate(today) };
+    default: {
+      const m2 = String(today.getUTCMonth() + 1).padStart(2, "0");
+      return { from: `${today.getUTCFullYear()}-${m2}-01`, to: formatDate(today) };
+    }
   }
 }
 
@@ -94,8 +110,12 @@ function SvgBarChart({ points, maxVal }: { points: MortalityPoint[]; maxVal: num
 
 function MortalityView() {
   const today = formatDate(new Date());
-  const [preset, setPreset] = useState("30d");
-  const [customFrom, setCustomFrom] = useState(formatDate(addDays(new Date(), -29)));
+  const [preset, setPreset] = useState("month");
+  const [customFrom, setCustomFrom] = useState(() => {
+    const d = new Date();
+    const m = String(d.getUTCMonth() + 1).padStart(2, "0");
+    return `${d.getUTCFullYear()}-${m}-01`;
+  });
   const [customTo, setCustomTo] = useState(today);
   const [isCustom, setIsCustom] = useState(false);
   const [granularity, setGranularity] = useState<Granularity>("daily");
@@ -146,10 +166,10 @@ function MortalityView() {
       {/* Period Filter Bar */}
       <div className="dashboard-filter-bar" style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center', marginBottom: '1rem' }}>
         {[
-          { key: "7d",   label: "Last 7 days" },
-          { key: "30d",  label: "Last 30 days" },
-          { key: "90d",  label: "Last 90 days" },
-          { key: "year", label: "This year" },
+          { key: "today", label: "Today" },
+          { key: "week",  label: "This Week" },
+          { key: "month", label: "This Month" },
+          { key: "year",  label: "This Year" },
           { key: "custom", label: "Custom" },
         ].map((p) => (
           <button
