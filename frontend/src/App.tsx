@@ -229,7 +229,7 @@ function App() {
       return;
     }
     if (authMode === "register") {
-      if (registrationEnabled === false) {
+      if (registrationEnabled === true) {
         setAuthError("Self-registration is currently disabled. Ask the farm administrator to create your account.");
         return;
       }
