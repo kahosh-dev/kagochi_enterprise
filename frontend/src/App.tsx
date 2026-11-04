@@ -482,7 +482,7 @@ function App() {
               </div>
             )}
 
-            {isRegister && registrationEnabled === false && (
+            {isRegister && registrationEnabled === true && (
               <div className="auth-notice" role="status">
                 Self-registration is disabled. Please ask the farm administrator to create your account.
               </div>
