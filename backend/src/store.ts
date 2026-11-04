@@ -49,7 +49,7 @@ export const resourceTables = {
   },
   vaccinations: {
     table: "vaccinations",
-    columns: ["species", "target_type", "target_id", "target_name", "vaccine_name", "disease", "date_administered", "date_due", "dose", "administered_by", "status", "notes"],
+    columns: ["species", "target_type", "target_id", "target_name", "vaccine_name", "disease", "date_administered", "date_due", "dose", "administered_by", "status", "count_vaccinated", "notes"],
     dateColumn: "date_due",
   },
   vaccination_schedules: {

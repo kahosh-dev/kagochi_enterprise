@@ -3,7 +3,6 @@ import { Eye, EyeOff, Leaf, LogIn, UserPlus, ArrowLeft } from "lucide-react";
 import "./App.css";
 import PublicWebsite from "./views/PublicWebsite";
 import FarmBackground from "./components/FarmBackground";
-
 import Header from "./components/Header";
 import SideNav from "./components/SideNav";
 import HomeView from "./views/HomeView";
@@ -16,14 +15,15 @@ import PerformanceView from "./views/PerformanceView";
 import AdvisorView from "./views/AdvisorView";
 import AdminView from "./views/AdminView";
 import VaccinationsView from "./views/VaccinationsView";
-
+import SurvivorView from "./views/SurvivorView";
+import MortalityView from "./views/MortalityView";
 import {
   loadPoultry,
   loadLivestock,
   loadProduction,
   loadExpenses,
+  loadSurvivorSummary,
 } from "./services/storage";
-
 import {
   getCurrentUser,
   login,
@@ -55,7 +55,6 @@ declare global {
 }
 
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID;
-
 type User = { id: string; name: string; email: string };
 
 function App() {
@@ -76,13 +75,12 @@ function App() {
   const [loadingFarmData, setLoadingFarmData] = useState(false);
   const [sideNavOpen, setSideNavOpen] = useState(false);
   const [publicView, setPublicView] = useState<'home' | 'about' | 'features' | 'how-it-works' | 'founder' | 'login'>('home');
-
+  const [survivorSummary, setSurvivorSummary] = useState({ totalPoultryBirds: 0, totalLivestockAnimals: 0 });
   const googleButtonRef = useRef<HTMLDivElement>(null);
 
   /* =====================================================
      CHECK LOGIN
      ===================================================== */
-
  useEffect(() => {
   async function checkAuthentication() {
     try {
@@ -94,24 +92,19 @@ function App() {
       setLoadingAuth(false);
     }
   }
-
   checkAuthentication();
 }, []);
 
   /* =====================================================
      GOOGLE SIGN-IN BUTTON
      ===================================================== */
-
   useEffect(() => {
     // Only initialise when the login page is visible and the user is not signed in
     if (user || publicView !== 'login' || !GOOGLE_CLIENT_ID) return;
-
     // The ref might not be set yet on first paint — poll until it is
     let cancelled = false;
-
     function initGoogle() {
       if (cancelled || !window.google || !googleButtonRef.current) return;
-
       window.google.accounts.id.initialize({
         client_id: GOOGLE_CLIENT_ID,
         callback: async (response) => {
@@ -128,7 +121,6 @@ function App() {
           }
         },
       });
-
       window.google.accounts.id.renderButton(googleButtonRef.current, {
         theme: "outline",
         size: "large",
@@ -138,7 +130,6 @@ function App() {
         logo_alignment: "left",
       });
     }
-
     // Retry every 300 ms until both the GIS script and the DOM ref are ready
     const interval = setInterval(() => {
       if (googleButtonRef.current && window.google) {
@@ -146,10 +137,8 @@ function App() {
         clearInterval(interval);
       }
     }, 300);
-
     // Also try immediately in case everything is already ready
     initGoogle();
-
     return () => {
       cancelled = true;
       clearInterval(interval);
@@ -159,10 +148,8 @@ function App() {
   /* =====================================================
      LOAD DASHBOARD DATA
      ===================================================== */
-
   useEffect(() => {
     if (!user) return;
-
     async function loadDashboardData() {
       try {
         setLoadingFarmData(true);
@@ -178,20 +165,22 @@ function App() {
         setExpenseTotal(
           expenses.reduce((t, e) => t + Number(e.amount), 0)
         );
+        // Load survivor summary separately — don't break dashboard if it fails
+        loadSurvivorSummary().then((s) => setSurvivorSummary(s)).catch((err) => {
+          console.error("Failed to load survivor summary:", err);
+        });
       } catch (error) {
         console.error("Failed to load dashboard data:", error);
       } finally {
         setLoadingFarmData(false);
       }
     }
-
     loadDashboardData();
   }, [user, activeView]);
 
   /* =====================================================
      LOGIN / REGISTER
      ===================================================== */
-
   async function handleAuth() {
     setAuthError("");
     if (!email.trim() || !password.trim()) {
@@ -221,19 +210,18 @@ function App() {
   /* =====================================================
      LOGOUT
      ===================================================== */
-
   function handleLogout() {
     logout();
     setUser(null);
     setActiveView("home");
     setPoultryCount(0); setLivestockCount(0);
     setProductionCount(0); setExpenseTotal(0);
+    setSurvivorSummary({ totalPoultryBirds: 0, totalLivestockAnimals: 0 });
   }
 
   /* =====================================================
      AUTH LOADING
      ===================================================== */
-
   if (loadingAuth) {
     return (
       <div className="app-loading">
@@ -249,7 +237,6 @@ function App() {
   /* =====================================================
      LOGIN / REGISTER PAGE
      ===================================================== */
-
   if (!user) {
     if (publicView === 'login') {
       const isRegister = authMode === "register";
@@ -257,10 +244,8 @@ function App() {
         <div className="auth-page">
           {/* Animated farm background — behind everything */}
           <FarmBackground />
-
           {/* Frosted-glass form card */}
           <div className="auth-card" role="main">
-
             {/* Back to website link */}
             <button
               className="auth-back-link"
@@ -270,7 +255,6 @@ function App() {
               <ArrowLeft size={15} />
               Back to website
             </button>
-
             {/* Brand logo */}
             <div className="auth-logo-row">
               <div className="auth-logo">
@@ -281,7 +265,6 @@ function App() {
                 <span className="auth-brand-sub">Farm Enterprise</span>
               </div>
             </div>
-
             {/* Heading */}
             <div className="auth-heading-block">
               <h1 className="auth-title">
@@ -293,7 +276,6 @@ function App() {
                   : "Sign in to access your farm analytics and decision support."}
               </p>
             </div>
-
             {/* Name field — register only */}
             {isRegister && (
               <div className="auth-field">
@@ -308,7 +290,6 @@ function App() {
                 />
               </div>
             )}
-
             {/* Email */}
             <div className="auth-field">
               <label htmlFor="auth-email">Email Address</label>
@@ -321,7 +302,6 @@ function App() {
                 onChange={(e) => setEmail(e.target.value)}
               />
             </div>
-
             {/* Password with show/hide */}
             <div className="auth-field">
               <label htmlFor="auth-password">Password</label>
@@ -370,7 +350,6 @@ function App() {
                 </div>
               )}
             </div>
-
             {/* Error message */}
             {authError && (
               <div className="auth-error" role="alert">
@@ -378,7 +357,6 @@ function App() {
                 {authError}
               </div>
             )}
-
             {/* Primary action button */}
             <button
               className="auth-button"
@@ -394,12 +372,10 @@ function App() {
                 <><LogIn size={17} /> Sign In</>
               )}
             </button>
-
             {/* Divider */}
             <div className="auth-divider" aria-hidden="true">
               <span>or continue with</span>
             </div>
-
             {/* Google Sign-In button — rendered by GIS SDK */}
             {GOOGLE_CLIENT_ID ? (
               <div
@@ -412,7 +388,6 @@ function App() {
                 Google Sign-In is not configured.
               </div>
             )}
-
             {/* Switch mode */}
             <div className="auth-switch">
               <span>
@@ -434,7 +409,6 @@ function App() {
         </div>
       );
     }
-
     return (
       <PublicWebsite
         publicView={publicView}
@@ -447,7 +421,6 @@ function App() {
   /* =====================================================
      MAIN APPLICATION
      ===================================================== */
-
   return (
     <div className="app-shell">
       <Header
@@ -456,7 +429,6 @@ function App() {
         activeView={activeView}
         onMenuToggle={() => setSideNavOpen(true)}
       />
-
       <SideNav
         isOpen={sideNavOpen}
         onClose={() => setSideNavOpen(false)}
@@ -466,7 +438,6 @@ function App() {
         userEmail={user.email}
         onLogout={handleLogout}
       />
-
       <div className="app-content">
         {activeView === "home" && (
           <HomeView
@@ -474,6 +445,8 @@ function App() {
             livestockCount={livestockCount}
             productionCount={productionCount}
             expenseTotal={expenseTotal}
+            totalPoultryBirds={survivorSummary.totalPoultryBirds}
+            totalLivestockActive={survivorSummary.totalLivestockAnimals}
             onNavigate={setActiveView}
           />
         )}
@@ -485,9 +458,10 @@ function App() {
         {activeView === "performance" && <PerformanceView />}
         {activeView === "advisor" && <AdvisorView />}
         {activeView === "vaccinations" && <VaccinationsView />}
+        {activeView === "survivors" && <SurvivorView />}
+        {activeView === "mortality" && <MortalityView />}
         {activeView === "admin" && <AdminView />}
       </div>
-
       {loadingFarmData && (
         <div className="data-loading-indicator">Updating dashboard...</div>
       )}

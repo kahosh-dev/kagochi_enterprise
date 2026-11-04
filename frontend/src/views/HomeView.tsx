@@ -29,6 +29,8 @@ interface HomeViewProps {
   livestockCount: number;
   productionCount: number;
   expenseTotal: number;
+  totalPoultryBirds?: number;
+  totalLivestockActive?: number;
   onNavigate: (view: string) => void;
 }
 
@@ -37,6 +39,8 @@ type PeriodFilterKey = "today" | "yesterday" | "7d" | "30d" | "month" | "year" |
 export default function HomeView({
   poultryCount,
   livestockCount,
+  totalPoultryBirds = 0,
+  totalLivestockActive = 0,
   onNavigate,
 }: HomeViewProps) {
   const [filterKey, setFilterKey] = useState<PeriodFilterKey>("30d");
@@ -99,31 +103,25 @@ export default function HomeView({
   const totalLayers = summary?.population.poultry.layerBirds ?? 0;
   const totalBroilers = summary?.population.poultry.broilerBirds ?? 0;
   const birdLosses = summary?.population.poultry.totalLosses ?? 0;
-
   const totalCattle = summary?.population.livestock.animalCount ?? livestockCount;
   const totalCalves = summary?.population.livestock.calvesCount ?? 0;
   const totalHeifers = summary?.population.livestock.heifersCount ?? 0;
   const totalCows = summary?.population.livestock.cowsCount ?? 0;
   const totalBulls = summary?.population.livestock.bullsCount ?? 0;
-
   const totalIncome = summary?.financial.totalIncome ?? 0;
   const totalExpenses = summary?.financial.totalExpenses ?? 0;
   const profitOrLoss = summary?.financial.operatingProfitOrLoss ?? 0;
   const isProfitable = (summary?.financial.isProfitable ?? true) && profitOrLoss >= 0;
-
   const eggLines = summary?.production.lines.filter((l) => l.type === "eggs") ?? [];
   const eggsTotal = eggLines.reduce((s, l) => s + l.total, 0);
   const milkLines = summary?.production.lines.filter((l) => l.type === "milk") ?? [];
   const milkTotal = milkLines.reduce((s, l) => s + l.total, 0);
-
   const feedTotals = summary?.feeding.totalsByUnit ?? [];
   const feedKg = feedTotals.find((u) => u.unit === "kg")?.total ?? 0;
   const feedBags = feedTotals.find((u) => u.unit === "bags")?.total ?? 0;
-
   const dueTodayVac = summary?.vaccinations.dueTodayCount ?? 0;
   const upcomingVac = summary?.vaccinations.upcoming7DaysCount ?? 0;
   const overdueVac = summary?.vaccinations.overdueCount ?? 0;
-
   const activeWarnings = summary?.rules.filter((r) => r.severity === "warning") ?? [];
 
   return (
@@ -198,7 +196,6 @@ export default function HomeView({
             Custom Range
           </button>
         </div>
-
         {filterKey === "custom" && (
           <div className="custom-range-inputs">
             <input
@@ -216,7 +213,6 @@ export default function HomeView({
             />
           </div>
         )}
-
         <div className="period-badge-indicator">
           <Calendar size={14} />
           <span>
@@ -262,7 +258,6 @@ export default function HomeView({
             </span>
           </div>
         </div>
-
         {/* Total Chicks */}
         <div className="metric-box chicks-box" onClick={() => onNavigate("poultry")}>
           <div className="metric-icon-wrap">
@@ -274,7 +269,6 @@ export default function HomeView({
             <span className="metric-subtext">Brooder & day-old</span>
           </div>
         </div>
-
         {/* Total Cattle */}
         <div className="metric-box cattle-box" onClick={() => onNavigate("livestock")}>
           <div className="metric-icon-wrap">
@@ -288,7 +282,6 @@ export default function HomeView({
             </span>
           </div>
         </div>
-
         {/* Calves & Heifers */}
         <div className="metric-box calves-box" onClick={() => onNavigate("livestock")}>
           <div className="metric-icon-wrap">
@@ -304,6 +297,54 @@ export default function HomeView({
         </div>
       </section>
 
+      {/* Population Overview tiles — survivor tracking */}
+      <section className="dashboard-section">
+        <div className="section-heading">
+          <div>
+            <h3>Population Overview</h3>
+            <p>Live survivor counts based on recorded events.</p>
+          </div>
+        </div>
+        <div className="dashboard-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))' }}>
+          <div
+            className="dashboard-card image-card"
+            onClick={() => onNavigate("survivors")}
+            style={{ cursor: "pointer", background: 'linear-gradient(135deg, #065f46, #10b981)' }}
+          >
+            <div className="card-image-overlay" style={{ position: 'relative', padding: '1.5rem' }}>
+              <p className="card-label" style={{ color: '#a7f3d0' }}>🐓 Birds Surviving</p>
+              <h3 style={{ color: '#fff', fontSize: '2rem', margin: '0.25rem 0' }}>{totalPoultryBirds.toLocaleString()}</h3>
+              <p className="card-description" style={{ color: '#a7f3d0', marginBottom: '0.75rem' }}>Alive after all events</p>
+              <button
+                className="secondary-action"
+                style={{ fontSize: '0.8rem', padding: '0.3rem 0.75rem' }}
+                onClick={(e) => { e.stopPropagation(); onNavigate("survivors"); }}
+              >
+                View Survivors →
+              </button>
+            </div>
+          </div>
+          <div
+            className="dashboard-card image-card"
+            onClick={() => onNavigate("mortality")}
+            style={{ cursor: "pointer", background: 'linear-gradient(135deg, #7c3aed, #a78bfa)' }}
+          >
+            <div className="card-image-overlay" style={{ position: 'relative', padding: '1.5rem' }}>
+              <p className="card-label" style={{ color: '#ede9fe' }}>🐄 Livestock Active</p>
+              <h3 style={{ color: '#fff', fontSize: '2rem', margin: '0.25rem 0' }}>{totalLivestockActive.toLocaleString()}</h3>
+              <p className="card-description" style={{ color: '#ede9fe', marginBottom: '0.75rem' }}>Animals with survivors &gt; 0</p>
+              <button
+                className="secondary-action"
+                style={{ fontSize: '0.8rem', padding: '0.3rem 0.75rem' }}
+                onClick={(e) => { e.stopPropagation(); onNavigate("mortality"); }}
+              >
+                View Details →
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* FINANCIAL PROFIT & LOSS SECTION */}
       <div className="section-header-row">
         <h3 className="section-title">Profit & Loss ({filterKey === "today" ? "Today" : filterKey === "7d" ? "Last 7 Days" : "Selected Period"})</h3>
@@ -311,7 +352,6 @@ export default function HomeView({
           Full P&L Details →
         </button>
       </div>
-
       <section className="financial-cards-row">
         {/* Total Income */}
         <div className="financial-card income-card">
@@ -324,7 +364,6 @@ export default function HomeView({
             <span className="fin-sub">From egg, milk & animal sales</span>
           </div>
         </div>
-
         {/* Total Expenses */}
         <div className="financial-card expense-card">
           <div className="fin-icon-wrap">
@@ -336,7 +375,6 @@ export default function HomeView({
             <span className="fin-sub">Feed, labor, vaccines & maintenance</span>
           </div>
         </div>
-
         {/* Operating Profit or Loss */}
         <div className={`financial-card pnl-card ${isProfitable ? "profitable" : "loss-making"}`}>
           <div className="fin-icon-wrap">
@@ -368,7 +406,6 @@ export default function HomeView({
             <span className="metric-subtext">In selected period</span>
           </div>
         </div>
-
         {/* Milk Production */}
         <div className="metric-box milk-box" onClick={() => onNavigate("production")}>
           <div className="metric-icon-wrap">
@@ -380,7 +417,6 @@ export default function HomeView({
             <span className="metric-subtext">Litres milked</span>
           </div>
         </div>
-
         {/* Feed Consumed */}
         <div className="metric-box feed-box" onClick={() => onNavigate("feeding")}>
           <div className="metric-icon-wrap">
@@ -394,11 +430,10 @@ export default function HomeView({
             <span className="metric-subtext">Given to chickens & cows</span>
           </div>
         </div>
-
         {/* Vaccinations Alerts */}
         <div
           className={`metric-box vac-box ${overdueVac > 0 ? "vac-alert" : ""}`}
-          onClick={() => onNavigate("advisor")}
+          onClick={() => onNavigate("vaccinations")}
         >
           <div className="metric-icon-wrap">
             <ShieldAlert size={26} />
@@ -409,7 +444,7 @@ export default function HomeView({
               {dueTodayVac > 0 ? `${dueTodayVac} Due Today` : `${upcomingVac} Upcoming`}
             </h3>
             <span className="metric-subtext">
-              {overdueVac > 0 ? `⚠️ ${overdueVac} overdue doses!` : "All scheduled up-to-date"}
+              {overdueVac > 0 ? `⚠ ${overdueVac} overdue doses!` : "All scheduled up-to-date"}
             </span>
           </div>
         </div>
@@ -423,7 +458,6 @@ export default function HomeView({
             <p>Access your records and operations with one click.</p>
           </div>
         </div>
-
         <div className="quick-actions upgraded-actions-grid">
           <button className="quick-action" onClick={() => onNavigate("poultry")}>
             <ChickenIcon size={32} />
@@ -454,6 +488,21 @@ export default function HomeView({
             <TrendingUp size={32} />
             <strong>Profit & Loss</strong>
             <small>Financial summary</small>
+          </button>
+          <button className="quick-action" onClick={() => onNavigate("survivors")}>
+            <ChickenIcon size={32} />
+            <strong>Survivor Tracking</strong>
+            <small>Population ledger</small>
+          </button>
+          <button className="quick-action" onClick={() => onNavigate("mortality")}>
+            <AlertTriangle size={32} />
+            <strong>Mortality Monitor</strong>
+            <small>Death rate trends</small>
+          </button>
+          <button className="quick-action" onClick={() => onNavigate("vaccinations")}>
+            <ShieldAlert size={32} />
+            <strong>Vaccinations</strong>
+            <small>Vaccine schedule</small>
           </button>
         </div>
       </section>

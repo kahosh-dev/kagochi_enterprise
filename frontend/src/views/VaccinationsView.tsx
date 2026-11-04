@@ -37,14 +37,12 @@ export default function VaccinationsView() {
 
   // Form states for new vaccination
   const [species, setSpecies] = useState<"poultry" | "cattle">("poultry");
-  const [targetType, setTargetType] = useState<"batch" | "animal">("batch");
-  const [targetId, _setTargetId] = useState("");
   const [targetName, setTargetName] = useState("");
   const [vaccineName, setVaccineName] = useState("");
   const [disease, setDisease] = useState("");
   const [dateDue, setDateDue] = useState(new Date().toISOString().slice(0, 10));
+  const [countVaccinated, setCountVaccinated] = useState(0);
   const [dose, setDose] = useState("");
-  const [administeredBy, _setAdministeredBy] = useState("Farm Vet");
   const [notes, setNotes] = useState("");
 
   // Schedule form state
@@ -57,6 +55,13 @@ export default function VaccinationsView() {
 
   const [errorMsg, setErrorMsg] = useState("");
   const [successMsg, setSuccessMsg] = useState("");
+
+  // Mark Done modal state
+  const [markDoneId, setMarkDoneId] = useState<string | null>(null);
+  const [markDoneDate, setMarkDoneDate] = useState(new Date().toISOString().slice(0, 10));
+  const [markDoneCount, setMarkDoneCount] = useState(0);
+  const [markDoneSubmitting, setMarkDoneSubmitting] = useState(false);
+  const [markDoneError, setMarkDoneError] = useState("");
 
   const todayStr = new Date().toISOString().slice(0, 10);
 
@@ -100,20 +105,26 @@ export default function VaccinationsView() {
   });
   const completed = vaccinations.filter((v) => v.status === "completed");
 
-  async function handleMarkCompleted(vac: VaccinationRecord) {
+  async function handleMarkDone(e: React.FormEvent) {
+    e.preventDefault();
+    if (!markDoneId) return;
+    setMarkDoneError("");
+    const rec = vaccinations.find((r) => r.id === markDoneId);
+    if (!rec) return;
     try {
-      setSaving(true);
-      await updateVaccination(vac.id, {
-        ...vac,
+      setMarkDoneSubmitting(true);
+      await updateVaccination(markDoneId, {
+        ...rec,
         status: "completed",
-        dateAdministered: todayStr,
+        dateAdministered: markDoneDate,
+        countVaccinated: markDoneCount,
       });
-      setSuccessMsg(`✓ ${vac.vaccineName} marked as completed.`);
+      setMarkDoneId(null);
       await refreshData();
     } catch (err) {
-      setErrorMsg("Failed to update status.");
+      setMarkDoneError(err instanceof Error ? err.message : "Failed to mark as done.");
     } finally {
-      setSaving(false);
+      setMarkDoneSubmitting(false);
     }
   }
 
@@ -127,16 +138,17 @@ export default function VaccinationsView() {
       setSaving(true);
       await addVaccination({
         species,
-        targetType,
-        targetId: targetId || "custom",
+        targetType: species === "poultry" ? "batch" : "animal",
+        targetId: "custom",
         targetName: targetName.trim() || (species === "poultry" ? "Main Flock" : "Dairy Herd"),
         vaccineName: vaccineName.trim(),
         disease: disease.trim() || "Preventative",
         dateDue,
-        dateAdministered: "",
+        dateAdministered: null,
         dose: dose.trim(),
-        administeredBy: administeredBy.trim(),
+        administeredBy: "Farm Vet",
         status: "scheduled",
+        countVaccinated,
         notes: notes.trim(),
       });
       setSuccessMsg(`✓ Scheduled ${vaccineName} for ${dateDue}.`);
@@ -144,6 +156,7 @@ export default function VaccinationsView() {
       setDisease("");
       setDose("");
       setNotes("");
+      setCountVaccinated(0);
       setActiveTab("reminders");
       await refreshData();
     } catch (err) {
@@ -201,6 +214,8 @@ export default function VaccinationsView() {
     }
   }
 
+  const markingRec = markDoneId ? vaccinations.find((r) => r.id === markDoneId) : null;
+
   return (
     <div className="view-container">
       {/* Header */}
@@ -225,7 +240,6 @@ export default function VaccinationsView() {
             <span className="kpi-desc">Scheduled for today</span>
           </div>
         </div>
-
         <div className="kpi-card">
           <div className="kpi-icon-wrap" style={{ background: overdue.length > 0 ? "#fef2f2" : "#f1f5f9", color: overdue.length > 0 ? "#dc2626" : "#64748b" }}>
             <AlertTriangle size={26} />
@@ -235,10 +249,9 @@ export default function VaccinationsView() {
             <h3 className="kpi-value" style={{ color: overdue.length > 0 ? "#dc2626" : "inherit" }}>
               {overdue.length}
             </h3>
-            <span className="kpi-desc">{overdue.length > 0 ? "⚠️ Immediate attention needed" : "All up to date"}</span>
+            <span className="kpi-desc">{overdue.length > 0 ? "⚠ Immediate attention needed" : "All up to date"}</span>
           </div>
         </div>
-
         <div className="kpi-card">
           <div className="kpi-icon-wrap" style={{ background: "#eff6ff", color: "#2563eb" }}>
             <Clock size={26} />
@@ -249,7 +262,6 @@ export default function VaccinationsView() {
             <span className="kpi-desc">Upcoming appointments</span>
           </div>
         </div>
-
         <div className="kpi-card">
           <div className="kpi-icon-wrap" style={{ background: "#ecfdf5", color: "#059669" }}>
             <CheckCircle2 size={26} />
@@ -290,6 +302,55 @@ export default function VaccinationsView() {
         </button>
       </div>
 
+      {/* Mark Done Modal */}
+      {markDoneId && markingRec && (
+        <div style={{
+          position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', display: 'flex',
+          alignItems: 'center', justifyContent: 'center', zIndex: 1000,
+        }}>
+          <div style={{ background: '#fff', borderRadius: '12px', padding: '1.75rem', maxWidth: '420px', width: '90%', boxShadow: '0 8px 32px rgba(0,0,0,0.2)' }}>
+            <h3 style={{ marginTop: 0 }}>Mark Vaccination Done</h3>
+            <p style={{ color: '#64748b', fontSize: '0.9rem' }}>
+              <strong>{markingRec.targetName}</strong> — {markingRec.vaccineName}
+            </p>
+            {markDoneError && (
+              <div style={{ color: '#dc2626', background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: '6px', padding: '0.6rem', marginBottom: '1rem' }}>
+                {markDoneError}
+              </div>
+            )}
+            <form onSubmit={handleMarkDone}>
+              <div className="form-field" style={{ marginBottom: '1rem' }}>
+                <label>Date Administered</label>
+                <input
+                  type="date"
+                  value={markDoneDate}
+                  max={new Date().toISOString().slice(0, 10)}
+                  onChange={(e) => setMarkDoneDate(e.target.value)}
+                  required
+                />
+              </div>
+              <div className="form-field" style={{ marginBottom: '1.25rem' }}>
+                <label>Count Vaccinated</label>
+                <input
+                  type="number"
+                  min={0}
+                  value={markDoneCount}
+                  onChange={(e) => setMarkDoneCount(Number(e.target.value))}
+                />
+              </div>
+              <div style={{ display: 'flex', gap: '0.75rem' }}>
+                <button type="submit" className="primary-action" disabled={markDoneSubmitting}>
+                  {markDoneSubmitting ? "Saving…" : "Mark as Done ✓"}
+                </button>
+                <button type="button" className="secondary-action" onClick={() => { setMarkDoneId(null); setMarkDoneError(""); }}>
+                  Cancel
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       {/* TAB 1: REMINDERS LIST */}
       {activeTab === "reminders" && (
         <div className="card-box">
@@ -310,8 +371,7 @@ export default function VaccinationsView() {
                     <th>Species</th>
                     <th>Target Animal / Batch</th>
                     <th>Vaccine Name</th>
-                    <th>Disease</th>
-                    <th>Dose / Route</th>
+                    <th>Count</th>
                     <th>Actions</th>
                   </tr>
                 </thead>
@@ -320,7 +380,6 @@ export default function VaccinationsView() {
                     const isDueToday = v.dateDue && v.dateDue.slice(0, 10) === todayStr;
                     const isOver = v.status !== "completed" && v.dateDue && v.dateDue.slice(0, 10) < todayStr;
                     const isDone = v.status === "completed";
-
                     return (
                       <tr key={v.id}>
                         <td>
@@ -332,7 +391,7 @@ export default function VaccinationsView() {
                               isDone ? "badge-chicks" : isOver ? "badge-broilers" : isDueToday ? "badge-layers" : "badge-adult"
                             }`}
                           >
-                            {isDone ? "✓ Done" : isOver ? "⚠️ Overdue" : isDueToday ? "🔔 Due Today" : "Upcoming"}
+                            {isDone ? "✓ Done" : isOver ? "⚠ Overdue" : isDueToday ? "🔔 Due Today" : "Upcoming"}
                           </span>
                         </td>
                         <td>{v.species === "poultry" ? "🐔 Poultry" : "🐄 Cattle"}</td>
@@ -340,14 +399,18 @@ export default function VaccinationsView() {
                           <strong>{v.targetName}</strong>
                         </td>
                         <td>{v.vaccineName}</td>
-                        <td>{v.disease}</td>
-                        <td>{v.dose || "Standard"}</td>
+                        <td>{v.countVaccinated ? v.countVaccinated.toLocaleString() : "—"}</td>
                         <td>
                           <div className="row-actions">
                             {!isDone && (
                               <button
                                 className="btn-pill-promote"
-                                onClick={() => handleMarkCompleted(v)}
+                                onClick={() => {
+                                  setMarkDoneId(v.id);
+                                  setMarkDoneDate(new Date().toISOString().slice(0, 10));
+                                  setMarkDoneCount(v.countVaccinated || 0);
+                                  setMarkDoneError("");
+                                }}
                                 title="Mark Administered"
                               >
                                 Mark Done ✓
@@ -378,24 +441,18 @@ export default function VaccinationsView() {
           <p className="card-subheading">
             Assign a vaccine due date to a poultry batch (e.g. Day-old chicks) or individual cattle.
           </p>
-
           <form onSubmit={handleSaveVaccination} className="poultry-form">
             <div className="form-row-3">
               <div className="form-field">
                 <label>Species *</label>
                 <select
                   value={species}
-                  onChange={(e) => {
-                    const s = e.target.value as "poultry" | "cattle";
-                    setSpecies(s);
-                    setTargetType(s === "poultry" ? "batch" : "animal");
-                  }}
+                  onChange={(e) => setSpecies(e.target.value as "poultry" | "cattle")}
                 >
                   <option value="poultry">🐔 Poultry</option>
                   <option value="cattle">🐄 Cattle</option>
                 </select>
               </div>
-
               <div className="form-field">
                 <label>Target Group / Animal Name *</label>
                 <input
@@ -406,7 +463,6 @@ export default function VaccinationsView() {
                   required
                 />
               </div>
-
               <div className="form-field">
                 <label>Date Due *</label>
                 <input
@@ -417,7 +473,6 @@ export default function VaccinationsView() {
                 />
               </div>
             </div>
-
             <div className="form-row-3">
               <div className="form-field">
                 <label>Vaccine Name *</label>
@@ -429,7 +484,6 @@ export default function VaccinationsView() {
                   required
                 />
               </div>
-
               <div className="form-field">
                 <label>Target Disease</label>
                 <input
@@ -439,7 +493,6 @@ export default function VaccinationsView() {
                   onChange={(e) => setDisease(e.target.value)}
                 />
               </div>
-
               <div className="form-field">
                 <label>Dose & Route</label>
                 <input
@@ -450,17 +503,26 @@ export default function VaccinationsView() {
                 />
               </div>
             </div>
-
-            <div className="form-field">
-              <label>Veterinarian / Administering Person & Notes</label>
-              <input
-                type="text"
-                placeholder="e.g. Dr. Mwangi (Agrovet), check temperature before administering"
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-              />
+            <div className="form-row-3">
+              <div className="form-field">
+                <label>Count Scheduled</label>
+                <input
+                  type="number"
+                  min={0}
+                  value={countVaccinated}
+                  onChange={(e) => setCountVaccinated(Number(e.target.value))}
+                />
+              </div>
+              <div className="form-field" style={{ gridColumn: 'span 2' }}>
+                <label>Notes</label>
+                <input
+                  type="text"
+                  placeholder="e.g. Dr. Mwangi (Agrovet), check temperature before administering"
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                />
+              </div>
             </div>
-
             <div className="form-buttons-row">
               <button type="submit" className="btn-primary" disabled={saving}>
                 {saving ? "Scheduling..." : "+ Schedule Vaccination"}
@@ -481,7 +543,6 @@ export default function VaccinationsView() {
               </p>
             </div>
           </div>
-
           <form onSubmit={handleSaveSchedule} className="poultry-form" style={{ marginBottom: 24, padding: 16, background: "#f8fafc", borderRadius: 8 }}>
             <h4 style={{ margin: "0 0 12px 0", fontSize: 14 }}>+ Add Standard Schedule Template</h4>
             <div className="form-row-3">
@@ -495,7 +556,6 @@ export default function VaccinationsView() {
                   <option value="cattle">Cattle</option>
                 </select>
               </div>
-
               <div className="form-field">
                 <label>Target Category</label>
                 <select
@@ -510,7 +570,6 @@ export default function VaccinationsView() {
                   <option value="cows">Cows</option>
                 </select>
               </div>
-
               <div className="form-field">
                 <label>Vaccine Name *</label>
                 <input
@@ -522,7 +581,6 @@ export default function VaccinationsView() {
                 />
               </div>
             </div>
-
             <div className="form-row-3">
               <div className="form-field">
                 <label>Target Disease</label>
@@ -533,7 +591,6 @@ export default function VaccinationsView() {
                   onChange={(e) => setSchDisease(e.target.value)}
                 />
               </div>
-
               <div className="form-field">
                 <label>Due at Age (Days) *</label>
                 <input
@@ -544,7 +601,6 @@ export default function VaccinationsView() {
                   required
                 />
               </div>
-
               <div className="form-field">
                 <label>Booster Interval (Days, 0 if none)</label>
                 <input
@@ -555,12 +611,10 @@ export default function VaccinationsView() {
                 />
               </div>
             </div>
-
             <button type="submit" className="btn-primary" disabled={saving}>
               Save Schedule Template
             </button>
           </form>
-
           {schedules.length === 0 ? (
             <div className="empty-state">
               <Syringe size={36} />
@@ -610,5 +664,3 @@ export default function VaccinationsView() {
     </div>
   );
 }
-
-

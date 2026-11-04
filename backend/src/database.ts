@@ -117,16 +117,17 @@ db.exec(`
     id TEXT PRIMARY KEY,
     owner_id TEXT NOT NULL,
     species TEXT NOT NULL,
-    target_type TEXT NOT NULL,
-    target_id TEXT NOT NULL,
+    target_type TEXT NOT NULL DEFAULT '',
+    target_id TEXT NOT NULL DEFAULT '',
     target_name TEXT NOT NULL,
     vaccine_name TEXT NOT NULL,
-    disease TEXT NOT NULL,
+    disease TEXT NOT NULL DEFAULT '',
     date_administered TEXT NOT NULL DEFAULT '',
     date_due TEXT NOT NULL,
     dose TEXT NOT NULL DEFAULT '',
     administered_by TEXT NOT NULL DEFAULT '',
     status TEXT NOT NULL DEFAULT 'scheduled',
+    count_vaccinated INTEGER NOT NULL DEFAULT 0,
     notes TEXT NOT NULL DEFAULT '',
     FOREIGN KEY (owner_id) REFERENCES users(id) ON DELETE CASCADE
   );
@@ -141,6 +142,20 @@ db.exec(`
     age_days_due INTEGER NOT NULL,
     booster_interval_days INTEGER NOT NULL DEFAULT 0,
     notes TEXT NOT NULL DEFAULT '',
+    FOREIGN KEY (owner_id) REFERENCES users(id) ON DELETE CASCADE
+  );
+
+  CREATE TABLE IF NOT EXISTS population_events (
+    id          TEXT PRIMARY KEY,
+    owner_id    TEXT NOT NULL,
+    species     TEXT NOT NULL CHECK(species IN ('poultry','cattle')),
+    target_id   TEXT NOT NULL,
+    target_name TEXT NOT NULL,
+    event_type  TEXT NOT NULL CHECK(event_type IN ('addition','death','sale','transfer_in','transfer_out')),
+    count       INTEGER NOT NULL CHECK(count > 0),
+    date        TEXT NOT NULL,
+    reason      TEXT NOT NULL DEFAULT '',
+    notes       TEXT NOT NULL DEFAULT '',
     FOREIGN KEY (owner_id) REFERENCES users(id) ON DELETE CASCADE
   );
 `);
@@ -195,6 +210,13 @@ ensureColumn("feeding", "cost", "REAL NOT NULL DEFAULT 0");
 ensureColumn("feeding", "supplier", "TEXT NOT NULL DEFAULT ''");
 ensureColumn("feeding", "notes", "TEXT NOT NULL DEFAULT ''");
 
+// Vaccinations migrations (ensure both old and new schemas are handled)
+ensureColumn("vaccinations", "target_type", "TEXT NOT NULL DEFAULT ''");
+ensureColumn("vaccinations", "disease", "TEXT NOT NULL DEFAULT ''");
+ensureColumn("vaccinations", "dose", "TEXT NOT NULL DEFAULT ''");
+ensureColumn("vaccinations", "administered_by", "TEXT NOT NULL DEFAULT ''");
+ensureColumn("vaccinations", "count_vaccinated", "INTEGER NOT NULL DEFAULT 0");
+
 db.exec(`
   CREATE INDEX IF NOT EXISTS idx_poultry_owner ON poultry_batches(owner_id, date_added);
   CREATE INDEX IF NOT EXISTS idx_livestock_owner ON livestock(owner_id, date_added);
@@ -204,12 +226,13 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_income_owner ON income(owner_id, date);
   CREATE INDEX IF NOT EXISTS idx_vaccinations_owner ON vaccinations(owner_id, date_due);
   CREATE INDEX IF NOT EXISTS idx_vac_schedules_owner ON vaccination_schedules(owner_id, species, category);
+  CREATE INDEX IF NOT EXISTS idx_pop_events_owner ON population_events(owner_id, date);
+  CREATE INDEX IF NOT EXISTS idx_pop_events_target ON population_events(owner_id, target_id);
 `);
 
 /* ------------------------------------------------------------------ */
 /* Users                                                              */
 /* ------------------------------------------------------------------ */
-
 const userColumns = "id, name, email, password_hash, role, token_version, created_at";
 
 export function findUserByEmail(email: string): UserRow | undefined {
@@ -269,7 +292,6 @@ export function adminDeleteUser(id: string) {
 /* ------------------------------------------------------------------ */
 /* Farm profile                                                       */
 /* ------------------------------------------------------------------ */
-
 export function createFarm(id: string, ownerId: string, farmName: string, location: string, phone: string) {
   return db
     .prepare(
@@ -290,7 +312,6 @@ export function findFarmByOwnerId(ownerId: string) {
 /* ------------------------------------------------------------------ */
 /* Farm records                                                       */
 /* ------------------------------------------------------------------ */
-
 export { resourceTables, type ResourceName, type RecordValues, type RecordRow, type UserRow };
 
 export function listRecords(resource: ResourceName, ownerId: string): RecordRow[] {
@@ -315,7 +336,8 @@ function orderedValues(resource: ResourceName, values: RecordValues) {
       column === "cost" ||
       column === "booster_interval_days" ||
       column === "age_days_due" ||
-      column === "quantity"
+      column === "quantity" ||
+      column === "count_vaccinated"
     ) {
       return 0;
     }
@@ -342,4 +364,86 @@ export function updateRecord(resource: ResourceName, id: string, ownerId: string
 export function deleteRecord(resource: ResourceName, id: string, ownerId: string) {
   const { table } = resourceTables[resource];
   return db.prepare(`DELETE FROM ${table} WHERE id = ? AND owner_id = ?`).run(id, ownerId);
+}
+
+/* ------------------------------------------------------------------ */
+/* Population Events                                                   */
+/* ------------------------------------------------------------------ */
+export interface PopulationEventRow {
+  id: string;
+  owner_id: string;
+  species: 'poultry' | 'cattle';
+  target_id: string;
+  target_name: string;
+  event_type: 'addition' | 'death' | 'sale' | 'transfer_in' | 'transfer_out';
+  count: number;
+  date: string;
+  reason: string;
+  notes: string;
+}
+
+/** Returns all events for this owner, optionally filtered by species and/or targetId. */
+export function listPopulationEvents(
+  ownerId: string,
+  species?: string,
+  targetId?: string,
+): PopulationEventRow[] {
+  let sql = `SELECT id, owner_id, species, target_id, target_name, event_type, count, date, reason, notes
+             FROM population_events WHERE owner_id = ?`;
+  const params: unknown[] = [ownerId];
+  if (species) { sql += ` AND species = ?`; params.push(species); }
+  if (targetId) { sql += ` AND target_id = ?`; params.push(targetId); }
+  sql += ` ORDER BY date DESC, rowid DESC`;
+  return db.prepare(sql).all(...params) as PopulationEventRow[];
+}
+
+/** Returns the net survivor count contributed by events alone (not counting initial_count). */
+export function getSurvivorCount(ownerId: string, targetId: string): number {
+  const row = db.prepare(`
+    SELECT
+      COALESCE(SUM(CASE WHEN event_type IN ('addition','transfer_in') THEN count ELSE 0 END), 0)
+      - COALESCE(SUM(CASE WHEN event_type IN ('death','sale','transfer_out') THEN count ELSE 0 END), 0)
+      AS net
+    FROM population_events
+    WHERE owner_id = ? AND target_id = ?
+  `).get(ownerId, targetId) as { net: number };
+  return row.net;
+}
+
+/** Inserts a new population event. Throws Error('NEGATIVE_POPULATION') if the event
+ *  would make survivors go below zero. */
+export function createPopulationEvent(
+  id: string,
+  ownerId: string,
+  data: Omit<PopulationEventRow, 'id' | 'owner_id'>,
+): void {
+  const reducingTypes = ['death', 'sale', 'transfer_out'];
+  if (reducingTypes.includes(data.event_type)) {
+    // Fetch initial count
+    let initialCount = 0;
+    if (data.species === 'poultry') {
+      const batch = db.prepare(
+        `SELECT initial_count FROM poultry_batches WHERE id = ? AND owner_id = ?`
+      ).get(data.target_id, ownerId) as { initial_count: number } | undefined;
+      initialCount = batch?.initial_count ?? 0;
+    } else {
+      // Each livestock row = 1 animal
+      const animal = db.prepare(
+        `SELECT id FROM livestock WHERE id = ? AND owner_id = ?`
+      ).get(data.target_id, ownerId);
+      initialCount = animal ? 1 : 0;
+    }
+    const netEvents = getSurvivorCount(ownerId, data.target_id);
+    if (initialCount + netEvents - data.count < 0) {
+      throw new Error('NEGATIVE_POPULATION');
+    }
+  }
+  db.prepare(`
+    INSERT INTO population_events (id, owner_id, species, target_id, target_name, event_type, count, date, reason, notes)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(id, ownerId, data.species, data.target_id, data.target_name, data.event_type, data.count, data.date, data.reason, data.notes);
+}
+
+export function deletePopulationEvent(id: string, ownerId: string): { changes: number } {
+  return db.prepare(`DELETE FROM population_events WHERE id = ? AND owner_id = ?`).run(id, ownerId) as { changes: number };
 }

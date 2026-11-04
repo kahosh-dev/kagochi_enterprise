@@ -669,3 +669,233 @@ export function summarizeFarm(records: FarmRecords, period: Period, thresholds: 
 }
 
 export type FarmSummary = ReturnType<typeof summarizeFarm>;
+
+/* ------------------------------------------------------------------ */
+/* Population Survivor and Mortality Analytics                         */
+/* ------------------------------------------------------------------ */
+
+export interface PopulationEventRaw {
+  target_id: string;
+  target_name: string;
+  species: string;
+  event_type: string;
+  count: number;
+  date: string;
+}
+
+export interface SurvivorTarget {
+  targetId: string;
+  targetName: string;
+  species: string;
+  initialCount: number;
+  additions: number;
+  transfersIn: number;
+  deaths: number;
+  sales: number;
+  transfersOut: number;
+  survivors: number;
+  survivorRatePercent: number | null;
+}
+
+export function buildSurvivorSummary(
+  events: PopulationEventRaw[],
+  poultryBatches: Row[],
+  livestock: Row[],
+): {
+  targets: SurvivorTarget[];
+  totalPoultryBirds: number;
+  totalLivestockAnimals: number;
+} {
+  // Build lookup maps
+  const poultryMap = new Map<string, number>();
+  for (const b of poultryBatches) {
+    const id = String(b.id ?? '');
+    const count = typeof b.initial_count === 'number' ? b.initial_count : Number(b.initial_count ?? 0);
+    poultryMap.set(id, count);
+  }
+  const livestockSet = new Set(livestock.map((l) => String(l.id ?? '')));
+
+  // Group events by target_id
+  const targetMap = new Map<string, {
+    targetId: string; targetName: string; species: string;
+    additions: number; transfersIn: number; deaths: number; sales: number; transfersOut: number;
+  }>();
+
+  for (const ev of events) {
+    const key = ev.target_id;
+    if (!targetMap.has(key)) {
+      targetMap.set(key, { targetId: key, targetName: ev.target_name, species: ev.species,
+        additions: 0, transfersIn: 0, deaths: 0, sales: 0, transfersOut: 0 });
+    }
+    const t = targetMap.get(key)!;
+    switch (ev.event_type) {
+      case 'addition':     t.additions    += ev.count; break;
+      case 'transfer_in':  t.transfersIn  += ev.count; break;
+      case 'death':        t.deaths       += ev.count; break;
+      case 'sale':         t.sales        += ev.count; break;
+      case 'transfer_out': t.transfersOut += ev.count; break;
+    }
+  }
+
+  // Also include batches/animals with no events
+  for (const b of poultryBatches) {
+    const id = String(b.id ?? '');
+    if (!targetMap.has(id)) {
+      const name = String(b.breed ?? b.purpose ?? id);
+      targetMap.set(id, { targetId: id, targetName: name, species: 'poultry',
+        additions: 0, transfersIn: 0, deaths: 0, sales: 0, transfersOut: 0 });
+    }
+  }
+  for (const l of livestock) {
+    const id = String(l.id ?? '');
+    if (!targetMap.has(id)) {
+      const name = String(l.name ?? id);
+      targetMap.set(id, { targetId: id, targetName: name, species: 'cattle',
+        additions: 0, transfersIn: 0, deaths: 0, sales: 0, transfersOut: 0 });
+    }
+  }
+
+  const targets: SurvivorTarget[] = [];
+  let totalPoultryBirds = 0;
+  let totalLivestockAnimals = 0;
+
+  for (const t of targetMap.values()) {
+    const initialCount = t.species === 'poultry'
+      ? (poultryMap.get(t.targetId) ?? 0)
+      : (livestockSet.has(t.targetId) ? 1 : 0);
+
+    const survivors = Math.max(
+      0,
+      initialCount + t.additions + t.transfersIn - t.deaths - t.sales - t.transfersOut,
+    );
+    const denominator = initialCount + t.additions + t.transfersIn;
+    const survivorRatePercent = denominator > 0 ? round((survivors / denominator) * 100, 1) : null;
+
+    targets.push({ ...t, initialCount, survivors, survivorRatePercent });
+
+    if (t.species === 'poultry') totalPoultryBirds += survivors;
+    else if (survivors > 0) totalLivestockAnimals += 1;
+  }
+
+  return { targets, totalPoultryBirds, totalLivestockAnimals };
+}
+
+export interface MortalityPoint {
+  label: string;
+  startPopulation: number | null;
+  deaths: number;
+  mortalityRatePercent: number | null;
+  cannotCalculate: boolean;
+}
+
+function isoWeek(day: string): string {
+  const d = new Date(`${day}T00:00:00Z`);
+  const thursday = new Date(d);
+  thursday.setUTCDate(d.getUTCDate() - ((d.getUTCDay() + 6) % 7) + 3);
+  const firstThursday = new Date(Date.UTC(thursday.getUTCFullYear(), 0, 4));
+  const week = 1 + Math.round((thursday.getTime() - firstThursday.getTime()) / 604_800_000);
+  return `${thursday.getUTCFullYear()}-W${String(week).padStart(2, '0')}`;
+}
+
+function bucketLabel(day: string, period: "daily" | "weekly" | "monthly" | "yearly"): string {
+  if (period === 'daily')   return day;
+  if (period === 'weekly')  return isoWeek(day);
+  if (period === 'monthly') return day.slice(0, 7);
+  return day.slice(0, 4);
+}
+
+function bucketStart(label: string, period: "daily" | "weekly" | "monthly" | "yearly"): string {
+  if (period === 'daily')   return label;
+  if (period === 'monthly') return `${label}-01`;
+  if (period === 'yearly')  return `${label}-01-01`;
+  // weekly: label = "YYYY-Www"
+  const [yearStr, weekStr] = label.split('-W');
+  const year = parseInt(yearStr, 10);
+  const week = parseInt(weekStr, 10);
+  // ISO week 1 contains the first Thursday
+  const jan4 = new Date(Date.UTC(year, 0, 4));
+  const monday = new Date(jan4.getTime() - ((jan4.getUTCDay() + 6) % 7) * 86_400_000 + (week - 1) * 7 * 86_400_000);
+  return monday.toISOString().slice(0, 10);
+}
+
+export function buildMortaltySeries(
+  events: PopulationEventRaw[],
+  poultryBatches: Row[],
+  livestock: Row[],
+  from: string,
+  to: string,
+  period: "daily" | "weekly" | "monthly" | "yearly",
+  speciesFilter?: string,
+  targetIdFilter?: string,
+): MortalityPoint[] {
+  // Filter events to deaths within [from, to]
+  let deathEvents = events.filter(
+    (e) => e.event_type === 'death' && e.date >= from && e.date <= to,
+  );
+  if (speciesFilter) deathEvents = deathEvents.filter((e) => e.species === speciesFilter);
+  if (targetIdFilter) deathEvents = deathEvents.filter((e) => e.target_id === targetIdFilter);
+
+  // Group deaths by bucket
+  const bucketDeaths = new Map<string, number>();
+  for (const e of deathEvents) {
+    const lbl = bucketLabel(e.date, period);
+    bucketDeaths.set(lbl, (bucketDeaths.get(lbl) ?? 0) + e.count);
+  }
+
+  // Enumerate all buckets from `from` to `to`
+  const allBuckets: string[] = [];
+  const seen = new Set<string>();
+  let cursor = from;
+  while (cursor <= to) {
+    const lbl = bucketLabel(cursor, period);
+    if (!seen.has(lbl)) { allBuckets.push(lbl); seen.add(lbl); }
+    cursor = addDays(cursor, 1);
+  }
+
+  // Compute start population for each bucket
+  // All events before the bucket start
+  const allEventsBeforeMap = (beforeDate: string): number => {
+    let filtered = events.filter((e) => e.date < beforeDate);
+    if (speciesFilter) filtered = filtered.filter((e) => e.species === speciesFilter);
+    if (targetIdFilter) filtered = filtered.filter((e) => e.target_id === targetIdFilter);
+
+    // initial counts
+    let initial = 0;
+    if (!speciesFilter || speciesFilter === 'poultry') {
+      for (const b of poultryBatches) {
+        if (!targetIdFilter || String(b.id) === targetIdFilter) {
+          const dateAdded = String(b.date_added ?? '');
+          if (dateAdded < beforeDate) {
+            initial += typeof b.initial_count === 'number' ? b.initial_count : Number(b.initial_count ?? 0);
+          }
+        }
+      }
+    }
+    if (!speciesFilter || speciesFilter === 'cattle') {
+      for (const l of livestock) {
+        if (!targetIdFilter || String(l.id) === targetIdFilter) {
+          const dateAdded = String(l.date_added ?? '');
+          if (dateAdded < beforeDate) initial += 1;
+        }
+      }
+    }
+
+    let net = 0;
+    for (const e of filtered) {
+      if (['addition', 'transfer_in'].includes(e.event_type)) net += e.count;
+      else if (['death', 'sale', 'transfer_out'].includes(e.event_type)) net -= e.count;
+    }
+    return Math.max(0, initial + net);
+  };
+
+  return allBuckets.map((lbl) => {
+    const bStart = bucketStart(lbl, period);
+    const deaths = bucketDeaths.get(lbl) ?? 0;
+    const startPop = allEventsBeforeMap(bStart);
+    const cannotCalculate = startPop === 0;
+    const mortalityRatePercent = (!cannotCalculate && deaths > 0)
+      ? round((deaths / startPop) * 100, 2)
+      : (cannotCalculate ? null : 0);
+    return { label: lbl, startPopulation: startPop, deaths, mortalityRatePercent, cannotCalculate };
+  });
+}

@@ -115,16 +115,17 @@ export const incomeSchema = z.object({
 
 export const vaccinationSchema = z.object({
   species: z.enum(["poultry", "cattle"]),
-  targetType: z.enum(["batch", "animal"]),
-  targetId: text(100),
+  targetType: z.string().trim().max(50).default(""),
+  targetId: z.string().trim().max(100).default(""),
   targetName: text(100),
   vaccineName: text(100),
-  disease: text(100),
+  disease: z.string().trim().max(100).default(""),
   dateAdministered: z.string().trim().max(50).default(""),
   dateDue: futureOrPastIsoDate,
   dose: z.string().trim().max(50).default(""),
   administeredBy: z.string().trim().max(100).default(""),
-  status: z.enum(["scheduled", "due", "completed", "overdue", "cancelled"]).default("scheduled"),
+  status: z.enum(["scheduled", "due", "due_today", "completed", "overdue", "upcoming", "cancelled"]).default("scheduled"),
+  countVaccinated: z.number().int().min(0).max(1_000_000).default(0),
   notes: z.string().trim().max(500).default(""),
 });
 
@@ -136,6 +137,31 @@ export const vaccinationScheduleSchema = z.object({
   ageDaysDue: z.number().int().min(0).max(3650),
   boosterIntervalDays: z.number().int().min(0).max(3650).default(0),
   notes: z.string().trim().max(500).default(""),
+});
+
+/* ---- Population events (new from main) ---- */
+export const populationEventSchema = z.object({
+  species:    z.enum(["poultry", "cattle"]),
+  targetId:   z.string().trim().min(1).max(100),
+  targetName: text(150),
+  eventType:  z.enum(["addition", "death", "sale", "transfer_in", "transfer_out"]),
+  count:      z.number().int().min(1, "Count must be at least 1.").max(100_000),
+  date:       isoDate,
+  reason:     z.string().trim().max(300).default(""),
+  notes:      z.string().trim().max(500).default(""),
+});
+
+export const mortalityQuerySchema = z.object({
+  species:  z.enum(["poultry", "cattle"]).optional(),
+  targetId: z.string().trim().max(100).optional(),
+  from:     isoDate.optional(),
+  to:       isoDate.optional(),
+  period:   z.enum(["daily", "weekly", "monthly", "yearly"]).default("daily"),
+});
+
+export const survivorQuerySchema = z.object({
+  species:  z.enum(["poultry", "cattle"]).optional(),
+  targetId: z.string().trim().max(100).optional(),
 });
 
 interface ResourceDefinition {
@@ -232,16 +258,17 @@ export const resourceDefinitions: Record<ResourceName, ResourceDefinition> = {
     schema: vaccinationSchema,
     toColumns: (d: z.infer<typeof vaccinationSchema>) => ({
       species: d.species,
-      target_type: d.targetType,
-      target_id: d.targetId,
+      target_type: d.targetType ?? "",
+      target_id: d.targetId ?? "",
       target_name: d.targetName,
       vaccine_name: d.vaccineName,
-      disease: d.disease,
+      disease: d.disease ?? "",
       date_administered: d.dateAdministered ?? "",
       date_due: d.dateDue,
       dose: d.dose ?? "",
       administered_by: d.administeredBy ?? "",
       status: d.status ?? "scheduled",
+      count_vaccinated: d.countVaccinated ?? 0,
       notes: d.notes ?? "",
     }),
   },
@@ -261,7 +288,6 @@ export const resourceDefinitions: Record<ResourceName, ResourceDefinition> = {
 };
 
 /* Accounts */
-
 const email = z.string().trim().toLowerCase().email("Enter a valid email address.").max(150);
 export const newPassword = z
   .string()
@@ -294,11 +320,9 @@ export const adminCreateUserSchema = z.object({
 });
 
 export const adminUpdateUserSchema = z.object({ name: personName, email, role });
-
 export const idParamSchema = z.string().min(1).max(100).regex(/^[A-Za-z0-9_-]+$/);
 
 /* Analytics */
-
 export const summaryQuerySchema = z.object({
   days: z.coerce.number().int().min(1, "days must be between 1 and 366.").max(366, "days must be between 1 and 366.").default(30),
   to: isoDate.optional(),
@@ -306,7 +330,6 @@ export const summaryQuerySchema = z.object({
 });
 
 /* AI */
-
 export const adviceRequestSchema = z.object({
   periodDays: z.number().int().min(1).max(365).optional(),
   to: isoDate.optional(),

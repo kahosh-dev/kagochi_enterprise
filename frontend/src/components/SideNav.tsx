@@ -27,6 +27,13 @@ const NAV_SECTIONS = [
     ],
   },
   {
+    label: "POPULATION TRACKING",
+    items: [
+      { id: "survivors", label: "Survivor Tracking", img: "https://images.unsplash.com/photo-1548550023-2bdb3c5beed7?w=80&q=70", description: "Population ledger" },
+      { id: "mortality", label: "Mortality Monitor", img: "https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=80&q=70", description: "Death rate trends" },
+    ],
+  },
+  {
     label: "FINANCIAL & AI ASSISTANT",
     items: [
       { id: "performance", label: "Profit & Loss", img: "https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=80&q=70", description: "P&L reports" },
@@ -53,7 +60,6 @@ export default function SideNav({
         className={`sidenav-backdrop ${isOpen ? "sidenav-backdrop-visible" : ""}`}
         onClick={onClose}
       />
-
       <aside className={`sidenav ${isOpen ? "sidenav-open" : ""}`}>
         {/* Header */}
         <div className="sidenav-header">
@@ -66,7 +72,6 @@ export default function SideNav({
           </div>
           <button className="sidenav-close" onClick={onClose} aria-label="Close menu">✕</button>
         </div>
-
         {/* Scrollable Nav Area */}
         <div className="sidenav-scroll">
           {NAV_SECTIONS.map((section) => (
@@ -88,7 +93,6 @@ export default function SideNav({
               ))}
             </div>
           ))}
-
           {/* Sign out */}
           <div className="sidenav-footer">
             <button className="sidenav-logout" onClick={onLogout}>

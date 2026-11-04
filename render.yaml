@@ -1,0 +1,32 @@
+services:
+  - type: web
+    name: kagochi-farm-enterprise
+    runtime: node
+    region: oregon
+    plan: free
+    rootDir: .
+    buildCommand: >
+      cd frontend && npm ci && npm run build &&
+      cd ../backend && npm ci && npm run build
+    startCommand: node backend/dist/src/server.js
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: "10000"
+      - key: FRONTEND_DIST
+        value: ../frontend/dist
+      - key: DATABASE_PATH
+        value: /data/kagochi.db
+      - key: JWT_SECRET
+        generateValue: true
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: ALLOW_REGISTRATION
+        value: "false"
+      - key: CORS_ORIGINS
+        value: ""
+    disk:
+      name: kagochi-db
+      mountPath: /data
+      sizeGB: 1

@@ -51,6 +51,7 @@ RULES:
 4. Keep units separate (eggs, trays, litres, kg, bags, KES). Do not add different units together.
 5. Do not claim that something caused something else. Use phrases such as "a possible explanation is".
 6. You provide decision support, not veterinary or agricultural diagnosis. For sick animals, deaths or serious problems, recommend a qualified veterinarian or livestock extension officer.
+7. The farm_data includes survivorTracking with population events and survivor rates per batch/animal. Use this data when the farmer asks about animal populations or deaths.
 `;
 
 export function buildAdvicePrompt(farmContext: unknown): string {

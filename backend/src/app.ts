@@ -7,7 +7,6 @@ import helmet from "helmet";
 import cookieParser from "cookie-parser";
 import rateLimit from "express-rate-limit";
 import type { ZodType } from "zod";
-
 import { config } from "./config.js";
 import {
   SESSION_COOKIE,
@@ -31,6 +30,8 @@ import {
   resourceDefinitions,
   summaryQuerySchema,
   validationDetails,
+  populationEventSchema,
+  survivorQuerySchema,
 } from "./schemas.js";
 import { type AiClient, buildAdvicePrompt, buildChatPrompt, createGeminiClient } from "./ai.js";
 import type { FarmStore, UserRow, ResourceName } from "./store.js";
@@ -39,7 +40,7 @@ import {
   loadFarmRecordsFromStore,
   today,
 } from "./farmContextStore.js";
-import { makePeriod, makeCustomPeriod, summarizeFarm } from "./analytics.js";
+import { makePeriod, makeCustomPeriod, summarizeFarm, buildSurvivorSummary, buildMortaltySeries, addDays } from "./analytics.js";
 
 declare global {
   // eslint-disable-next-line @typescript-eslint/no-namespace
@@ -53,7 +54,6 @@ declare global {
 export interface AppOptions {
   /** Database adapter selected by the server or tests. */
   store: FarmStore;
-
   /** Inject a fake AI client in tests; defaults to Gemini when GEMINI_API_KEY is set. */
   ai?: AiClient | null;
 }
@@ -80,8 +80,6 @@ export function createApp(options: AppOptions) {
   const store = options.store;
   const ai = options.ai === undefined ? createGeminiClient() : options.ai;
   const app = express();
-
-
   app.disable("x-powered-by");
   app.use(helmet());
   app.use(
@@ -94,7 +92,6 @@ export function createApp(options: AppOptions) {
   );
   app.use(express.json({ limit: "100kb" }));
   app.use(cookieParser());
-
   /*
    * CSRF protection. The session cookie is SameSite=Strict, and any request
    * that changes data must come from an allowed origin (or the same host).
@@ -128,7 +125,7 @@ export function createApp(options: AppOptions) {
   const api = express.Router();
   api.use(apiLimiter);
 
-    async function requireAuth(
+  async function requireAuth(
     req: Request,
     res: Response,
     next: NextFunction,
@@ -137,11 +134,9 @@ export function createApp(options: AppOptions) {
       const token = req.cookies?.[SESSION_COOKIE];
       const session =
         typeof token === "string" ? verifySessionToken(token) : null;
-
       const user = session
         ? await store.findUserById(session.userId)
         : undefined;
-
       if (
         !session ||
         !user ||
@@ -153,7 +148,6 @@ export function createApp(options: AppOptions) {
         res.status(401).json({ error: "Please log in to continue." });
         return;
       }
-
       req.user = publicUser(user);
       next();
     } catch (error) {
@@ -169,18 +163,16 @@ export function createApp(options: AppOptions) {
     next();
   }
 
-function startSession(res: Response, user: UserRow) {
+  function startSession(res: Response, user: UserRow) {
     res.cookie(SESSION_COOKIE, createSessionToken(user.id, user.token_version), sessionCookieOptions());
   }
 
   /* -------------------------------- Health ------------------------------- */
-
   api.get("/health", (_req, res) => {
     res.json({ status: "ok", aiConfigured: Boolean(ai), registrationEnabled: config.allowRegistration });
   });
 
   /* --------------------------------- Auth -------------------------------- */
-
   api.post("/auth/login", loginLimiter, async (req, res) => {
     const data = parse(loginSchema, req.body, res, "Invalid email or password.");
     if (!data) return;
@@ -207,27 +199,24 @@ function startSession(res: Response, user: UserRow) {
     }
     const id = crypto.randomUUID();
     await store.createUser(
-  id,
-  data.name,
-  data.email,
-  await hashPassword(data.password),
-);
-
-if (data.farmName) {
-  await store.createFarm(
-    crypto.randomUUID(),
-    id,
-    data.farmName,
-    data.location ?? "",
-    data.phone ?? "",
-  );
-}
-
-const user = await store.findUserById(id);
-
-if (!user) {
-  throw new Error("The newly created user could not be retrieved.");
-}
+      id,
+      data.name,
+      data.email,
+      await hashPassword(data.password),
+    );
+    if (data.farmName) {
+      await store.createFarm(
+        crypto.randomUUID(),
+        id,
+        data.farmName,
+        data.location ?? "",
+        data.phone ?? "",
+      );
+    }
+    const user = await store.findUserById(id);
+    if (!user) {
+      throw new Error("The newly created user could not be retrieved.");
+    }
     startSession(res, user);
     res.status(201).json({ user: publicUser(user) });
   });
@@ -245,17 +234,13 @@ if (!user) {
   });
 
   /* ----------------------------- Farm records ---------------------------- */
-
-
   for (const resource of Object.keys(resourceDefinitions) as ResourceName[]) {
     const { label, schema, toColumns } = resourceDefinitions[resource];
     const path = `/farm/${resource}`;
-
     api.get(path, requireAuth, async (req, res) => {
       const records = await store.listRecords(resource, req.user!.id);
       res.json({ [resource]: records });
     });
-
     api.post(path, requireAuth, async (req, res) => {
       const data = parse(
         schema,
@@ -264,27 +249,21 @@ if (!user) {
         `Invalid ${label.toLowerCase()} details.`,
       );
       if (!data) return;
-
       const id = crypto.randomUUID();
-
       await store.createRecord(
         resource,
         id,
         req.user!.id,
         toColumns(data as never),
       );
-
       res.status(201).json({ message: `${label} saved.`, id });
     });
-
     api.put(`${path}/:id`, requireAuth, async (req, res) => {
       const id = idParamSchema.safeParse(req.params.id);
-
       if (!id.success) {
         res.status(404).json({ error: `${label} not found.` });
         return;
       }
-
       const data = parse(
         schema,
         req.body,
@@ -292,42 +271,32 @@ if (!user) {
         `Invalid ${label.toLowerCase()} details.`,
       );
       if (!data) return;
-
       const result = await store.updateRecord(
         resource,
         id.data,
         req.user!.id,
         toColumns(data as never),
       );
-
       if (result.changes === 0) {
         res.status(404).json({ error: `${label} not found.` });
         return;
       }
-
       res.json({ message: `${label} updated.` });
     });
-
     api.delete(`${path}/:id`, requireAuth, async (req, res) => {
       const id = idParamSchema.safeParse(req.params.id);
-
       const result = id.success
         ? await store.deleteRecord(resource, id.data, req.user!.id)
         : { changes: 0 };
-
       if (result.changes === 0) {
         res.status(404).json({ error: `${label} not found.` });
         return;
       }
-
       res.json({ message: `${label} deleted.` });
     });
   }
 
-
   /* ------------------------------- Analytics ------------------------------ */
-
-
   api.get("/farm/summary", requireAuth, async (req, res) => {
     const query = parse(
       summaryQuerySchema,
@@ -336,20 +305,118 @@ if (!user) {
       "Invalid analytics period.",
     );
     if (!query) return;
-
     const toDate = query.to ?? today();
     const period = query.from
       ? makeCustomPeriod(query.from, toDate)
       : makePeriod(toDate, query.days);
     const records = await loadFarmRecordsFromStore(store, req.user!.id);
-
     res.json({
       summary: summarizeFarm(records, period),
     });
   });
 
-  /* ---------------------------------- AI --------------------------------- */
+  /* ---------------------- Population Events Routes ----------------------- */
+  api.get("/farm/population-events", requireAuth, async (req, res) => {
+    const query = survivorQuerySchema.safeParse(req.query);
+    const species = query.success ? query.data.species : undefined;
+    const targetId = query.success ? query.data.targetId : undefined;
+    // List via vaccinations table is in store; population-events go through the store's listRecords or a dedicated method.
+    // For compatibility with the neon-postgres store pattern, use listRecords for population_events if available,
+    // otherwise fall back to the SQLite database helper imported below.
+    // Since the neon-postgres store doesn't yet have a listPopulationEvents method,
+    // we import the SQLite helper directly (the same approach as migration/neon-postgres for other direct DB calls).
+    const { listPopulationEvents } = await import("./database.js");
+    const events = listPopulationEvents(req.user!.id, species, targetId);
+    res.json({ populationEvents: events });
+  });
 
+  api.post("/farm/population-events", requireAuth, async (req, res) => {
+    const data = parse(populationEventSchema, req.body, res, "Invalid population event details.");
+    if (!data) return;
+    const { listPopulationEvents, createPopulationEvent } = await import("./database.js");
+    // Check for duplicate death events
+    let warning: string | undefined;
+    if (data.eventType === 'death') {
+      const existing = listPopulationEvents(req.user!.id, data.species, data.targetId);
+      const duplicate = existing.find(
+        (e) => e.event_type === 'death' && e.date === data.date && e.count === data.count,
+      );
+      if (duplicate) {
+        warning = "A death event with the same date and count already exists for this animal or batch. Please check for duplicates.";
+      }
+    }
+    const id = crypto.randomUUID();
+    try {
+      createPopulationEvent(id, req.user!.id, {
+        species:     data.species,
+        target_id:   data.targetId,
+        target_name: data.targetName,
+        event_type:  data.eventType,
+        count:       data.count,
+        date:        data.date,
+        reason:      data.reason,
+        notes:       data.notes,
+      });
+    } catch (error) {
+      if ((error as Error).message === 'NEGATIVE_POPULATION') {
+        res.status(409).json({ error: "This would make the population go negative. Check the count." });
+        return;
+      }
+      throw error;
+    }
+    if (warning) {
+      res.json({ message: "Population event recorded.", id, warning });
+    } else {
+      res.status(201).json({ message: "Population event recorded.", id });
+    }
+  });
+
+  api.delete("/farm/population-events/:id", requireAuth, async (req, res) => {
+    const id = idParamSchema.safeParse(req.params.id);
+    if (!id.success) {
+      res.status(404).json({ error: "Population event not found." });
+      return;
+    }
+    const { deletePopulationEvent } = await import("./database.js");
+    const result = deletePopulationEvent(id.data, req.user!.id);
+    if (result.changes === 0) {
+      res.status(404).json({ error: "Population event not found." });
+      return;
+    }
+    res.json({ message: "Population event deleted." });
+  });
+
+  api.get("/farm/survivor-summary", requireAuth, async (req, res) => {
+    const query = survivorQuerySchema.safeParse(req.query);
+    const species = query.success ? query.data.species : undefined;
+    const targetId = query.success ? query.data.targetId : undefined;
+    const { listPopulationEvents } = await import("./database.js");
+    const events = listPopulationEvents(req.user!.id, species, targetId);
+    const poultryBatches = await store.listRecords("poultry", req.user!.id);
+    const livestock = await store.listRecords("livestock", req.user!.id);
+    const summary = buildSurvivorSummary(events as any, poultryBatches, livestock);
+    res.json(summary);
+  });
+
+  api.get("/farm/mortality-summary", requireAuth, async (req, res) => {
+    const rawQuery = req.query;
+    const todayStr = today();
+    const from = typeof rawQuery.from === 'string' ? rawQuery.from : addDays(todayStr, -30);
+    const to   = typeof rawQuery.to   === 'string' ? rawQuery.to   : todayStr;
+    const period = (["daily","weekly","monthly","yearly"] as const).includes(rawQuery.period as any)
+      ? (rawQuery.period as "daily"|"weekly"|"monthly"|"yearly")
+      : "daily";
+    const speciesFilter  = typeof rawQuery.species  === 'string' ? rawQuery.species  : undefined;
+    const targetIdFilter = typeof rawQuery.targetId === 'string' ? rawQuery.targetId : undefined;
+    const { listPopulationEvents } = await import("./database.js");
+    const events        = listPopulationEvents(req.user!.id);
+    const poultryBatches = await store.listRecords("poultry", req.user!.id);
+    const livestock      = await store.listRecords("livestock", req.user!.id);
+    const series = buildMortaltySeries(events as any, poultryBatches, livestock, from, to, period, speciesFilter, targetIdFilter);
+    res.json({ series, from, to, period });
+  });
+
+  /* ---------------------------------- AI --------------------------------- */
   function aiUnavailable(res: Response, key: "advice" | "answer") {
     res.status(503).json({
       error: "The AI advisor is not configured on the server. Your farm records and rule-based checks are still available.",
@@ -357,7 +424,6 @@ if (!user) {
       fallback: true,
     });
   }
-
   function aiFailed(res: Response, error: unknown, key: "advice" | "answer") {
     const status = (error as { status?: number })?.status;
     console.error("AI request failed:", status ?? "", (error as Error)?.message ?? "Unknown error");
@@ -410,8 +476,6 @@ if (!user) {
   });
 
   /* -------------------------------- Admin -------------------------------- */
-
-
   api.get("/admin/users", requireAuth, requireAdmin, async (_req, res) => {
     res.json({ users: await store.getAllUsers() });
   });
@@ -419,14 +483,11 @@ if (!user) {
   api.post("/admin/users", requireAuth, requireAdmin, async (req, res) => {
     const data = parse(adminCreateUserSchema, req.body, res, "Invalid account details.");
     if (!data) return;
-
     if (await store.findUserByEmail(data.email)) {
       res.status(409).json({ error: "An account with this email already exists." });
       return;
     }
-
     const id = crypto.randomUUID();
-
     try {
       await store.createUser(
         id,
@@ -442,22 +503,18 @@ if (!user) {
       }
       throw error;
     }
-
     res.status(201).json({ message: "Account created.", id });
   });
 
   api.put("/admin/users/:id", requireAuth, requireAdmin, async (req, res) => {
     const data = parse(adminUpdateUserSchema, req.body, res, "Invalid account details.");
     if (!data) return;
-
     const id = String(req.params.id);
     const target = await store.findUserById(id);
-
     if (!target) {
       res.status(404).json({ error: "User not found." });
       return;
     }
-
     if (
       target.role === "admin" &&
       data.role !== "admin" &&
@@ -466,7 +523,6 @@ if (!user) {
       res.status(409).json({ error: "The last administrator cannot be demoted." });
       return;
     }
-
     try {
       await store.adminUpdateUser(id, data.name, data.email, data.role);
     } catch (error) {
@@ -476,28 +532,22 @@ if (!user) {
       }
       throw error;
     }
-
     res.json({ message: "User updated." });
   });
 
   api.delete("/admin/users/:id", requireAuth, requireAdmin, async (req, res) => {
     const id = String(req.params.id);
-
     if (id === req.user!.id) {
       res.status(409).json({ error: "You cannot delete your own account while logged in." });
       return;
     }
-
     const result = await store.adminDeleteUser(id);
-
     if (result.changes === 0) {
       res.status(404).json({ error: "User not found." });
       return;
     }
-
     res.json({ message: "User and their farm records deleted." });
   });
-
 
   app.use("/api", api);
   app.use("/api", (_req, res) => {

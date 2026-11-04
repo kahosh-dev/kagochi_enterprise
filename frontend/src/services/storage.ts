@@ -11,6 +11,9 @@ import type {
   ReminderItem,
   AdviceItem,
   FarmSummaryData,
+  PopulationEvent,
+  SurvivorSummary,
+  MortalitySummary,
 } from "../types/farm";
 
 const API_URL = (import.meta.env.VITE_API_URL ?? "http://localhost:3001").replace(/\/+$/, "");
@@ -33,20 +36,16 @@ async function apiRequest<T>(
       ...(options.headers || {}),
     },
   });
-
   const data = await response.json();
-
   if (!response.ok) {
     throw new Error(data.error || "Request failed.");
   }
-
   return data;
 }
 
 /* =====================================================
    FARM PROFILE
    ===================================================== */
-
 export function saveFarmProfile(profile: FarmProfile): void {
   localStorage.setItem(STORAGE_KEYS.profile, JSON.stringify(profile));
 }
@@ -64,7 +63,6 @@ export function loadFarmProfile(): FarmProfile | null {
 /* =====================================================
    POULTRY
    ===================================================== */
-
 function mapPoultry(row: any): PoultryBatch {
   return {
     id: String(row.id),
@@ -104,7 +102,6 @@ export async function addPoultry(
       notes: poultry.notes || "",
     }),
   });
-
   return {
     ...poultry,
     id: data.id,
@@ -141,7 +138,6 @@ export async function deletePoultry(id: string): Promise<void> {
 /* =====================================================
    LIVESTOCK (CATTLE)
    ===================================================== */
-
 function mapLivestock(row: any): LivestockAnimal {
   return {
     id: String(row.id),
@@ -183,7 +179,6 @@ export async function addLivestock(
       notes: livestock.notes || "",
     }),
   });
-
   return {
     ...livestock,
     id: data.id,
@@ -221,7 +216,6 @@ export async function deleteLivestock(id: string): Promise<void> {
 /* =====================================================
    PRODUCTION
    ===================================================== */
-
 function mapProduction(row: any): ProductionRecord {
   return {
     id: String(row.id),
@@ -255,7 +249,6 @@ export async function addProduction(
       notes: production.notes || "",
     }),
   });
-
   return {
     ...production,
     id: data.id,
@@ -289,7 +282,6 @@ export async function deleteProduction(id: string): Promise<void> {
 /* =====================================================
    FEEDING
    ===================================================== */
-
 function mapFeeding(row: any): FeedingRecord {
   return {
     id: String(row.id),
@@ -325,7 +317,6 @@ export async function addFeeding(
       notes: feeding.notes || "",
     }),
   });
-
   return {
     ...feeding,
     id: data.id,
@@ -360,7 +351,6 @@ export async function deleteFeeding(id: string): Promise<void> {
 /* =====================================================
    EXPENSES
    ===================================================== */
-
 export async function loadExpenses(): Promise<ExpenseRecord[]> {
   const data = await apiRequest<{ expenses: ExpenseRecord[] }>("/api/farm/expenses");
   return data.expenses || [];
@@ -378,7 +368,6 @@ export async function addExpense(
       date: expense.date,
     }),
   });
-
   return {
     ...expense,
     id: data.id,
@@ -409,7 +398,6 @@ export async function deleteExpense(id: string): Promise<void> {
 /* =====================================================
    INCOME
    ===================================================== */
-
 export async function loadIncome(): Promise<IncomeRecord[]> {
   const data = await apiRequest<{ income: IncomeRecord[] }>("/api/farm/income");
   return data.income || [];
@@ -429,7 +417,6 @@ export async function addIncome(
       unit: income.unit || "",
     }),
   });
-
   return {
     ...income,
     id: data.id,
@@ -462,21 +449,21 @@ export async function deleteIncome(id: string): Promise<void> {
 /* =====================================================
    VACCINATIONS
    ===================================================== */
-
 function mapVaccination(row: any): VaccinationRecord {
   return {
     id: String(row.id),
     species: row.species,
-    targetType: row.target_type,
-    targetId: row.target_id,
+    targetType: row.target_type || "",
+    targetId: row.target_id ?? "",
     targetName: row.target_name,
     vaccineName: row.vaccine_name,
-    disease: row.disease,
-    dateAdministered: row.date_administered || "",
+    disease: row.disease || "",
+    dateAdministered: row.date_administered || null,
     dateDue: row.date_due,
     dose: row.dose || "",
     administeredBy: row.administered_by || "",
     status: row.status || "scheduled",
+    countVaccinated: Number(row.count_vaccinated ?? 0),
     notes: row.notes || "",
   };
 }
@@ -493,20 +480,20 @@ export async function addVaccination(
     method: "POST",
     body: JSON.stringify({
       species: vac.species,
-      targetType: vac.targetType,
-      targetId: vac.targetId,
+      targetType: vac.targetType || "",
+      targetId: vac.targetId || "",
       targetName: vac.targetName,
       vaccineName: vac.vaccineName,
-      disease: vac.disease,
+      disease: vac.disease || "",
       dateAdministered: vac.dateAdministered || "",
       dateDue: vac.dateDue,
       dose: vac.dose || "",
       administeredBy: vac.administeredBy || "",
       status: vac.status || "scheduled",
+      countVaccinated: vac.countVaccinated || 0,
       notes: vac.notes || "",
     }),
   });
-
   return {
     ...vac,
     id: data.id,
@@ -521,16 +508,17 @@ export async function updateVaccination(
     method: "PUT",
     body: JSON.stringify({
       species: vac.species,
-      targetType: vac.targetType,
-      targetId: vac.targetId,
+      targetType: vac.targetType || "",
+      targetId: vac.targetId || "",
       targetName: vac.targetName,
       vaccineName: vac.vaccineName,
-      disease: vac.disease,
+      disease: vac.disease || "",
       dateAdministered: vac.dateAdministered || "",
       dateDue: vac.dateDue,
       dose: vac.dose || "",
       administeredBy: vac.administeredBy || "",
       status: vac.status || "scheduled",
+      countVaccinated: vac.countVaccinated || 0,
       notes: vac.notes || "",
     }),
   });
@@ -545,7 +533,6 @@ export async function deleteVaccination(id: string): Promise<void> {
 /* =====================================================
    VACCINATION SCHEDULES
    ===================================================== */
-
 function mapVaccinationSchedule(row: any): VaccinationSchedule {
   return {
     id: String(row.id),
@@ -579,7 +566,6 @@ export async function addVaccinationSchedule(
       notes: sch.notes || "",
     }),
   });
-
   return {
     ...sch,
     id: data.id,
@@ -593,9 +579,96 @@ export async function deleteVaccinationSchedule(id: string): Promise<void> {
 }
 
 /* =====================================================
+   POPULATION EVENTS
+   ===================================================== */
+function mapPopulationEvent(row: any): PopulationEvent {
+  return {
+    id:          String(row.id),
+    species:     row.species,
+    targetId:    row.target_id,
+    targetName:  row.target_name,
+    eventType:   row.event_type,
+    count:       Number(row.count),
+    date:        row.date,
+    reason:      row.reason ?? '',
+    notes:       row.notes ?? '',
+  };
+}
+
+export async function loadPopulationEvents(params?: {
+  species?: string;
+  targetId?: string;
+}): Promise<PopulationEvent[]> {
+  const qs = new URLSearchParams();
+  if (params?.species)  qs.set('species',  params.species);
+  if (params?.targetId) qs.set('targetId', params.targetId);
+  const query = qs.toString() ? `?${qs}` : '';
+  const data = await apiRequest<{ populationEvents: any[] }>(`/api/farm/population-events${query}`);
+  return (data.populationEvents || []).map(mapPopulationEvent);
+}
+
+export async function addPopulationEvent(
+  event: Omit<PopulationEvent, 'id'>
+): Promise<{ id: string; warning?: string }> {
+  return apiRequest<{ id: string; message: string; warning?: string }>(
+    '/api/farm/population-events',
+    {
+      method: 'POST',
+      body: JSON.stringify({
+        species:    event.species,
+        targetId:   event.targetId,
+        targetName: event.targetName,
+        eventType:  event.eventType,
+        count:      event.count,
+        date:       event.date,
+        reason:     event.reason,
+        notes:      event.notes,
+      }),
+    }
+  );
+}
+
+export async function deletePopulationEvent(id: string): Promise<void> {
+  await apiRequest(`/api/farm/population-events/${encodeURIComponent(id)}`, { method: 'DELETE' });
+}
+
+/* =====================================================
+   SURVIVOR SUMMARY
+   ===================================================== */
+export async function loadSurvivorSummary(params?: {
+  species?: string;
+  targetId?: string;
+}): Promise<SurvivorSummary> {
+  const qs = new URLSearchParams();
+  if (params?.species)  qs.set('species',  params.species);
+  if (params?.targetId) qs.set('targetId', params.targetId);
+  const query = qs.toString() ? `?${qs}` : '';
+  return apiRequest<SurvivorSummary>(`/api/farm/survivor-summary${query}`);
+}
+
+/* =====================================================
+   MORTALITY SUMMARY
+   ===================================================== */
+export async function loadMortalitySummary(params?: {
+  from?: string;
+  to?: string;
+  period?: string;
+  species?: string;
+  targetId?: string;
+}): Promise<MortalitySummary> {
+  const qs = new URLSearchParams();
+  if (params?.from)     qs.set('from',     params.from);
+  if (params?.to)       qs.set('to',       params.to);
+  if (params?.period)   qs.set('period',   params.period);
+  if (params?.species)  qs.set('species',  params.species);
+  if (params?.targetId) qs.set('targetId', params.targetId);
+  const query = qs.toString() ? `?${qs}` : '';
+  return apiRequest<MortalitySummary>(`/api/farm/mortality-summary${query}`);
+}
+
+/* =====================================================
    FARM ANALYTICS SUMMARY
    ===================================================== */
-
 export async function loadFarmSummary(options?: {
   days?: number;
   to?: string;
@@ -605,7 +678,6 @@ export async function loadFarmSummary(options?: {
   if (options?.days) params.set("days", String(options.days));
   if (options?.to) params.set("to", options.to);
   if (options?.from) params.set("from", options.from);
-
   const query = params.toString() ? `?${params.toString()}` : "";
   const data = await apiRequest<{ summary: FarmSummaryData }>(`/api/farm/summary${query}`);
   return data.summary;
@@ -614,7 +686,6 @@ export async function loadFarmSummary(options?: {
 /* =====================================================
    REMINDERS & AI ADVICE (LOCAL CACHE)
    ===================================================== */
-
 export function saveReminders(reminders: ReminderItem[]): void {
   localStorage.setItem(STORAGE_KEYS.reminders, JSON.stringify(reminders));
 }
