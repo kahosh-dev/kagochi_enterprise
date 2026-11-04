@@ -23,7 +23,7 @@ services:
       - key: GEMINI_API_KEY
         sync: false
       - key: ALLOW_REGISTRATION
-        value: "false"
+        value: "true"
       - key: CORS_ORIGINS
         value: ""
     disk:

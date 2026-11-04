@@ -502,7 +502,7 @@ function App() {
             <button
               className="auth-button"
               onClick={handleAuth}
-              disabled={authLoading || (isRegister && registrationEnabled !== true)}
+              disabled={authLoading || (isRegister && registrationEnabled === false)}
               aria-busy={authLoading}
             >
               {authLoading ? (
@@ -546,15 +546,11 @@ function App() {
                   <span>Already have an account?</span>
                   <button type="button" className="auth-switch-btn" onClick={() => { setAuthError(""); setAuthMode("login"); setConfirmPassword(""); }}>Sign In</button>
                 </>
-              ) : registrationEnabled === true ? (
+              ) : (
                 <>
                   <span>New to Kagochi Farm?</span>
                   <button type="button" className="auth-switch-btn" onClick={() => { setAuthError(""); setAuthMode("register"); setConfirmPassword(""); }}>Create account</button>
                 </>
-              ) : registrationEnabled === false ? (
-                <span>Need access? Contact your farm administrator.</span>
-              ) : (
-                <span>Checking account options…</span>
               )}
             </div>
           </div>
