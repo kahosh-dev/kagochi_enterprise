@@ -291,10 +291,8 @@ export const resourceDefinitions: Record<ResourceName, ResourceDefinition> = {
 const email = z.string().trim().toLowerCase().email("Enter a valid email address.").max(150);
 export const newPassword = z
   .string()
-  .min(10, "Password must be at least 10 characters.")
-  .max(128, "Password must be at most 128 characters.")
-  .regex(/[A-Za-z]/, "Password must contain a letter.")
-  .regex(/[0-9]/, "Password must contain a number.");
+  .min(6, "Password must be at least 6 characters.")
+  .max(128, "Password must be at most 128 characters.");
 const personName = z.string().trim().min(2, "Name must be at least 2 characters.").max(100);
 const role = z.enum(["farmer", "admin"]);
 

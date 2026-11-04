@@ -39,7 +39,7 @@ export const config = {
   cookieSecure: process.env.COOKIE_SECURE
     ? process.env.COOKIE_SECURE === "true"
     : isProduction,
-  allowRegistration: process.env.ALLOW_REGISTRATION === "true",
+  allowRegistration: process.env.ALLOW_REGISTRATION !== "false",
   sessionHours: Number(process.env.SESSION_HOURS ?? 8),
   frontendDist: process.env.FRONTEND_DIST
     ? resolve(backendRoot, process.env.FRONTEND_DIST)

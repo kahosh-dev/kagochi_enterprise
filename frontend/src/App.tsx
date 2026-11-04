@@ -229,7 +229,7 @@ function App() {
       return;
     }
     if (authMode === "register") {
-      if (registrationEnabled !== true) {
+      if (registrationEnabled === false) {
         setAuthError("Self-registration is currently disabled. Ask the farm administrator to create your account.");
         return;
       }
@@ -237,8 +237,8 @@ function App() {
         setAuthError("Enter your name (at least 2 characters).");
         return;
       }
-      if (password.length < 10 || password.length > 128 || !/[A-Za-z]/.test(password) || !/[0-9]/.test(password)) {
-        setAuthError("Use 10–128 characters and include at least one letter and one number.");
+      if (password.length < 6 || password.length > 128) {
+        setAuthError("Password must be at least 6 characters.");
         return;
       }
       if (password !== confirmPassword) {
@@ -419,7 +419,7 @@ function App() {
               </div>
               {isRegister && (
                 <p className="auth-password-requirements" id="auth-password-requirements">
-                  Use 10–128 characters, including at least one letter and one number.
+                  Password must be at least 6 characters.
                 </p>
               )}
               {/* Password strength indicator — register only */}
@@ -428,8 +428,8 @@ function App() {
                   <div className="auth-pw-bars">
                     {[1, 2, 3, 4].map((level) => {
                       const strength = password.length < 6 ? 1
-                        : password.length < 10 ? 2
-                        : /[A-Z]/.test(password) && /[0-9]/.test(password) ? 4 : 3;
+                        : password.length < 8 ? 2
+                        : password.length < 12 ? 3 : 4;
                       return (
                         <div
                           key={level}
@@ -439,10 +439,11 @@ function App() {
                     })}
                   </div>
                   <span className="auth-pw-label">
-                    {password.length < 6 ? "Too short"
-                      : password.length < 10 ? "Use 10+ characters"
-                      : /[A-Za-z]/.test(password) && /[0-9]/.test(password) ? "Meets requirements"
-                      : "Add a letter and a number"}
+                    {password.length < 6
+                      ? "Too short (min 6 chars)"
+                      : password.length < 8
+                      ? "Good password"
+                      : "Strong password"}
                   </span>
                 </div>
               )}
@@ -472,7 +473,7 @@ function App() {
                     aria-label={showConfirmPassword ? "Hide confirmation password" : "Show confirmation password"}
                     aria-pressed={showConfirmPassword}
                   >
-                    {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                    {showConfirmPassword ? <EyeOff size={10} /> : <Eye size={10} />}
                   </button>
                 </div>
                 {confirmPassword.length > 0 && confirmPassword !== password && (
@@ -487,7 +488,7 @@ function App() {
               </div>
             )}
             {isRegister && registrationEnabled === null && (
-              <div className="auth-notice" role="status">Checking account registration settings…</div>
+              <div className="auth-notice" role="status"></div>
             )}
 
             {/* Error message */}
@@ -551,7 +552,7 @@ function App() {
                   <span>New to Kagochi Farm?</span>
                   <button type="button" className="auth-switch-btn" onClick={() => { setAuthError(""); setAuthMode("register"); setConfirmPassword(""); }}>Create account</button>
                 </>
-              )}
+               )}
             </div>
           </div>
         </div>
