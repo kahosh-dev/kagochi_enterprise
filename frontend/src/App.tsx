@@ -503,7 +503,7 @@ function App() {
             <button
               className="auth-button"
               onClick={handleAuth}
-              disabled={authLoading || (isRegister && registrationEnabled === false)}
+              disabled={authLoading || (isRegister && registrationEnabled === true)}
               aria-busy={authLoading}
             >
               {authLoading ? (
