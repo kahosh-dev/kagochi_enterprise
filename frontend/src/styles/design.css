@@ -2900,3 +2900,80 @@ body {
     padding: 12px;
   }
 }
+
+
+/* =====================================================
+   SHARED FARM RECORDS — polished form and table surfaces
+   ===================================================== */
+.kf-app .kf-form-grid,
+.kf-app .kf-form-grid--2 {
+  gap: 14px;
+}
+
+.kf-app label {
+  color: var(--kf-forest);
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.kf-app input,
+.kf-app select,
+.kf-app textarea {
+  border-color: #dce3d8;
+  border-radius: 11px;
+}
+
+.kf-app input:hover,
+.kf-app select:hover,
+.kf-app textarea:hover {
+  border-color: #bdcdbd;
+}
+
+.kf-app input:focus,
+.kf-app select:focus,
+.kf-app textarea:focus {
+  border-color: var(--kf-action);
+  box-shadow: 0 0 0 3px rgba(47, 125, 58, 0.11);
+}
+
+.kf-app table {
+  border: 1px solid var(--kf-border);
+  border-radius: 13px;
+}
+
+.kf-app th {
+  background: #f3f7f0;
+  color: var(--kf-forest);
+  font-size: 11px;
+  letter-spacing: 0.035em;
+  text-transform: uppercase;
+}
+
+.kf-app td {
+  font-size: 12.5px;
+}
+
+.kf-app tr:hover td {
+  background: #fbfdf9;
+}
+
+.kf-app button svg {
+  flex-shrink: 0;
+}
+
+.kf-app .kf-btn svg,
+.kf-app .kf-icon-btn svg {
+  stroke-width: 1.9;
+}
+
+@media (max-width: 640px) {
+  .kf-app .kf-form-grid,
+  .kf-app .kf-form-grid--2 {
+    gap: 11px;
+  }
+
+  .kf-app th,
+  .kf-app td {
+    padding: 10px 11px;
+  }
+}
