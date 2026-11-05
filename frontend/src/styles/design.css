@@ -2823,3 +2823,80 @@ body {
     transition-duration: 0.001ms !important;
   }
 }
+
+
+/* =====================================================
+   DASHBOARD POLISH — consistent Lucide icon treatment
+   ===================================================== */
+.kf-page .kf-stat-icon svg,
+.kf-page .kf-record-icon svg,
+.kf-page .kf-callout-icon svg {
+  stroke-width: 1.9;
+}
+
+.kf-page .kf-stat {
+  min-height: 116px;
+  align-items: flex-start;
+  background: linear-gradient(155deg, #fffefa 0%, #ffffff 78%);
+}
+
+.kf-page .kf-stat--interactive:focus-visible,
+.kf-page .kf-record:focus-visible {
+  outline: 3px solid rgba(47, 125, 58, 0.28);
+  outline-offset: 2px;
+}
+
+.kf-page .kf-panel {
+  box-shadow: 0 2px 8px rgba(18, 59, 40, 0.035);
+}
+
+.kf-page .kf-panel-header {
+  padding-top: 20px;
+}
+
+.kf-page .kf-record {
+  border: 1px solid var(--kf-border);
+  background: #fffefa;
+  border-radius: 12px;
+  transition: border-color 0.16s ease, background 0.16s ease, transform 0.16s ease;
+}
+
+.kf-page .kf-record:hover {
+  border-color: #c8d8c9;
+  background: #fbfdf9;
+  transform: translateY(-1px);
+  box-shadow: none;
+}
+
+.kf-page .kf-record-icon {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  flex: 0 0 36px;
+  border-radius: 10px;
+  background: var(--kf-action-soft);
+  color: var(--kf-forest-2);
+}
+
+.kf-page .kf-filter-row {
+  gap: 10px;
+}
+
+.kf-page .kf-filter-row svg {
+  color: var(--kf-action);
+}
+
+.kf-page .kf-panel--dark {
+  box-shadow: 0 12px 28px rgba(18, 59, 40, 0.12);
+}
+
+@media (max-width: 640px) {
+  .kf-page .kf-stat {
+    min-height: 104px;
+  }
+
+  .kf-page .kf-record {
+    padding: 12px;
+  }
+}
