@@ -100,13 +100,14 @@ export async function adminGetUsers(): Promise<User[]> {
 export async function adminUpdateUser(
   id: string,
   name: string,
-  email: string
+  email: string,
+  role: "farmer" | "admin",
 ): Promise<void> {
   const response = await fetch(`${API_URL}/api/admin/users/${id}`, {
     method: "PUT",
     credentials: "include",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ name, email }),
+    body: JSON.stringify({ name, email, role }),
   });
 
   const data = await response.json();

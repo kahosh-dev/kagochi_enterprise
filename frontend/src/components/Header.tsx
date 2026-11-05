@@ -1,4 +1,4 @@
-import { Leaf, Menu, User } from "lucide-react";
+import { Leaf, User } from "lucide-react";
 
 interface HeaderProps {
   farmName: string;

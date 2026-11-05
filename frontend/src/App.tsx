@@ -229,7 +229,7 @@ function App() {
       return;
     }
     if (authMode === "register") {
-      if (registrationEnabled === true) {
+      if (registrationEnabled === false) {
         setAuthError("Self-registration is currently disabled. Ask the farm administrator to create your account.");
         return;
       }
@@ -482,7 +482,7 @@ function App() {
               </div>
             )}
 
-            {isRegister && registrationEnabled === true && (
+            {isRegister && registrationEnabled === false && (
               <div className="auth-notice" role="status">
                 Self-registration is disabled. Please ask the farm administrator to create your account.
               </div>
@@ -503,7 +503,7 @@ function App() {
             <button
               className="auth-button"
               onClick={handleAuth}
-              disabled={authLoading || (isRegister && registrationEnabled === true)}
+              disabled={authLoading || (isRegister && registrationEnabled === false)}
               aria-busy={authLoading}
             >
               {authLoading ? (
