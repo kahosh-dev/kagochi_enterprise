@@ -631,8 +631,8 @@ function App() {
             onNavigate={setActiveView}
           />
         )}
-        {activeView === "poultry" && <PoultryView onNavigate={setActiveView} />}
-        {activeView === "livestock" && <LivestockView onNavigate={setActiveView} />}
+        {activeView === "poultry" && <PoultryView />}
+        {activeView === "livestock" && <LivestockView />}
         {activeView === "production" && <ProductionView />}
         {activeView === "feeding" && <FeedingView />}
         {activeView === "expenses" && <ExpensesView />}
