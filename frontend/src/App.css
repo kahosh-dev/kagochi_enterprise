@@ -2,27 +2,6 @@
    MOBILE-FIRST FARM MANAGEMENT UI
    ========================================================= */
 
-:root {
-  --primary: #2e7d32;
-  --primary-dark: #1f6426;
-  --primary-light: #eaf6ea;
-
-  --background: #f4f6f3;
-  --surface: #ffffff;
-
-  --text: #1c2b1e;
-  --text-muted: #5a6b5c;
-
-  --border: #dde5dc;
-
-  --success: #2e7d32;
-  --warning: #d88900;
-
-  --shadow: 0 4px 16px rgba(20, 40, 22, 0.09);
-
-  --radius: 16px;
-}
-
 /* =========================================================
    APPLICATION SHELL
    ========================================================= */
@@ -5342,4 +5321,31 @@ main {
   .auth-google-fallback {
     transition: none;
   }
+}
+
+/* =========================================================
+   BOOT / LOADING SCREEN (kf- namespace)
+   ========================================================= */
+
+.kf-boot {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: var(--kf-cream);
+  gap: 10px;
+  text-align: center;
+}
+
+.kf-boot h1 {
+  font-size: 20px;
+  margin: 0;
+  color: var(--kf-forest);
+}
+
+.kf-boot p {
+  color: var(--kf-muted);
+  font-size: 13px;
+  margin: 0;
 }

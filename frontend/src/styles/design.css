@@ -1,45 +1,9 @@
 /* =====================================================
    KAGOCHI FARM ENTERPRISE — DESIGN SYSTEM
-   Loaded after App.css. Namespaced kf-* classes keep the
+   Loaded after tokens.css. Namespaced kf-* classes keep the
    new interface isolated from legacy page styles.
+   All CSS custom properties are defined in tokens.css.
    ===================================================== */
-
-:root {
-  --kf-forest: #123b28;
-  --kf-forest-2: #1a4d2e;
-  --kf-forest-3: #205c36;
-  --kf-action: #2f7d3a;
-  --kf-action-hover: #24632d;
-  --kf-action-soft: #e9f4eb;
-  --kf-lime: #86efac;
-  --kf-cream: #f7f5ee;
-  --kf-cream-2: #fbf9f3;
-  --kf-surface: #fffefa;
-  --kf-white: #ffffff;
-  --kf-text: #1b2a20;
-  --kf-muted: #66756b;
-  --kf-muted-2: #8a978d;
-  --kf-border: #e4e7dd;
-  --kf-border-strong: #d3d9cd;
-  --kf-red: #c2413a;
-  --kf-red-soft: #fbeceb;
-  --kf-amber: #b56a08;
-  --kf-amber-soft: #fdf3e2;
-  --kf-blue: #2563a8;
-  --kf-blue-soft: #eaf1fb;
-  --kf-plum: #6d4aa3;
-  --kf-plum-soft: #f1ebfa;
-  --kf-radius-sm: 10px;
-  --kf-radius: 14px;
-  --kf-radius-lg: 20px;
-  --kf-shadow-xs: 0 1px 2px rgba(18, 59, 40, 0.05);
-  --kf-shadow-sm: 0 6px 18px rgba(18, 59, 40, 0.06);
-  --kf-shadow-md: 0 16px 42px rgba(18, 59, 40, 0.11);
-  --kf-sidebar-width: 268px;
-  --kf-header-height: 64px;
-  --kf-bottom-nav-height: 70px;
-  --kf-font: "Inter", "Segoe UI", system-ui, -apple-system, Roboto, Helvetica, Arial, sans-serif;
-}
 
 html,
 body {
@@ -3240,3 +3204,263 @@ body {
   }
 }
 
+/* =====================================================
+   BAR CHART UTILITIES
+   ===================================================== */
+
+.kf-bar-chart {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+}
+
+.kf-bar-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+}
+
+.kf-bar-label {
+  flex: 0 0 auto;
+  min-width: 90px;
+  max-width: 130px;
+  font-size: 11.5px;
+  font-weight: 650;
+  color: var(--kf-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.kf-bar-track {
+  flex: 1;
+  height: 8px;
+  border-radius: 999px;
+  background: #edf0e9;
+  overflow: hidden;
+  min-width: 0;
+}
+
+.kf-bar-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: var(--kf-action);
+  transition: width 0.4s ease;
+  min-width: 2px;
+}
+
+.kf-bar-fill--red {
+  background: var(--kf-red);
+}
+
+.kf-bar-fill--amber {
+  background: var(--kf-amber);
+}
+
+.kf-bar-fill--blue {
+  background: var(--kf-blue);
+}
+
+.kf-bar-value {
+  flex: 0 0 auto;
+  min-width: 36px;
+  text-align: right;
+  font-size: 11.5px;
+  font-weight: 750;
+  color: var(--kf-forest);
+  white-space: nowrap;
+}
+
+/* =====================================================
+   WELCOME BANNER
+   ===================================================== */
+
+.kf-welcome-banner {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding: 22px 24px;
+  border-radius: var(--kf-radius-lg);
+  background: linear-gradient(135deg, var(--kf-forest) 0%, var(--kf-forest-3) 100%);
+  color: rgba(255, 255, 255, 0.82);
+  box-shadow: var(--kf-shadow-sm);
+  position: relative;
+  overflow: hidden;
+}
+
+.kf-welcome-banner::after {
+  content: "";
+  position: absolute;
+  right: -60px;
+  top: -70px;
+  width: 200px;
+  height: 200px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.06);
+  pointer-events: none;
+}
+
+.kf-welcome-title {
+  margin: 0 0 4px;
+  font-size: clamp(20px, 2.4vw, 26px);
+  font-weight: 780;
+  letter-spacing: -0.03em;
+  color: #fff;
+  position: relative;
+  z-index: 1;
+}
+
+/* =====================================================
+   PANEL FOOTER
+   ===================================================== */
+
+.kf-panel-footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 12px 20px 16px;
+  border-top: 1px solid var(--kf-border);
+  background: var(--kf-cream-2);
+}
+
+/* =====================================================
+   BUTTON SIZE VARIANTS
+   ===================================================== */
+
+.kf-btn--sm {
+  min-height: 30px;
+  padding: 5px 10px;
+  font-size: 11px;
+  border-radius: 8px;
+  gap: 5px;
+}
+
+.kf-btn--lg {
+  min-height: 46px;
+  padding: 12px 20px;
+  font-size: 14px;
+  border-radius: 12px;
+  gap: 9px;
+}
+
+/* =====================================================
+   ADDITIONAL DESKTOP SIDEBAR RULE (explicit override)
+   ===================================================== */
+
+@media (min-width: 1024px) {
+  .kf-sidebar {
+    transform: translateX(0);
+    box-shadow: none;
+    border-right: 1px solid rgba(255, 255, 255, 0.08);
+  }
+
+  .kf-sidebar-backdrop {
+    display: none !important;
+  }
+
+  .kf-sidebar-close {
+    display: none;
+  }
+
+  .kf-content {
+    margin-left: var(--kf-sidebar-width);
+  }
+
+  .kf-header {
+    left: var(--kf-sidebar-width);
+  }
+
+  .kf-bottom-nav {
+    display: none;
+  }
+
+  .kf-menu-button {
+    display: none !important;
+  }
+}
+
+/* =====================================================
+   MOBILE RESPONSIVE OVERRIDES
+   ===================================================== */
+
+@media (max-width: 1023px) {
+  .kf-page {
+    padding: 20px 16px 80px;
+  }
+
+  .kf-grid--main-side {
+    grid-template-columns: 1fr;
+  }
+
+  .kf-grid--3 {
+    grid-template-columns: 1fr;
+  }
+
+  .kf-grid--2 {
+    grid-template-columns: 1fr;
+  }
+
+  .kf-grid--stats {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .kf-btn {
+    min-height: 44px;
+  }
+
+  .kf-icon-btn {
+    width: 44px;
+    height: 44px;
+  }
+}
+
+@media (max-width: 639px) {
+  .kf-grid--stats {
+    grid-template-columns: 1fr;
+  }
+
+  .kf-form-grid--2 {
+    grid-template-columns: 1fr;
+  }
+
+  .kf-bottom-nav {
+    left: 0;
+    right: 0;
+    bottom: 0;
+    border-radius: 0;
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  .kf-page {
+    padding-bottom: calc(var(--kf-bottom-nav-height) + 16px);
+  }
+
+  .kf-header {
+    padding: 0 14px;
+  }
+
+  .kf-header-brand-tag {
+    display: none;
+  }
+
+  .kf-menu-button {
+    display: grid !important;
+  }
+}
+
+@media (max-width: 767px) {
+  .kf-app input,
+  .kf-app select,
+  .kf-app textarea,
+  .kf-auth-page input,
+  .kf-auth-page select,
+  .kf-auth-page textarea {
+    font-size: 16px;
+  }
+}

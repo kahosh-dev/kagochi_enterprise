@@ -1,0 +1,73 @@
+/* =====================================================
+   KAGOCHI FARM ENTERPRISE — DESIGN TOKENS
+   Single source of truth for all CSS custom properties.
+   Imported first in main.tsx before any other stylesheet.
+   ===================================================== */
+
+:root {
+  /* ── Brand palette ── */
+  --kf-forest:        #1a3d2b;
+  --kf-forest-2:      #1a3d2b;
+  --kf-forest-3:      #2d6a4f;
+  --kf-action:        #2d6a4f;
+  --kf-action-hover:  #1a3d2b;
+  --kf-action-soft:   #e8f5f0;
+  --kf-lime:          #52b788;
+
+  /* ── Surfaces ── */
+  --kf-surface:       #ffffff;
+  --kf-white:         #ffffff;
+  --kf-cream:         #fafaf8;
+  --kf-cream-2:       #fafaf8;
+
+  /* ── Text ── */
+  --kf-text:          #1a1a18;
+  --kf-muted:         #6b7280;
+  --kf-muted-2:       #9ca3af;
+
+  /* ── Borders ── */
+  --kf-border:        #e0e0d8;
+  --kf-border-strong: #d0d0c8;
+
+  /* ── Semantic / status colors ── */
+  --kf-red:           #dc2626;
+  --kf-red-soft:      #fef2f2;
+  --kf-amber:         #d97706;
+  --kf-amber-soft:    #fffbeb;
+  --kf-blue:          #2563eb;
+  --kf-blue-soft:     #eff6ff;
+  --kf-plum:          #7c3aed;
+  --kf-plum-soft:     #f5f3ff;
+
+  /* ── Radii ── */
+  --kf-radius-sm:     8px;
+  --kf-radius:        12px;
+  --kf-radius-lg:     16px;
+
+  /* ── Shadows ── */
+  --kf-shadow-xs:     0 1px 3px rgba(26, 61, 43, 0.06);
+  --kf-shadow-sm:     0 4px 14px rgba(26, 61, 43, 0.08);
+  --kf-shadow-md:     0 12px 32px rgba(26, 61, 43, 0.12);
+
+  /* ── Layout ── */
+  --kf-sidebar-width:      240px;
+  --kf-header-height:      60px;
+  --kf-bottom-nav-height:  68px;
+
+  /* ── Typography ── */
+  --kf-font: Inter, "Segoe UI", system-ui, -apple-system, Roboto, Helvetica, Arial, sans-serif;
+
+  /* ── Legacy aliases (backward compat with App.css and index.css consumers) ── */
+  --primary:           var(--kf-action);
+  --primary-dark:      var(--kf-action-hover);
+  --primary-light:     var(--kf-action-soft);
+  --background:        var(--kf-cream);
+  --surface:           var(--kf-surface);
+  --text:              var(--kf-text);
+  --text-muted:        var(--kf-muted);
+  --border:            var(--kf-border);
+  --brand-forest:      var(--kf-forest);
+  --brand-action:      var(--kf-action);
+  --brand-action-dark: var(--kf-action-hover);
+  --brand-action-light:var(--kf-action-soft);
+}
