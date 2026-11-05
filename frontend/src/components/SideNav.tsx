@@ -2,14 +2,15 @@ import {
   LayoutDashboard,
   Bird,
   Beef,
-  Egg,
   Wheat,
   TrendingUp,
   TrendingDown,
   Activity,
   Syringe,
   Wallet,
-  Sparkles,
+  BarChart2,
+  MessageCircle,
+  Settings,
   LogOut,
   X,
   Leaf,
@@ -29,32 +30,38 @@ const NAV_SECTIONS = [
   {
     label: "Overview",
     items: [
-      { id: "home", label: "Dashboard", description: "Farm overview", icon: <LayoutDashboard size={19} /> },
+      { id: "home", label: "Dashboard", description: "Farm overview", icon: <LayoutDashboard size={19} strokeWidth={1.5} /> },
     ],
   },
   {
     label: "Farm records",
     items: [
-      { id: "poultry", label: "Add Chickens", description: "Chicks & flocks", icon: <Bird size={19} /> },
-      { id: "livestock", label: "My Cattle", description: "Calves, heifers & cows", icon: <Beef size={19} /> },
-      { id: "production", label: "Production Summary", description: "Eggs & milk", icon: <Egg size={19} /> },
-      { id: "feeding", label: "Feed & Feeding", description: "Feed usage & costs", icon: <Wheat size={19} /> },
-      { id: "expenses", label: "Record Income or Expense", description: "Daily farm cashflow", icon: <Wallet size={19} /> },
-      { id: "vaccinations", label: "Vaccine Schedule", description: "Vaccinations & alerts", icon: <Syringe size={19} /> },
+      { id: "poultry", label: "Add Chickens", description: "Chicks & flocks", icon: <Bird size={19} strokeWidth={1.5} /> },
+      { id: "livestock", label: "My Cattle", description: "Calves, heifers & cows", icon: <Beef size={19} strokeWidth={1.5} /> },
+      { id: "production", label: "Production Summary", description: "Eggs & milk", icon: <TrendingUp size={19} strokeWidth={1.5} /> },
+      { id: "feeding", label: "Feed & Feeding", description: "Feed usage & costs", icon: <Wheat size={19} strokeWidth={1.5} /> },
+      { id: "expenses", label: "Record Income or Expense", description: "Daily farm cashflow", icon: <Wallet size={19} strokeWidth={1.5} /> },
+      { id: "vaccinations", label: "Vaccine Schedule", description: "Vaccinations & alerts", icon: <Syringe size={19} strokeWidth={1.5} /> },
     ],
   },
   {
     label: "Population tracking",
     items: [
-      { id: "survivors", label: "Survivor Tracking", description: "Population ledger", icon: <Activity size={19} /> },
-      { id: "mortality", label: "Mortality Monitor", description: "Death rate trends", icon: <TrendingDown size={19} /> },
+      { id: "survivors", label: "Survivor Tracking", description: "Population ledger", icon: <Activity size={19} strokeWidth={1.5} /> },
+      { id: "mortality", label: "Mortality Monitor", description: "Death rate trends", icon: <TrendingDown size={19} strokeWidth={1.5} /> },
     ],
   },
   {
-    label: "Financial & AI assistant",
+    label: "Analytics & AI",
     items: [
-      { id: "performance", label: "Profit & Loss", description: "P&L reports", icon: <TrendingUp size={19} /> },
-      { id: "advisor", label: "Farm Assistant", description: "AI daily advisor", icon: <Sparkles size={19} /> },
+      { id: "performance", label: "Profit & Loss", description: "P&L reports", icon: <BarChart2 size={19} strokeWidth={1.5} /> },
+      { id: "advisor", label: "Farm Assistant", description: "AI daily advisor", icon: <MessageCircle size={19} strokeWidth={1.5} /> },
+    ],
+  },
+  {
+    label: "Admin",
+    items: [
+      { id: "admin", label: "Settings", description: "Farm admin panel", icon: <Settings size={19} strokeWidth={1.5} /> },
     ],
   },
 ];

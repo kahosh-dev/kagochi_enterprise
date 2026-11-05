@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import type { ReactNode } from "react";
 import { AlertCircle, CheckCircle2, ChevronRight, Loader2, X } from "lucide-react";
 
@@ -198,6 +198,7 @@ type ButtonVariant = "primary" | "secondary" | "ghost" | "danger" | "soft";
 
 interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: ButtonVariant;
+  size?: "sm" | "md" | "lg";
   icon?: ReactNode;
   loading?: boolean;
   block?: boolean;
@@ -205,6 +206,7 @@ interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
 
 export function Button({
   variant = "primary",
+  size,
   icon,
   loading,
   block,
@@ -216,7 +218,7 @@ export function Button({
   return (
     <button
       type="button"
-      className={`kf-btn kf-btn--${variant}${block ? " kf-btn--block" : ""} ${className}`}
+      className={`kf-btn kf-btn--${variant}${block ? " kf-btn--block" : ""}${size && size !== "md" ? " kf-btn--" + size : ""} ${className}`}
       disabled={disabled || loading}
       {...rest}
     >
@@ -337,10 +339,36 @@ interface ModalProps {
 }
 
 export function Modal({ open, onClose, title, subtitle, children, footer, size = "md" }: ModalProps) {
+  const dialogRef = useRef<HTMLDivElement>(null);
+
   useEffect(() => {
     if (!open) return;
     function handleKey(event: KeyboardEvent) {
-      if (event.key === "Escape") onClose();
+      if (event.key === "Escape") {
+        onClose();
+        return;
+      }
+      if (event.key === "Tab" && dialogRef.current) {
+        const focusable = Array.from(
+          dialogRef.current.querySelectorAll<HTMLElement>(
+            'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+          )
+        ).filter((el) => !el.closest("[aria-hidden]"));
+        if (focusable.length === 0) return;
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+        if (event.shiftKey) {
+          if (document.activeElement === first) {
+            event.preventDefault();
+            last.focus();
+          }
+        } else {
+          if (document.activeElement === last) {
+            event.preventDefault();
+            first.focus();
+          }
+        }
+      }
     }
     document.addEventListener("keydown", handleKey);
     const previous = document.body.style.overflow;
@@ -355,7 +383,11 @@ export function Modal({ open, onClose, title, subtitle, children, footer, size =
 
   return (
     <div className="kf-modal-overlay" role="dialog" aria-modal="true" aria-label={title} onMouseDown={onClose}>
-      <div className={`kf-modal kf-modal--${size}`} onMouseDown={(event) => event.stopPropagation()}>
+      <div
+        ref={dialogRef}
+        className={`kf-modal kf-modal--${size}`}
+        onMouseDown={(event) => event.stopPropagation()}
+      >
         <div className="kf-modal-header">
           <div>
             <h2>{title}</h2>
@@ -387,6 +419,72 @@ export function KeyValue({ label, value }: { label: string; value: ReactNode }) 
     <div className="kf-keyvalue">
       <span>{label}</span>
       <strong>{value}</strong>
+    </div>
+  );
+}
+
+/* =====================================================
+   SPINNER
+   ===================================================== */
+
+export function Spinner({ size = "md" }: { size?: "sm" | "md" | "lg" }) {
+  const px = size === "sm" ? 16 : size === "lg" ? 28 : 20;
+  return <Loader2 size={px} className="kf-spin" aria-hidden="true" />;
+}
+
+/* =====================================================
+   CSS BAR
+   ===================================================== */
+
+interface CssBarProps {
+  label: string;
+  value: number;
+  max: number;
+  formatted: string;
+  tone?: "green" | "red" | "amber" | "blue";
+}
+
+export function CssBar({ label, value, max, formatted, tone = "green" }: CssBarProps) {
+  const pct = max > 0 ? Math.min(100, (value / max) * 100) : 0;
+  const fillClass = `kf-bar-fill${tone !== "green" ? " kf-bar-fill--" + tone : ""}`;
+  return (
+    <div className="kf-bar-row">
+      <span className="kf-bar-label" title={label}>{label}</span>
+      <div className="kf-bar-track">
+        <div className={fillClass} style={{ width: `${pct}%` }} />
+      </div>
+      <span className="kf-bar-value">{formatted}</span>
+    </div>
+  );
+}
+
+/* =====================================================
+   CARD
+   ===================================================== */
+
+interface CardProps {
+  title?: ReactNode;
+  subtitle?: ReactNode;
+  actions?: ReactNode;
+  footer?: ReactNode;
+  children: ReactNode;
+  className?: string;
+}
+
+export function Card({ title, subtitle, actions, footer, children, className = "" }: CardProps) {
+  return (
+    <div className={`kf-panel ${className}`}>
+      {(title || actions) && (
+        <div className="kf-panel-header">
+          <div>
+            {title && <h2 className="kf-panel-title">{title}</h2>}
+            {subtitle && <p className="kf-panel-subtitle">{subtitle}</p>}
+          </div>
+          {actions && <div className="kf-panel-actions">{actions}</div>}
+        </div>
+      )}
+      <div className="kf-panel-body">{children}</div>
+      {footer && <div className="kf-panel-footer">{footer}</div>}
     </div>
   );
 }

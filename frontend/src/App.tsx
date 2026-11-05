@@ -8,6 +8,7 @@ import {
   Eye,
   EyeOff,
   Leaf,
+  Loader2,
   LogIn,
   ShieldCheck,
   TrendingUp,
@@ -307,6 +308,7 @@ function App() {
       <div className="kf-boot">
         <div className="kf-logo-mark"><Leaf size={26} strokeWidth={2} /></div>
         <h1>Kagochi Farm Enterprise</h1>
+        <Loader2 size={28} className="kf-spin" aria-hidden="true" />
         <p>Loading your farm workspace…</p>
       </div>
     );
@@ -529,7 +531,7 @@ function App() {
                 aria-busy={authLoading}
               >
                 {authLoading ? (
-                  <span className="kf-spin" aria-hidden="true">◌</span>
+                  <Loader2 size={17} className="kf-spin" aria-hidden="true" />
                 ) : isRegister ? (
                   <><UserPlus size={17} /><span>Create account</span></>
                 ) : (
