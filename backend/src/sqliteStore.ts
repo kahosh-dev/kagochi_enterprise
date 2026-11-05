@@ -77,4 +77,16 @@ export const sqliteStore: FarmStore = {
   async deleteRecord(resource, id, ownerId) {
     return result(db.deleteRecord(resource, id, ownerId));
   },
+
+  async listPopulationEvents(ownerId, species, targetId) {
+    return db.listPopulationEvents(ownerId, species, targetId);
+  },
+
+  async createPopulationEvent(id, ownerId, data) {
+    return db.createPopulationEvent(id, ownerId, data);
+  },
+
+  async deletePopulationEvent(id, ownerId) {
+    return result(db.deletePopulationEvent(id, ownerId));
+  },
 };

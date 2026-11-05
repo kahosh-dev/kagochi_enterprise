@@ -238,4 +238,61 @@ export const postgresStore: FarmStore = {
 
     return result(query.rowCount);
   },
+
+  async listPopulationEvents(ownerId, species, targetId) {
+    let sql = `SELECT id, owner_id, species, target_id, target_name, event_type, count, date, reason, notes
+               FROM population_events WHERE owner_id = $1`;
+    const params: unknown[] = [ownerId];
+    if (species)  { sql += ` AND species = $${params.length + 1}`;   params.push(species); }
+    if (targetId) { sql += ` AND target_id = $${params.length + 1}`; params.push(targetId); }
+    sql += ` ORDER BY date DESC, id DESC`;
+    const query = await postgresPool.query(sql, params);
+    return query.rows;
+  },
+
+  async createPopulationEvent(id, ownerId, data) {
+    // Guard: prevent negative population
+    const reducingTypes = ['death', 'sale', 'transfer_out'];
+    if (reducingTypes.includes(data.event_type)) {
+      const netQ = await postgresPool.query<{ net: string }>(
+        `SELECT
+           COALESCE(SUM(CASE WHEN event_type IN ('addition','transfer_in') THEN count ELSE 0 END), 0)
+           - COALESCE(SUM(CASE WHEN event_type IN ('death','sale','transfer_out') THEN count ELSE 0 END), 0)
+           AS net
+         FROM population_events WHERE owner_id = $1 AND target_id = $2`,
+        [ownerId, data.target_id],
+      );
+      let initialCount = 0;
+      if (data.species === 'poultry') {
+        const batchQ = await postgresPool.query<{ initial_count: number }>(
+          `SELECT initial_count FROM poultry_batches WHERE id = $1 AND owner_id = $2`,
+          [data.target_id, ownerId],
+        );
+        initialCount = batchQ.rows[0]?.initial_count ?? 0;
+      } else {
+        const animalQ = await postgresPool.query(
+          `SELECT id FROM livestock WHERE id = $1 AND owner_id = $2`,
+          [data.target_id, ownerId],
+        );
+        initialCount = animalQ.rows.length > 0 ? 1 : 0;
+      }
+      const net = Number(netQ.rows[0]?.net ?? 0);
+      if (initialCount + net - data.count < 0) {
+        throw new Error('NEGATIVE_POPULATION');
+      }
+    }
+    await postgresPool.query(
+      `INSERT INTO population_events (id, owner_id, species, target_id, target_name, event_type, count, date, reason, notes)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+      [id, ownerId, data.species, data.target_id, data.target_name, data.event_type, data.count, data.date, data.reason, data.notes],
+    );
+  },
+
+  async deletePopulationEvent(id, ownerId) {
+    const query = await postgresPool.query(
+      `DELETE FROM population_events WHERE id = $1 AND owner_id = $2`,
+      [id, ownerId],
+    );
+    return result(query.rowCount);
+  },
 };

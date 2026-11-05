@@ -176,6 +176,22 @@ const schemaStatements = [
   `CREATE INDEX IF NOT EXISTS idx_income_owner_date ON income(owner_id, date)`,
   `CREATE INDEX IF NOT EXISTS idx_vaccinations_owner_date ON vaccinations(owner_id, date_due)`,
   `CREATE INDEX IF NOT EXISTS idx_vac_schedules_owner_date ON vaccination_schedules(owner_id, species, category)`,
+
+  `CREATE TABLE IF NOT EXISTS population_events (
+    id          TEXT PRIMARY KEY,
+    owner_id    TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    species     TEXT NOT NULL CHECK(species IN ('poultry','cattle')),
+    target_id   TEXT NOT NULL,
+    target_name TEXT NOT NULL,
+    event_type  TEXT NOT NULL CHECK(event_type IN ('addition','death','sale','transfer_in','transfer_out')),
+    count       INTEGER NOT NULL CHECK(count > 0),
+    date        TEXT NOT NULL,
+    reason      TEXT NOT NULL DEFAULT '',
+    notes       TEXT NOT NULL DEFAULT ''
+  )`,
+
+  `CREATE INDEX IF NOT EXISTS idx_pop_events_owner ON population_events(owner_id, date)`,
+  `CREATE INDEX IF NOT EXISTS idx_pop_events_target ON population_events(owner_id, target_id)`,
 ];
 
 /**

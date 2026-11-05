@@ -224,7 +224,7 @@ function App() {
       setAuthError("Enter your email address and password to continue.");
       return;
     }
-    if (!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email.trim())) {
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
       setAuthError("Enter a valid email address.");
       return;
     }

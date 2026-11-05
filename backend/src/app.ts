@@ -392,24 +392,17 @@ export function createApp(options: AppOptions) {
     const query = survivorQuerySchema.safeParse(req.query);
     const species = query.success ? query.data.species : undefined;
     const targetId = query.success ? query.data.targetId : undefined;
-    // List via vaccinations table is in store; population-events go through the store's listRecords or a dedicated method.
-    // For compatibility with the neon-postgres store pattern, use listRecords for population_events if available,
-    // otherwise fall back to the SQLite database helper imported below.
-    // Since the neon-postgres store doesn't yet have a listPopulationEvents method,
-    // we import the SQLite helper directly (the same approach as migration/neon-postgres for other direct DB calls).
-    const { listPopulationEvents } = await import("./database.js");
-    const events = listPopulationEvents(req.user!.id, species, targetId);
+    const events = await store.listPopulationEvents(req.user!.id, species, targetId);
     res.json({ populationEvents: events });
   });
 
   api.post("/farm/population-events", requireAuth, async (req, res) => {
     const data = parse(populationEventSchema, req.body, res, "Invalid population event details.");
     if (!data) return;
-    const { listPopulationEvents, createPopulationEvent } = await import("./database.js");
     // Check for duplicate death events
     let warning: string | undefined;
     if (data.eventType === 'death') {
-      const existing = listPopulationEvents(req.user!.id, data.species, data.targetId);
+      const existing = await store.listPopulationEvents(req.user!.id, data.species, data.targetId);
       const duplicate = existing.find(
         (e) => e.event_type === 'death' && e.date === data.date && e.count === data.count,
       );
@@ -419,7 +412,7 @@ export function createApp(options: AppOptions) {
     }
     const id = crypto.randomUUID();
     try {
-      createPopulationEvent(id, req.user!.id, {
+      await store.createPopulationEvent(id, req.user!.id, {
         species:     data.species,
         target_id:   data.targetId,
         target_name: data.targetName,
@@ -449,8 +442,7 @@ export function createApp(options: AppOptions) {
       res.status(404).json({ error: "Population event not found." });
       return;
     }
-    const { deletePopulationEvent } = await import("./database.js");
-    const result = deletePopulationEvent(id.data, req.user!.id);
+    const result = await store.deletePopulationEvent(id.data, req.user!.id);
     if (result.changes === 0) {
       res.status(404).json({ error: "Population event not found." });
       return;
@@ -462,8 +454,7 @@ export function createApp(options: AppOptions) {
     const query = survivorQuerySchema.safeParse(req.query);
     const species = query.success ? query.data.species : undefined;
     const targetId = query.success ? query.data.targetId : undefined;
-    const { listPopulationEvents } = await import("./database.js");
-    const events = listPopulationEvents(req.user!.id, species, targetId);
+    const events = await store.listPopulationEvents(req.user!.id, species, targetId);
     const poultryBatches = await store.listRecords("poultry", req.user!.id);
     const livestock = await store.listRecords("livestock", req.user!.id);
     const summary = buildSurvivorSummary(events as any, poultryBatches, livestock);
@@ -480,8 +471,7 @@ export function createApp(options: AppOptions) {
       : "daily";
     const speciesFilter  = typeof rawQuery.species  === 'string' ? rawQuery.species  : undefined;
     const targetIdFilter = typeof rawQuery.targetId === 'string' ? rawQuery.targetId : undefined;
-    const { listPopulationEvents } = await import("./database.js");
-    const events        = listPopulationEvents(req.user!.id);
+    const events        = await store.listPopulationEvents(req.user!.id);
     const poultryBatches = await store.listRecords("poultry", req.user!.id);
     const livestock      = await store.listRecords("livestock", req.user!.id);
     const series = buildMortaltySeries(events as any, poultryBatches, livestock, from, to, period, speciesFilter, targetIdFilter);

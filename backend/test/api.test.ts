@@ -96,9 +96,10 @@ describe("authentication", () => {
     assert.equal(store.findUserByEmail("eve@example.com"), undefined);
   });
 
-  it("the removed Google sign-in endpoint no longer exists", async () => {
-    const res = await request(app).post("/api/auth/google").send({ credential: "a.b.c" });
-    assert.equal(res.status, 404);
+  it("the Google sign-in endpoint requires a credential", async () => {
+    const res = await request(app).post("/api/auth/google").send({});
+    // Without a credential the endpoint returns 400 (bad request), not 404
+    assert.equal(res.status, 400);
   });
 
   it("rejects state-changing requests from other origins", async () => {

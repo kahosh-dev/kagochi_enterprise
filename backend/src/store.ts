@@ -72,6 +72,19 @@ export interface AdminUserRow {
   created_at: string;
 }
 
+export interface PopulationEventRow {
+  id: string;
+  owner_id: string;
+  species: 'poultry' | 'cattle';
+  target_id: string;
+  target_name: string;
+  event_type: 'addition' | 'death' | 'sale' | 'transfer_in' | 'transfer_out';
+  count: number;
+  date: string;
+  reason: string;
+  notes: string;
+}
+
 export interface FarmStore {
   findUserByEmail(email: string): Promise<UserRow | undefined>;
   findUserById(id: string): Promise<UserRow | undefined>;
@@ -120,4 +133,15 @@ export interface FarmStore {
     id: string,
     ownerId: string,
   ): Promise<StoreResult>;
+  listPopulationEvents(
+    ownerId: string,
+    species?: string,
+    targetId?: string,
+  ): Promise<PopulationEventRow[]>;
+  createPopulationEvent(
+    id: string,
+    ownerId: string,
+    data: Omit<PopulationEventRow, 'id' | 'owner_id'>,
+  ): Promise<void>;
+  deletePopulationEvent(id: string, ownerId: string): Promise<StoreResult>;
 }
