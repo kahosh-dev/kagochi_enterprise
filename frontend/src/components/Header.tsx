@@ -1,3 +1,5 @@
+import { Leaf, Menu, User } from "lucide-react";
+
 interface HeaderProps {
   farmName: string;
   userName?: string;
@@ -15,13 +17,15 @@ const VIEW_LABELS: Record<string, string> = {
   performance: "Analytics",
   advisor: "AI Advisor",
   admin: "Admin Panel",
+  survivors: "Survivors",
+  mortality: "Mortality",
+  vaccinations: "Vaccinations",
 };
 
 function Header({ farmName, userName, activeView = "home", onMenuToggle }: HeaderProps) {
   return (
     <header className="app-header">
       <div className="app-header-left">
-        {/* Hamburger menu button */}
         <button
           className="hamburger-button"
           onClick={onMenuToggle}
@@ -33,16 +37,17 @@ function Header({ farmName, userName, activeView = "home", onMenuToggle }: Heade
         </button>
 
         <div className="app-header-brand">
-          <span className="app-header-icon">🌿</span>
+          <span className="app-header-icon">
+            <Leaf size={26} strokeWidth={2} />
+          </span>
           <div>
             <h1>{farmName}</h1>
-            <p>Farm Analytics &amp; Decision Support</p>
+            <p>Farm Analytics & Decision Support</p>
           </div>
         </div>
       </div>
 
       <div className="app-header-right">
-        {/* Current page breadcrumb */}
         <span className="header-breadcrumb">
           {VIEW_LABELS[activeView] ?? "Dashboard"}
         </span>
@@ -50,7 +55,7 @@ function Header({ farmName, userName, activeView = "home", onMenuToggle }: Heade
         {userName && (
           <div className="header-user-badge">
             <span className="header-user-avatar">
-              {userName.charAt(0).toUpperCase()}
+              <User size={14} />
             </span>
             <span className="header-user-name">{userName}</span>
           </div>
