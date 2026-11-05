@@ -2977,3 +2977,71 @@ body {
     padding: 10px 11px;
   }
 }
+
+
+/* Record module visual language: production, feeding, finance and reports */
+.kf-app .kf-summary-card,
+.kf-app .kf-metric-card {
+  border: 1px solid var(--kf-border);
+  border-radius: 14px;
+  background: linear-gradient(160deg, #fff 0%, #fcfdf9 100%);
+  box-shadow: 0 2px 8px rgba(18, 59, 40, 0.035);
+}
+
+.kf-app .kf-summary-card svg,
+.kf-app .kf-metric-card svg {
+  stroke-width: 1.85;
+}
+
+.kf-app .kf-section-title {
+  color: var(--kf-forest);
+  letter-spacing: -0.025em;
+}
+
+.kf-app .kf-empty-state {
+  border: 1px dashed #cbd8c9;
+  border-radius: 14px;
+  background: #fbfdf9;
+}
+
+.kf-app .kf-alert,
+.kf-app [role="alert"] {
+  border-radius: 12px;
+}
+
+.kf-app .kf-success {
+  border: 1px solid #c9dfc9;
+  background: #f1f8ef;
+  color: #245c30;
+}
+
+.kf-app .kf-error {
+  border: 1px solid #f0caca;
+  background: #fff5f3;
+  color: #9b3028;
+}
+
+.kf-app .kf-tab,
+.kf-app [role="tab"] {
+  transition: color 0.15s ease, background 0.15s ease, border-color 0.15s ease;
+}
+
+.kf-app .kf-tab[aria-selected="true"],
+.kf-app [role="tab"][aria-selected="true"] {
+  color: var(--kf-forest);
+  background: var(--kf-action-soft);
+  border-color: #c6dcc5;
+  font-weight: 700;
+}
+
+.kf-app .kf-chart-wrap {
+  min-width: 0;
+  overflow: hidden;
+}
+
+@media (max-width: 760px) {
+  .kf-app .kf-summary-card,
+  .kf-app .kf-metric-card {
+    border-radius: 12px;
+  }
+}
