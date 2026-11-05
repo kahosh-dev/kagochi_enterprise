@@ -3045,3 +3045,66 @@ body {
     border-radius: 12px;
   }
 }
+
+
+/* Population, mortality and vaccination workflow emphasis */
+.kf-app .kf-population-summary,
+.kf-app .kf-mortality-summary,
+.kf-app .kf-vaccination-summary {
+  border: 1px solid var(--kf-border);
+  border-radius: 14px;
+  background: linear-gradient(150deg, #fff 0%, #f9fcf7 100%);
+}
+
+.kf-app .kf-population-summary svg,
+.kf-app .kf-mortality-summary svg,
+.kf-app .kf-vaccination-summary svg {
+  stroke-width: 1.85;
+}
+
+.kf-app .kf-status--due {
+  border: 1px solid #f1d8a6;
+  background: #fff8e8;
+  color: #8a5a10;
+}
+
+.kf-app .kf-status--overdue {
+  border: 1px solid #efc4c0;
+  background: #fff2f0;
+  color: #9b3028;
+}
+
+.kf-app .kf-status--complete {
+  border: 1px solid #c9dfc9;
+  background: #f1f8ef;
+  color: #245c30;
+}
+
+.kf-app .kf-ledger-row {
+  border-bottom: 1px solid #edf1e9;
+}
+
+.kf-app .kf-ledger-row:last-child {
+  border-bottom: 0;
+}
+
+.kf-app .kf-chart-legend {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  color: var(--kf-muted);
+  font-size: 12px;
+}
+
+.kf-app .kf-chart-legend svg {
+  vertical-align: -2px;
+}
+
+@media (max-width: 640px) {
+  .kf-app .kf-population-summary,
+  .kf-app .kf-mortality-summary,
+  .kf-app .kf-vaccination-summary {
+    border-radius: 12px;
+  }
+}
