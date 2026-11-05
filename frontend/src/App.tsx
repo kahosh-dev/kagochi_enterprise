@@ -1,11 +1,25 @@
 import { useEffect, useRef, useState } from "react";
-import { Eye, EyeOff, Leaf, LogIn, UserPlus, ArrowLeft, Bird, Beef, Egg, Wheat, ShieldCheck, TrendingUp } from "lucide-react";
+import {
+  AlertCircle,
+  ArrowLeft,
+  Beef,
+  Bird,
+  Egg,
+  Eye,
+  EyeOff,
+  Leaf,
+  LogIn,
+  ShieldCheck,
+  TrendingUp,
+  UserPlus,
+  Wheat,
+} from "lucide-react";
 import "./App.css";
+import "./styles/design.css";
 import PublicWebsite from "./views/PublicWebsite";
-import FarmBackground from "./components/FarmBackground";
-
 import Header from "./components/Header";
 import SideNav from "./components/SideNav";
+import BottomNav from "./components/BottomNav";
 import HomeView from "./views/HomeView";
 import PoultryView from "./views/PoultryView";
 import LivestockView from "./views/LivestockView";
@@ -24,6 +38,7 @@ import {
   loadLivestock,
   loadProduction,
   loadExpenses,
+  loadSurvivorSummary,
 } from "./services/storage";
 
 import {
@@ -79,6 +94,8 @@ function App() {
   const [livestockCount, setLivestockCount] = useState(0);
   const [productionCount, setProductionCount] = useState(0);
   const [expenseTotal, setExpenseTotal] = useState(0);
+  const [totalPoultryBirds, setTotalPoultryBirds] = useState(0);
+  const [totalLivestockActive, setTotalLivestockActive] = useState(0);
   const [loadingFarmData, setLoadingFarmData] = useState(false);
   const [sideNavOpen, setSideNavOpen] = useState(false);
   const [publicView, setPublicView] = useState<'home' | 'about' | 'features' | 'how-it-works' | 'founder' | 'login'>('home');
@@ -106,20 +123,20 @@ function App() {
      CHECK LOGIN
      ===================================================== */
 
- useEffect(() => {
-  async function checkAuthentication() {
-    try {
-      const currentUser = await getCurrentUser();
-      setUser(currentUser);
-    } catch {
-      setUser(null);
-    } finally {
-      setLoadingAuth(false);
+  useEffect(() => {
+    async function checkAuthentication() {
+      try {
+        const currentUser = await getCurrentUser();
+        setUser(currentUser);
+      } catch {
+        setUser(null);
+      } finally {
+        setLoadingAuth(false);
+      }
     }
-  }
 
-  checkAuthentication();
-}, []);
+    checkAuthentication();
+  }, []);
 
   /* =====================================================
      GOOGLE SIGN-IN BUTTON
@@ -192,11 +209,12 @@ function App() {
     async function loadDashboardData() {
       try {
         setLoadingFarmData(true);
-        const [poultry, livestock, production, expenses] = await Promise.all([
+        const [poultry, livestock, production, expenses, survivors] = await Promise.all([
           loadPoultry(),
           loadLivestock(),
           loadProduction(),
           loadExpenses(),
+          loadSurvivorSummary(),
         ]);
         setPoultryCount(poultry.length);
         setLivestockCount(livestock.length);
@@ -204,6 +222,8 @@ function App() {
         setExpenseTotal(
           expenses.reduce((t, e) => t + Number(e.amount), 0)
         );
+        setTotalPoultryBirds(survivors.totalPoultryBirds);
+        setTotalLivestockActive(survivors.totalLivestockAnimals);
       } catch (error) {
         console.error("Failed to load dashboard data:", error);
       } finally {
@@ -275,6 +295,7 @@ function App() {
     setActiveView("home");
     setPoultryCount(0); setLivestockCount(0);
     setProductionCount(0); setExpenseTotal(0);
+    setTotalPoultryBirds(0); setTotalLivestockActive(0);
   }
 
   /* =====================================================
@@ -283,12 +304,10 @@ function App() {
 
   if (loadingAuth) {
     return (
-      <div className="app-loading">
-        <div className="app-loading-card">
-          <div className="loading-spinner"></div>
-          <h2>Kagochi Farm Enterprise</h2>
-          <p>Loading your farm workspace...</p>
-        </div>
+      <div className="kf-boot">
+        <div className="kf-logo-mark"><Leaf size={26} strokeWidth={2} /></div>
+        <h1>Kagochi Farm Enterprise</h1>
+        <p>Loading your farm workspace…</p>
       </div>
     );
   }
@@ -300,259 +319,260 @@ function App() {
   if (!user) {
     if (publicView === 'login') {
       const isRegister = authMode === "register";
+      const strength = password.length < 6 ? 1 : password.length < 8 ? 2 : password.length < 12 ? 3 : 4;
+
       return (
-        <div className="auth-page">
-          {/* Animated farm background — behind everything */}
-          <FarmBackground />
+        <div className="kf-auth-page">
+          <div className="kf-auth-shell">
+            <aside className="kf-auth-showcase" aria-label="Farm management at a glance">
+              <div>
+                <div className="kf-auth-brand">
+                  <div className="kf-logo-mark"><Leaf size={22} strokeWidth={2} /></div>
+                  <div>
+                    <strong>Kagochi Farm</strong>
+                    <span>Enterprise System</span>
+                  </div>
+                </div>
 
-          {/* Farm-focused visual panel; Lucide icons stay crisp at every screen size. */}
-          <aside className="auth-showcase" aria-label="Farm management at a glance">
-            <div className="auth-showcase-kicker"><span className="auth-live-dot" /> SMART FARMING, MADE SIMPLE</div>
-            <h2>Better decisions.<br /><span>Healthier returns.</span></h2>
-            <p>One clear workspace for your poultry, livestock, production and farm finances.</p>
-            <div className="auth-showcase-icons" aria-hidden="true">
-              <div className="auth-farm-icon auth-farm-icon--bird"><Bird size={25} strokeWidth={1.8} /><span>Poultry</span></div>
-              <div className="auth-farm-icon auth-farm-icon--cattle"><Beef size={25} strokeWidth={1.8} /><span>Livestock</span></div>
-              <div className="auth-farm-icon auth-farm-icon--eggs"><Egg size={25} strokeWidth={1.8} /><span>Production</span></div>
-              <div className="auth-farm-icon auth-farm-icon--feed"><Wheat size={25} strokeWidth={1.8} /><span>Feeding</span></div>
-            </div>
-            <div className="auth-showcase-promise">
-              <div className="auth-promise-icon"><TrendingUp size={19} /></div>
-              <div><strong>Farm data that works for you</strong><span>Track records, spot trends and plan with confidence.</span></div>
-            </div>
-            <div className="auth-showcase-security"><ShieldCheck size={16} /> Secure access to your farm workspace</div>
-          </aside>
+                <div style={{ marginTop: 34 }}>
+                  <span className="kf-auth-kicker"><span className="kf-auth-live-dot" /> Smart farming, made simple</span>
+                  <h2 className="kf-auth-headline">Better decisions.<br /><em>Healthier returns.</em></h2>
+                  <p className="kf-auth-copy">
+                    One clear workspace for your poultry, livestock, production and farm finances.
+                  </p>
+                </div>
 
-          {/* Frosted-glass form card */}
-          <div className="auth-card" role="main" aria-labelledby="auth-title">
-
-            {/* Back to website link */}
-            <button
-              className="auth-back-link"
-              onClick={() => setPublicView('home')}
-              aria-label="Back to website"
-            >
-              <ArrowLeft size={15} />
-              Back to website
-            </button>
-
-            {/* Brand logo */}
-            <div className="auth-logo-row">
-              <div className="auth-logo">
-                <Leaf size={28} strokeWidth={2} />
+                <div className="kf-auth-features" style={{ marginTop: 24 }} aria-hidden="true">
+                  <div className="kf-auth-feature"><Bird size={16} /> Poultry</div>
+                  <div className="kf-auth-feature"><Beef size={16} /> Livestock</div>
+                  <div className="kf-auth-feature"><Egg size={16} /> Production</div>
+                  <div className="kf-auth-feature"><Wheat size={16} /> Feeding</div>
+                </div>
               </div>
-              <div className="auth-brand-text">
-                <span className="auth-brand-name">Kagochi</span>
-                <span className="auth-brand-sub">Farm Enterprise</span>
-              </div>
-            </div>
 
-            {/* Heading */}
-            <div className="auth-heading-block">
-              <h1 className="auth-title" id="auth-title">
-                {isRegister ? "Create Account" : "Welcome Back"}
+              <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                <div className="kf-callout" style={{ background: "rgba(255,255,255,0.06)", borderColor: "rgba(255,255,255,0.1)" }}>
+                  <div className="kf-callout-icon" style={{ background: "rgba(134,239,172,0.16)", color: "#86efac" }}>
+                    <TrendingUp size={18} />
+                  </div>
+                  <div>
+                    <strong style={{ color: "#fff" }}>Farm data that works for you</strong>
+                    <p style={{ color: "rgba(255,255,255,0.55)" }}>Track records, spot trends and plan with confidence.</p>
+                  </div>
+                </div>
+                <div className="kf-auth-secure"><ShieldCheck size={15} /> Secure access to your farm workspace</div>
+              </div>
+            </aside>
+
+            <div className="kf-auth-card" role="main" aria-labelledby="auth-title">
+              <button
+                type="button"
+                className="kf-auth-back"
+                onClick={() => setPublicView('home')}
+                aria-label="Back to website"
+              >
+                <ArrowLeft size={15} />
+                Back to website
+              </button>
+
+              <div className="kf-auth-brand" style={{ marginBottom: 22 }}>
+                <div className="kf-logo-mark"><Leaf size={23} strokeWidth={2} /></div>
+                <div>
+                  <strong style={{ color: "var(--kf-forest)" }}>Kagochi</strong>
+                  <span style={{ color: "var(--kf-muted-2)" }}>Farm Enterprise</span>
+                </div>
+              </div>
+
+              <h1 className="kf-auth-title" id="auth-title">
+                {isRegister ? "Create your account" : "Welcome back"}
               </h1>
-              <p className="auth-description">
+              <p className="kf-auth-subtitle">
                 {isRegister
                   ? "Join Kagochi Farm Enterprise and start managing your farm smarter."
                   : "Sign in to access your farm analytics and decision support."}
               </p>
-            </div>
 
-            {/* Name field — register only */}
-            {isRegister && (
-              <div className="auth-field">
-                <label htmlFor="auth-name">Full Name</label>
-                <input
-                  id="auth-name"
-                  type="text"
-                  placeholder="Enter your full name"
-                  value={name}
-                  autoComplete="name"
-                  onChange={(e) => setName(e.target.value)}
-                  required
-                  maxLength={100}
-                />
-              </div>
-            )}
-
-            {/* Email */}
-            <div className="auth-field">
-              <label htmlFor="auth-email">Email Address</label>
-              <input
-                id="auth-email"
-                type="email"
-                placeholder="Enter your email"
-                value={email}
-                autoComplete="email"
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                maxLength={150}
-              />
-            </div>
-
-            {/* Password with show/hide */}
-            <div className="auth-field">
-              <label htmlFor="auth-password">Password</label>
-              <div className="auth-password-wrap">
-                <input
-                  id="auth-password"
-                  type={showPassword ? "text" : "password"}
-                  placeholder={isRegister ? "Create a password" : "Enter your password"}
-                  value={password}
-                  autoComplete={isRegister ? "new-password" : "current-password"}
-                  onChange={(e) => setPassword(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === "Enter" && (!isRegister || confirmPassword)) handleAuth(); }}
-                  required
-                  maxLength={128}
-                  aria-describedby={isRegister ? "auth-password-requirements" : undefined}
-                />
-                <button
-                  type="button"
-                  className="auth-toggle-pw"
-                  onClick={() => setShowPassword((v) => !v)}
-                  aria-label={showPassword ? "Hide password" : "Show password"}
-                  aria-pressed={showPassword}
-                >
-                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                </button>
-              </div>
-              {isRegister && (
-                <p className="auth-password-requirements" id="auth-password-requirements">
-                  Password must be at least 6 characters.
-                </p>
-              )}
-              {/* Password strength indicator — register only */}
-              {isRegister && password.length > 0 && (
-                <div className="auth-pw-strength">
-                  <div className="auth-pw-bars">
-                    {[1, 2, 3, 4].map((level) => {
-                      const strength = password.length < 6 ? 1
-                        : password.length < 8 ? 2
-                        : password.length < 12 ? 3 : 4;
-                      return (
-                        <div
-                          key={level}
-                          className={`auth-pw-bar${strength >= level ? ` active s${strength}` : ''}`}
-                        />
-                      );
-                    })}
+              <div className="kf-auth-fields">
+                {isRegister && (
+                  <div className="kf-field">
+                    <label htmlFor="auth-name" className="kf-label">Full name<span className="kf-required">*</span></label>
+                    <input
+                      id="auth-name"
+                      type="text"
+                      placeholder="Enter your full name"
+                      value={name}
+                      autoComplete="name"
+                      onChange={(e) => setName(e.target.value)}
+                      required
+                      maxLength={100}
+                    />
                   </div>
-                  <span className="auth-pw-label">
-                    {password.length < 6
-                      ? "Too short (min 6 chars)"
-                      : password.length < 8
-                      ? "Good password"
-                      : "Strong password"}
-                  </span>
-                </div>
-              )}
-            </div>
+                )}
 
-            {isRegister && (
-              <div className="auth-field">
-                <label htmlFor="auth-confirm-password">Confirm password</label>
-                <div className="auth-password-wrap">
+                <div className="kf-field">
+                  <label htmlFor="auth-email" className="kf-label">Email address<span className="kf-required">*</span></label>
                   <input
-                    id="auth-confirm-password"
-                    type={showConfirmPassword ? "text" : "password"}
-                    placeholder="Enter your password again"
-                    value={confirmPassword}
-                    autoComplete="new-password"
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                    onKeyDown={(e) => { if (e.key === "Enter") handleAuth(); }}
+                    id="auth-email"
+                    type="email"
+                    placeholder="Enter your email"
+                    value={email}
+                    autoComplete="email"
+                    onChange={(e) => setEmail(e.target.value)}
                     required
-                    maxLength={128}
-                    aria-invalid={confirmPassword.length > 0 && confirmPassword !== password}
-                    aria-describedby={confirmPassword.length > 0 && confirmPassword !== password ? "auth-confirm-error" : undefined}
+                    maxLength={150}
                   />
-                  <button
-                    type="button"
-                    className="auth-toggle-pw"
-                    onClick={() => setShowConfirmPassword((value) => !value)}
-                    aria-label={showConfirmPassword ? "Hide confirmation password" : "Show confirmation password"}
-                    aria-pressed={showConfirmPassword}
-                  >
-                    {showConfirmPassword ? <EyeOff size={10} /> : <Eye size={10} />}
-                  </button>
                 </div>
-                {confirmPassword.length > 0 && confirmPassword !== password && (
-                  <span className="auth-inline-error" id="auth-confirm-error">Passwords do not match yet.</span>
+
+                <div className="kf-field">
+                  <label htmlFor="auth-password" className="kf-label">Password<span className="kf-required">*</span></label>
+                  <div className="kf-password-wrap">
+                    <input
+                      id="auth-password"
+                      type={showPassword ? "text" : "password"}
+                      placeholder={isRegister ? "Create a password" : "Enter your password"}
+                      value={password}
+                      autoComplete={isRegister ? "new-password" : "current-password"}
+                      onChange={(e) => setPassword(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === "Enter" && (!isRegister || confirmPassword)) handleAuth(); }}
+                      required
+                      maxLength={128}
+                      aria-describedby={isRegister ? "auth-password-requirements" : undefined}
+                    />
+                    <button
+                      type="button"
+                      className="kf-password-toggle"
+                      onClick={() => setShowPassword((v) => !v)}
+                      aria-label={showPassword ? "Hide password" : "Show password"}
+                      aria-pressed={showPassword}
+                    >
+                      {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                    </button>
+                  </div>
+                  {isRegister && (
+                    <p className="kf-password-hint" id="auth-password-requirements">
+                      Password must be at least 6 characters.
+                    </p>
+                  )}
+                  {isRegister && password.length > 0 && (
+                    <div className="kf-strength">
+                      <div className="kf-strength-bars">
+                        {[1, 2, 3, 4].map((level) => (
+                          <div
+                            key={level}
+                            className={`kf-strength-bar${strength >= level ? " is-filled" : ""}${strength === 1 ? " is-weak" : ""}`}
+                          />
+                        ))}
+                      </div>
+                      <span className="kf-strength-label">
+                        {password.length < 6
+                          ? "Too short (min 6 chars)"
+                          : password.length < 8
+                          ? "Good password"
+                          : "Strong password"}
+                      </span>
+                    </div>
+                  )}
+                </div>
+
+                {isRegister && (
+                  <div className="kf-field">
+                    <label htmlFor="auth-confirm-password" className="kf-label">Confirm password<span className="kf-required">*</span></label>
+                    <div className="kf-password-wrap">
+                      <input
+                        id="auth-confirm-password"
+                        type={showConfirmPassword ? "text" : "password"}
+                        placeholder="Enter your password again"
+                        value={confirmPassword}
+                        autoComplete="new-password"
+                        onChange={(e) => setConfirmPassword(e.target.value)}
+                        onKeyDown={(e) => { if (e.key === "Enter") handleAuth(); }}
+                        required
+                        maxLength={128}
+                        aria-invalid={confirmPassword.length > 0 && confirmPassword !== password}
+                        aria-describedby={confirmPassword.length > 0 && confirmPassword !== password ? "auth-confirm-error" : undefined}
+                      />
+                      <button
+                        type="button"
+                        className="kf-password-toggle"
+                        onClick={() => setShowConfirmPassword((value) => !value)}
+                        aria-label={showConfirmPassword ? "Hide confirmation password" : "Show confirmation password"}
+                        aria-pressed={showConfirmPassword}
+                      >
+                        {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                      </button>
+                    </div>
+                    {confirmPassword.length > 0 && confirmPassword !== password && (
+                      <span className="kf-field-error" id="auth-confirm-error">Passwords do not match yet.</span>
+                    )}
+                  </div>
                 )}
               </div>
-            )}
 
-            {isRegister && registrationEnabled === false && (
-              <div className="auth-notice" role="status">
-                Self-registration is disabled. Please ask the farm administrator to create your account.
-              </div>
-            )}
-            {isRegister && registrationEnabled === null && (
-              <div className="auth-notice" role="status"></div>
-            )}
-
-            {/* Error message */}
-            {authError && (
-              <div className="auth-error" role="alert">
-                <span className="auth-error-icon">⚠</span>
-                {authError}
-              </div>
-            )}
-
-            {/* Primary action button */}
-            <button
-              className="auth-button"
-              onClick={handleAuth}
-              disabled={authLoading || (isRegister && registrationEnabled === false)}
-              aria-busy={authLoading}
-            >
-              {authLoading ? (
-                <span className="auth-btn-spinner" />
-              ) : isRegister ? (
-                <><UserPlus size={17} /> Create Account</>
-              ) : (
-                <><LogIn size={17} /> Sign In</>
+              {isRegister && registrationEnabled === false && (
+                <div className="kf-auth-notice" role="status">
+                  Self-registration is disabled. Please ask the farm administrator to create your account.
+                </div>
               )}
-            </button>
 
-            {/* Divider */}
-            <div className="auth-divider" aria-hidden="true">
-              <span>or continue with</span>
-            </div>
+              {authError && (
+                <div className="kf-alert kf-alert--error" role="alert" style={{ marginTop: 14 }}>
+                  <AlertCircle size={17} />
+                  <span>{authError}</span>
+                </div>
+              )}
 
-            {/* Google Sign-In button — rendered by GIS SDK */}
-            {GOOGLE_CLIENT_ID && (
-              <div
-                ref={googleButtonRef}
-                className="google-signin-wrapper"
-                aria-label="Sign in with Google"
-              />
-            )}
-            {!googleButtonReady && (
               <button
                 type="button"
-                className="auth-google-fallback"
-                onClick={() => setAuthError("Google sign-in is not ready in this deployment. Check VITE_GOOGLE_CLIENT_ID and the Google Identity Services allowed origins in Netlify and Google Cloud Console.")}
-                aria-label="Continue with Google"
+                className="kf-btn kf-btn--primary kf-auth-submit"
+                onClick={handleAuth}
+                disabled={authLoading || (isRegister && registrationEnabled === false)}
+                aria-busy={authLoading}
               >
-                <span className="auth-google-mark" aria-hidden="true">G</span>
-                <span>Continue with Google</span>
+                {authLoading ? (
+                  <span className="kf-spin" aria-hidden="true">◌</span>
+                ) : isRegister ? (
+                  <><UserPlus size={17} /><span>Create account</span></>
+                ) : (
+                  <><LogIn size={17} /><span>Sign in</span></>
+                )}
               </button>
-            )}
 
-            {/* Switch mode */}
-            <div className="auth-switch">
-              {isRegister ? (
-                <>
-                  <span>Already have an account?</span>
-                  <button type="button" className="auth-switch-btn" onClick={() => { setAuthError(""); setAuthMode("login"); setConfirmPassword(""); }}>Sign In</button>
-                </>
-              ) : (
-                <>
-                  <span>New to Kagochi Farm?</span>
-                  <button type="button" className="auth-switch-btn" onClick={() => { setAuthError(""); setAuthMode("register"); setConfirmPassword(""); }}>Create account</button>
-                </>
-               )}
+              <div className="kf-auth-divider" aria-hidden="true">
+                <span>or continue with</span>
+              </div>
+
+              {GOOGLE_CLIENT_ID && (
+                <div
+                  ref={googleButtonRef}
+                  className="kf-google-wrapper"
+                  aria-label="Sign in with Google"
+                />
+              )}
+              {!googleButtonReady && (
+                <button
+                  type="button"
+                  className="kf-google-fallback"
+                  onClick={() => setAuthError("Google sign-in is not ready in this deployment. Check VITE_GOOGLE_CLIENT_ID and the Google Identity Services allowed origins in Netlify and Google Cloud Console.")}
+                  aria-label="Continue with Google"
+                >
+                  <span className="kf-google-mark" aria-hidden="true">G</span>
+                  <span>Continue with Google</span>
+                </button>
+              )}
+
+              <div className="kf-auth-switch">
+                {isRegister ? (
+                  <>
+                    <span>Already have an account?</span>
+                    <button type="button" onClick={() => { setAuthError(""); setAuthMode("login"); setConfirmPassword(""); }}>Sign in</button>
+                  </>
+                ) : (
+                  <>
+                    <span>New to Kagochi Farm?</span>
+                    <button type="button" onClick={() => { setAuthError(""); setAuthMode("register"); setConfirmPassword(""); }}>Create account</button>
+                  </>
+                )}
+              </div>
             </div>
           </div>
         </div>
@@ -573,7 +593,7 @@ function App() {
      ===================================================== */
 
   return (
-    <div className="app-shell">
+    <div className="kf-app">
       <Header
         farmName="Kagochi Farm Enterprise"
         userName={user.name}
@@ -591,18 +611,28 @@ function App() {
         onLogout={handleLogout}
       />
 
-      <div className="app-content">
+      <div className="kf-content">
+        {loadingFarmData && (
+          <div style={{ padding: "10px 20px 0" }}>
+            <div className="kf-alert kf-alert--info" role="status">
+              <span>Updating farm overview…</span>
+            </div>
+          </div>
+        )}
+
         {activeView === "home" && (
           <HomeView
             poultryCount={poultryCount}
             livestockCount={livestockCount}
             productionCount={productionCount}
             expenseTotal={expenseTotal}
+            totalPoultryBirds={totalPoultryBirds}
+            totalLivestockActive={totalLivestockActive}
             onNavigate={setActiveView}
           />
         )}
-        {activeView === "poultry" && <PoultryView />}
-        {activeView === "livestock" && <LivestockView />}
+        {activeView === "poultry" && <PoultryView onNavigate={setActiveView} />}
+        {activeView === "livestock" && <LivestockView onNavigate={setActiveView} />}
         {activeView === "production" && <ProductionView />}
         {activeView === "feeding" && <FeedingView />}
         {activeView === "expenses" && <ExpensesView />}
@@ -614,9 +644,11 @@ function App() {
         {activeView === "admin" && <AdminView />}
       </div>
 
-      {loadingFarmData && (
-        <div className="data-loading-indicator">Updating dashboard...</div>
-      )}
+      <BottomNav
+        activeView={activeView}
+        setActiveView={setActiveView}
+        onMore={() => setSideNavOpen(true)}
+      />
     </div>
   );
 }

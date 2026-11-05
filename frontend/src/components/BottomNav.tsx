@@ -1,47 +1,54 @@
+import { BarChart3, LayoutDashboard, Menu, NotebookText } from "lucide-react";
+
 interface BottomNavProps {
   activeView: string;
   setActiveView: (view: string) => void;
+  onMore: () => void;
 }
 
 const RECORD_VIEWS = ["poultry", "livestock", "production", "feeding", "expenses"];
 
-function BottomNav({ activeView, setActiveView }: BottomNavProps) {
-  return (
-    <nav className="bottom-navigation">
+function BottomNav({ activeView, setActiveView, onMore }: BottomNavProps) {
+  const recordsActive = RECORD_VIEWS.includes(activeView);
+  const analyticsActive = activeView === "performance";
 
+  return (
+    <div className="kf-bottom-nav" role="navigation" aria-label="Primary">
       <button
-        className={activeView === "home" ? "active" : ""}
+        type="button"
+        className={activeView === "home" ? "is-active" : ""}
         onClick={() => setActiveView("home")}
+        aria-current={activeView === "home" ? "page" : undefined}
       >
-        <span className="nav-icon">🏠</span>
+        <LayoutDashboard size={20} />
         <span>Home</span>
       </button>
 
       <button
-        className={RECORD_VIEWS.includes(activeView) ? "active" : ""}
+        type="button"
+        className={recordsActive ? "is-active" : ""}
         onClick={() => setActiveView("poultry")}
+        aria-current={recordsActive ? "page" : undefined}
       >
-        <span className="nav-icon">📋</span>
+        <NotebookText size={20} />
         <span>Records</span>
       </button>
 
       <button
-        className={activeView === "performance" ? "active" : ""}
+        type="button"
+        className={analyticsActive ? "is-active" : ""}
         onClick={() => setActiveView("performance")}
+        aria-current={analyticsActive ? "page" : undefined}
       >
-        <span className="nav-icon">📊</span>
+        <BarChart3 size={20} />
         <span>Analytics</span>
       </button>
 
-      <button
-        className={activeView === "advisor" ? "active" : ""}
-        onClick={() => setActiveView("advisor")}
-      >
-        <span className="nav-icon">🤖</span>
-        <span>AI Advisor</span>
+      <button type="button" onClick={onMore}>
+        <Menu size={20} />
+        <span>More</span>
       </button>
-
-    </nav>
+    </div>
   );
 }
 

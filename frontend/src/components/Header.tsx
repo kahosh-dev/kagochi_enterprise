@@ -1,4 +1,4 @@
-import { Leaf, User } from "lucide-react";
+import { Leaf, Menu, User } from "lucide-react";
 
 interface HeaderProps {
   farmName: string;
@@ -24,40 +24,38 @@ const VIEW_LABELS: Record<string, string> = {
 
 function Header({ farmName, userName, activeView = "home", onMenuToggle }: HeaderProps) {
   return (
-    <header className="app-header">
-      <div className="app-header-left">
+    <header className="kf-header">
+      <div className="kf-header-left">
         <button
-          className="hamburger-button"
+          className="kf-menu-button"
           onClick={onMenuToggle}
           aria-label="Open navigation menu"
         >
-          <span />
-          <span />
-          <span />
+          <Menu size={19} strokeWidth={2} />
         </button>
 
-        <div className="app-header-brand">
-          <span className="app-header-icon">
-            <Leaf size={26} strokeWidth={2} />
+        <div className="kf-header-brand">
+          <span className="kf-logo-mark" aria-hidden="true">
+            <Leaf size={21} strokeWidth={2} />
           </span>
-          <div>
-            <h1>{farmName}</h1>
-            <p>Farm Analytics & Decision Support</p>
+          <div className="kf-header-brand-copy">
+            <strong className="kf-header-brand-name">{farmName}</strong>
+            <span className="kf-header-brand-tag">Farm Analytics & Decision Support</span>
           </div>
         </div>
       </div>
 
-      <div className="app-header-right">
-        <span className="header-breadcrumb">
+      <div className="kf-header-right">
+        <span className="kf-header-context">
           {VIEW_LABELS[activeView] ?? "Dashboard"}
         </span>
 
         {userName && (
-          <div className="header-user-badge">
-            <span className="header-user-avatar">
-              <User size={14} />
+          <div className="kf-header-user" title={userName}>
+            <span className="kf-avatar" aria-hidden="true">
+              <User size={15} />
             </span>
-            <span className="header-user-name">{userName}</span>
+            <span className="kf-header-user-name">{userName}</span>
           </div>
         )}
       </div>
