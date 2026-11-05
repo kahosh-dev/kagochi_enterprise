@@ -3154,3 +3154,89 @@ body {
     box-shadow: 0 10px 30px rgba(21, 54, 37, 0.06);
   }
 }
+
+/* Final consistency pass: keyboard focus, dense records and mobile tables */
+.kf-app :is(button, a, input, select, textarea, [tabindex]):focus-visible {
+  outline: 3px solid rgba(47, 125, 58, 0.28);
+  outline-offset: 2px;
+}
+
+.kf-app button:disabled,
+.kf-app .kf-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.58;
+  transform: none;
+  box-shadow: none;
+}
+
+.kf-app .kf-page-header h1,
+.kf-app .kf-page-header h2 {
+  color: var(--kf-forest);
+  letter-spacing: -0.035em;
+}
+
+.kf-app .kf-page-header p {
+  color: var(--kf-muted);
+  line-height: 1.65;
+}
+
+.kf-app .kf-panel {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.kf-app .kf-panel-body {
+  min-width: 0;
+}
+
+.kf-app table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  overflow: hidden;
+}
+
+.kf-app th,
+.kf-app td {
+  vertical-align: middle;
+}
+
+.kf-app th:first-child {
+  border-top-left-radius: 12px;
+}
+
+.kf-app th:last-child {
+  border-top-right-radius: 12px;
+}
+
+.kf-app :is(.kf-stat, .kf-summary-card, .kf-metric-card) {
+  min-width: 0;
+}
+
+@media (max-width: 640px) {
+  .kf-app .kf-page-header h1 {
+    font-size: clamp(23px, 6vw, 30px);
+  }
+
+  .kf-app .kf-page-header p {
+    font-size: 12.5px;
+  }
+
+  .kf-app .kf-panel {
+    overflow-x: auto;
+  }
+
+  .kf-app table {
+    min-width: 560px;
+  }
+
+  .kf-app .kf-page-actions {
+    gap: 8px;
+  }
+
+  .kf-app .kf-page-actions .kf-btn {
+    min-width: 0;
+    white-space: normal;
+  }
+}
+
