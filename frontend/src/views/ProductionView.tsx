@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   loadProduction,
   addProduction,
@@ -6,19 +6,52 @@ import {
   deleteProduction,
 } from "../services/storage";
 import type { ProductionRecord } from "../types/farm";
+import {
+  Egg,
+  Milk,
+  Pencil,
+  Plus,
+  Trash2,
+} from "lucide-react";
+import {
+  Badge,
+  Button,
+  EmptyState,
+  ErrorBanner,
+  Field,
+  IconButton,
+  Modal,
+  Notice,
+  PageHeader,
+  Panel,
+  Segmented,
+  StatCard,
+} from "../components/ui";
+
+const TYPE_OPTIONS = [
+  { value: "all", label: "All" },
+  { value: "eggs", label: "Eggs" },
+  { value: "milk", label: "Milk" },
+];
 
 export default function ProductionView() {
   const [records, setRecords] = useState<ProductionRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [typeFilter, setTypeFilter] = useState<string>("all");
+  const [deleteConfirm, setDeleteConfirm] = useState<{ id: string } | null>(null);
+
+  const [errorMsg, setErrorMsg] = useState("");
+  const [successMsg, setSuccessMsg] = useState("");
 
   const [type, setType] = useState<"eggs" | "milk">("eggs");
   const [quantity, setQuantity] = useState("");
   const [unit, setUnit] = useState("pieces");
-  const [date, setDate] = useState(
-    new Date().toISOString().split("T")[0]
-  );
+  const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
+  const [destination, setDestination] = useState("");
+  const [sellingPrice, setSellingPrice] = useState("");
+  const [notes, setNotes] = useState("");
 
   async function refreshProduction() {
     try {
@@ -27,7 +60,7 @@ export default function ProductionView() {
       setRecords(data);
     } catch (error) {
       console.error(error);
-      alert(error instanceof Error ? error.message : "Failed to load production.");
+      setErrorMsg(error instanceof Error ? error.message : "Failed to load production.");
     } finally {
       setLoading(false);
     }
@@ -43,6 +76,10 @@ export default function ProductionView() {
     setQuantity("");
     setUnit("pieces");
     setDate(new Date().toISOString().split("T")[0]);
+    setDestination("");
+    setSellingPrice("");
+    setNotes("");
+    setErrorMsg("");
   }
 
   function handleTypeChange(value: "eggs" | "milk") {
@@ -52,11 +89,13 @@ export default function ProductionView() {
 
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
+    setErrorMsg("");
+    setSuccessMsg("");
 
     const amount = Number(quantity);
 
     if (!Number.isFinite(amount) || amount <= 0) {
-      alert("Please enter a valid production quantity.");
+      setErrorMsg("Please enter a valid production quantity.");
       return;
     }
 
@@ -68,19 +107,24 @@ export default function ProductionView() {
         quantity: amount,
         unit,
         date,
+        destination: destination || undefined,
+        sellingPrice: sellingPrice ? parseFloat(sellingPrice) : undefined,
+        notes: notes.trim() || undefined,
       };
 
       if (editingId) {
         await updateProduction(editingId, record);
+        setSuccessMsg("Production record updated.");
       } else {
         await addProduction(record);
+        setSuccessMsg("Production record added.");
       }
 
       await refreshProduction();
       resetForm();
     } catch (error) {
       console.error(error);
-      alert(error instanceof Error ? error.message : "Failed to save production.");
+      setErrorMsg(error instanceof Error ? error.message : "Failed to save production.");
     } finally {
       setSaving(false);
     }
@@ -92,219 +136,298 @@ export default function ProductionView() {
     setQuantity(String(record.quantity));
     setUnit(record.unit);
     setDate(record.date);
+    setDestination(record.destination || "");
+    setSellingPrice(record.sellingPrice !== undefined ? String(record.sellingPrice) : "");
+    setNotes(record.notes || "");
   }
 
-  async function handleDelete(id: string) {
-    if (!window.confirm("Are you sure you want to delete this production record?")) {
-      return;
-    }
-
-    try {
-      await deleteProduction(id);
-      await refreshProduction();
-
-      if (editingId === id) {
-        resetForm();
-      }
-    } catch (error) {
-      console.error(error);
-      alert(error instanceof Error ? error.message : "Failed to delete production.");
-    }
+  async function actualDelete(id: string) {
+    await deleteProduction(id);
+    setSuccessMsg("Production record deleted.");
+    await refreshProduction();
+    if (editingId === id) resetForm();
   }
 
-  const eggRecords = records.filter((record) => record.type === "eggs");
-  const milkRecords = records.filter((record) => record.type === "milk");
+  function handleDelete(id: string) {
+    setDeleteConfirm({ id });
+  }
 
-  const totalEggs = eggRecords.reduce(
-    (sum, record) => sum + Number(record.quantity),
-    0
+  // KPI computations
+  const totalEggs = useMemo(
+    () => records.filter((r) => r.type === "eggs").reduce((sum, r) => sum + Number(r.quantity), 0),
+    [records]
   );
+  const totalMilk = useMemo(
+    () => records.filter((r) => r.type === "milk").reduce((sum, r) => sum + Number(r.quantity), 0),
+    [records]
+  );
+  const currentYYYYMM = new Date().toISOString().slice(0, 7);
+  const thisMonthCount = useMemo(
+    () => records.filter((r) => r.date.startsWith(currentYYYYMM)).length,
+    [records, currentYYYYMM]
+  );
+  const lastRecord = records[0]?.date ?? "—";
 
-  const totalMilk = milkRecords.reduce(
-    (sum, record) => sum + Number(record.quantity),
-    0
-  );
+  // Filtered records for table
+  const filteredRecords = useMemo(() => {
+    if (typeFilter === "all") return records;
+    return records.filter((r) => r.type === typeFilter);
+  }, [records, typeFilter]);
 
   return (
-    <div className="management-page">
-      <div className="page-heading">
-        <div>
-          <h1>Production Management</h1>
-          <p>Record and monitor eggs, milk and other farm production.</p>
-        </div>
-      </div>
+    <main className="kf-page">
+      <PageHeader
+        title="Production Management"
+        description="Record and monitor eggs, milk and other farm production."
+        actions={
+          <Button icon={<Plus size={16} />} onClick={() => { resetForm(); window.scrollTo({ top: 400, behavior: "smooth" }); }}>
+            Add record
+          </Button>
+        }
+      />
 
-      <div className="summary-grid">
-        <div className="summary-card">
-          <div className="summary-icon"><img src="https://images.unsplash.com/photo-1506976785307-8732e854ad03?w=80&q=70" alt="Records" className="summary-icon-img" /></div>
-          <div><span className="summary-label">Total Records</span><strong>{records.length}</strong><small>Production entries</small></div>
+      <div className="kf-stack">
+        {/* KPI Stats */}
+        <div className="kf-grid kf-grid--stats">
+          <StatCard
+            tone="amber"
+            icon={<Egg size={20} />}
+            label="Eggs Produced"
+            value={totalEggs.toLocaleString()}
+            hint="Total pieces recorded"
+            onClick={() => setTypeFilter("eggs")}
+          />
+          <StatCard
+            tone="blue"
+            icon={<Milk size={20} />}
+            label="Milk Produced"
+            value={`${totalMilk.toLocaleString()} L`}
+            hint="Total litres recorded"
+            onClick={() => setTypeFilter("milk")}
+          />
+          <StatCard
+            tone="forest"
+            icon={<Egg size={20} />}
+            label="This Month Records"
+            value={thisMonthCount}
+            hint={currentYYYYMM}
+          />
+          <StatCard
+            tone="slate"
+            icon={<Egg size={20} />}
+            label="Last Entry"
+            value={lastRecord}
+            hint="Most recent production date"
+          />
         </div>
-        <div className="summary-card">
-          <div className="summary-icon"><img src="https://images.unsplash.com/photo-1506976785307-8732e854ad03?w=80&q=70" alt="Eggs" className="summary-icon-img" /></div>
-          <div><span className="summary-label">Egg Production</span><strong>{totalEggs}</strong><small>Pieces recorded</small></div>
-        </div>
-        <div className="summary-card">
-          <div className="summary-icon"><img src="https://images.unsplash.com/photo-1550583724-b2692b85b150?w=80&q=70" alt="Milk" className="summary-icon-img" /></div>
-          <div><span className="summary-label">Milk Production</span><strong>{totalMilk}</strong><small>Litres recorded</small></div>
-        </div>
-        <div className="summary-card">
-          <div className="summary-icon"><img src="https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=80&q=70" alt="Types" className="summary-icon-img" /></div>
-          <div><span className="summary-label">Production Types</span><strong>{new Set(records.map((r) => r.type)).size}</strong><small>Active categories</small></div>
-        </div>
-      </div>
 
-      <div className="management-card">
-        <div className="card-heading">
-          <div>
-            <h2>{editingId ? "Edit Production" : "Add Production"}</h2>
-            <p>
-              {editingId
-                ? "Update the selected production record."
-                : "Record a new farm production entry."}
-            </p>
-          </div>
-        </div>
+        {/* Add / Edit Form */}
+        <Panel
+          title={editingId ? "Edit Production Record" : "Add Production Record"}
+          subtitle={editingId ? "Update the selected production record." : "Record a new farm production entry."}
+        >
+          {errorMsg && <ErrorBanner message={errorMsg} />}
+          {successMsg && <Notice tone="success">{successMsg}</Notice>}
 
-        <form onSubmit={handleSubmit}>
-          <div className="form-grid">
-            <div className="form-field">
-              <label>Production Type</label>
-              <select
-                value={type}
-                onChange={(e) =>
-                  handleTypeChange(e.target.value as "eggs" | "milk")
-                }
-              >
-                <option value="eggs">Eggs</option>
-                <option value="milk">Milk</option>
-              </select>
+          <form onSubmit={handleSubmit}>
+            <div className="kf-form-grid">
+              <Field label="Production Type" htmlFor="productionType" required>
+                <select
+                  id="productionType"
+                  value={type}
+                  onChange={(e) => handleTypeChange(e.target.value as "eggs" | "milk")}
+                >
+                  <option value="eggs">Eggs</option>
+                  <option value="milk">Milk</option>
+                </select>
+              </Field>
+
+              <Field label="Quantity" htmlFor="productionQuantity" required>
+                <input
+                  id="productionQuantity"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  placeholder="Enter quantity"
+                  value={quantity}
+                  onChange={(e) => setQuantity(e.target.value)}
+                />
+              </Field>
+
+              <Field label="Unit" htmlFor="productionUnit">
+                <input
+                  id="productionUnit"
+                  type="text"
+                  value={unit}
+                  onChange={(e) => setUnit(e.target.value)}
+                />
+              </Field>
+
+              <Field label="Date" htmlFor="productionDate">
+                <input
+                  id="productionDate"
+                  type="date"
+                  value={date}
+                  onChange={(e) => setDate(e.target.value)}
+                />
+              </Field>
+
+              <Field label="Destination (Optional)" htmlFor="productionDestination">
+                <select
+                  id="productionDestination"
+                  value={destination}
+                  onChange={(e) => setDestination(e.target.value)}
+                >
+                  <option value="">— Select —</option>
+                  <option value="produced">Produced (stock)</option>
+                  <option value="sold">Sold</option>
+                  <option value="home_use">Home use</option>
+                  <option value="damaged">Damaged / waste</option>
+                </select>
+              </Field>
+
+              <Field label="Selling Price KES (Optional)" htmlFor="sellingPrice">
+                <input
+                  id="sellingPrice"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  placeholder="e.g. 1200"
+                  value={sellingPrice}
+                  onChange={(e) => setSellingPrice(e.target.value)}
+                />
+              </Field>
             </div>
 
-            <div className="form-field">
-              <label>Quantity</label>
+            <Field label="Notes (Optional)" htmlFor="productionNotes" className="kf-field--full">
               <input
-                type="number"
-                min="0"
-                step="0.01"
-                placeholder="Enter quantity"
-                value={quantity}
-                onChange={(e) => setQuantity(e.target.value)}
-              />
-            </div>
-
-            <div className="form-field">
-              <label>Unit</label>
-              <input
+                id="productionNotes"
                 type="text"
-                value={unit}
-                onChange={(e) => setUnit(e.target.value)}
+                placeholder="e.g. Morning collection, Grade A"
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
               />
-            </div>
+            </Field>
 
-            <div className="form-field">
-              <label>Date</label>
-              <input
-                type="date"
-                value={date}
-                onChange={(e) => setDate(e.target.value)}
-              />
+            <div className="kf-form-actions">
+              {editingId && (
+                <Button variant="ghost" type="button" onClick={resetForm}>
+                  Cancel Edit
+                </Button>
+              )}
+              <Button type="submit" loading={saving}>
+                {editingId ? "Update Production" : "Add Production"}
+              </Button>
             </div>
-          </div>
+          </form>
+        </Panel>
 
-          <div className="form-actions">
-            <button
-              type="submit"
-              className="primary-button"
-              disabled={saving}
+        {/* Records Table */}
+        <Panel
+          title={`Production Records (${records.length})`}
+          subtitle="All production entries stored in your farm database."
+          actions={
+            <Segmented
+              label="Filter by type"
+              options={TYPE_OPTIONS}
+              value={typeFilter}
+              onChange={setTypeFilter}
+            />
+          }
+        >
+          {loading ? (
+            <EmptyState title="Loading production records…" />
+          ) : filteredRecords.length === 0 ? (
+            <EmptyState
+              icon={<Egg size={26} />}
+              title="No production records yet"
+              description="Add your first production record using the form above."
+            />
+          ) : (
+            <div className="kf-table-wrap">
+              <table className="kf-table">
+                <thead>
+                  <tr>
+                    <th>Date</th>
+                    <th>Type</th>
+                    <th>Quantity</th>
+                    <th>Unit</th>
+                    <th>Destination</th>
+                    <th>Selling Price KES</th>
+                    <th>Notes</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredRecords.map((record) => (
+                    <tr key={record.id}>
+                      <td>{record.date}</td>
+                      <td>
+                        <Badge tone={record.type === "eggs" ? "amber" : "blue"}>
+                          {record.type === "eggs" ? "Eggs" : "Milk"}
+                        </Badge>
+                      </td>
+                      <td><strong>{record.quantity}</strong></td>
+                      <td>{record.unit}</td>
+                      <td>{record.destination ?? "—"}</td>
+                      <td>{record.sellingPrice !== undefined ? record.sellingPrice.toLocaleString() : "—"}</td>
+                      <td>
+                        {record.notes
+                          ? <span style={{ fontSize: 12, color: "var(--kf-text-muted)" }}>{record.notes}</span>
+                          : "—"
+                        }
+                      </td>
+                      <td>
+                        <div className="kf-actions-cell">
+                          <IconButton
+                            label="Edit"
+                            icon={<Pencil size={16} />}
+                            onClick={() => startEdit(record)}
+                          />
+                          <IconButton
+                            label="Delete"
+                            tone="danger"
+                            icon={<Trash2 size={16} />}
+                            onClick={() => handleDelete(record.id)}
+                          />
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </Panel>
+      </div>
+
+      {/* Delete confirmation modal */}
+      <Modal
+        open={!!deleteConfirm}
+        onClose={() => setDeleteConfirm(null)}
+        title="Delete record?"
+        size="sm"
+        footer={
+          <>
+            <Button variant="ghost" onClick={() => setDeleteConfirm(null)}>
+              Cancel
+            </Button>
+            <Button
+              variant="danger"
+              onClick={async () => {
+                if (deleteConfirm) {
+                  await actualDelete(deleteConfirm.id);
+                  setDeleteConfirm(null);
+                }
+              }}
             >
-              {saving
-                ? "Saving..."
-                : editingId
-                ? "Update Production"
-                : "Add Production"}
-            </button>
-
-            {editingId && (
-              <button
-                type="button"
-                className="secondary-button"
-                onClick={resetForm}
-              >
-                Cancel Edit
-              </button>
-            )}
-          </div>
-        </form>
-      </div>
-
-      <div className="management-card">
-        <div className="card-heading">
-          <div>
-            <h2>Production Records</h2>
-            <p>All production entries stored in your farm database.</p>
-          </div>
-
-          <span className="record-count">
-            {records.length} record{records.length === 1 ? "" : "s"}
-          </span>
-        </div>
-
-        {loading ? (
-          <div className="empty-state">
-            <p>Loading production records...</p>
-          </div>
-        ) : records.length === 0 ? (
-          <div className="empty-state">
-            <h3>No production records yet</h3>
-            <p>Add your first production record above.</p>
-          </div>
-        ) : (
-          <div className="records-grid">
-            {records.map((record) => (
-              <div className="record-card" key={record.id}>
-                <div className="record-card-top">
-                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                    <div className="record-avatar"><img src={record.type === "eggs" ? "https://images.unsplash.com/photo-1506976785307-8732e854ad03?w=80&q=70" : "https://images.unsplash.com/photo-1550583724-b2692b85b150?w=80&q=70"} alt={record.type} className="record-avatar-img" /></div>
-                    <div><h3>{record.type === "eggs" ? "Egg Production" : "Milk Production"}</h3><span className="record-badge">{record.type}</span></div>
-                  </div>
-
-                  <div className="record-actions">
-                    <button
-                      type="button"
-                      className="edit-button"
-                      onClick={() => startEdit(record)}
-                    >
-                      Edit
-                    </button>
-
-                    <button
-                      type="button"
-                      className="delete-button"
-                      onClick={() => handleDelete(record.id)}
-                    >
-                      Delete
-                    </button>
-                  </div>
-                </div>
-
-                <div className="record-details">
-                  <div>
-                    <span>Quantity</span>
-                    <strong>
-                      {record.quantity} {record.unit}
-                    </strong>
-                  </div>
-
-                  <div>
-                    <span>Date</span>
-                    <strong>{record.date}</strong>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-    </div>
+              Delete
+            </Button>
+          </>
+        }
+      >
+        <p>Are you sure you want to delete this production record? This cannot be undone.</p>
+      </Modal>
+    </main>
   );
 }

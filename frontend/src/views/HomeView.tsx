@@ -68,6 +68,13 @@ const QUICK_ACTIONS = [
   { view: "vaccinations", label: "Vaccinations", hint: "Schedule & reminders", icon: Syringe },
 ];
 
+function timeOfDayGreeting(): "morning" | "afternoon" | "evening" {
+  const hour = new Date().getHours();
+  if (hour >= 5 && hour <= 11) return "morning";
+  if (hour >= 12 && hour <= 17) return "afternoon";
+  return "evening";
+}
+
 export default function HomeView({
   poultryCount,
   totalPoultryBirds = 0,
@@ -194,6 +201,10 @@ export default function HomeView({
 
   return (
     <main className="kf-page">
+      <div className="kf-welcome-banner">
+        <p className="kf-eyebrow">Good {timeOfDayGreeting()}, farm manager</p>
+        <h2>Welcome back to Kagochi Farm</h2>
+      </div>
       <PageHeader
         eyebrow="Farm overview"
         title="Dashboard"
