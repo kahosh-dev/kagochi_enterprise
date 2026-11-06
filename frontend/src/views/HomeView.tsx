@@ -1,21 +1,22 @@
 import { useEffect, useMemo, useState } from "react";
 import {
-  AlertTriangle,
   ArrowRight,
+  BarChart2,
   Beef,
   Bird,
   CalendarDays,
   ChevronRight,
-  Coins,
+  DollarSign,
   Egg,
   Filter,
-  Milk,
+  Package,
   PlusCircle,
-  ShieldAlert,
   Sparkles,
   Syringe,
   TrendingDown,
   TrendingUp,
+  Users,
+  Wallet,
   Wheat,
 } from "lucide-react";
 import { loadFarmSummary } from "../services/storage";
@@ -61,10 +62,10 @@ const QUICK_ACTIONS = [
   { view: "livestock", label: "Cattle", hint: "Calves, heifers & cows", icon: Beef },
   { view: "production", label: "Production", hint: "Eggs & milk logs", icon: Egg },
   { view: "feeding", label: "Feeding", hint: "Rations & feed costs", icon: Wheat },
-  { view: "expenses", label: "Income & expenses", hint: "Daily cashflow ledger", icon: Coins },
-  { view: "performance", label: "Profit & loss", hint: "Financial statements", icon: TrendingUp },
-  { view: "survivors", label: "Survivors", hint: "Population ledger", icon: Bird },
-  { view: "mortality", label: "Mortality", hint: "Death-rate trends", icon: AlertTriangle },
+  { view: "expenses", label: "Income & expenses", hint: "Daily cashflow ledger", icon: Wallet },
+  { view: "performance", label: "Profit & loss", hint: "Financial statements", icon: BarChart2 },
+  { view: "survivors", label: "Survivors", hint: "Population ledger", icon: Users },
+  { view: "mortality", label: "Mortality", hint: "Death-rate trends", icon: TrendingDown },
   { view: "vaccinations", label: "Vaccinations", hint: "Schedule & reminders", icon: Syringe },
 ];
 
@@ -308,7 +309,7 @@ export default function HomeView({
         <section className="kf-grid kf-grid--stats" aria-label="Animal population">
           <StatCard
             tone="forest"
-            icon={<Bird size={20} />}
+            icon={<Bird size={20} strokeWidth={1.5} />}
             label="Chickens"
             value={formatNumber(totalBirds)}
             hint={poultryHintParts.length > 0 ? poultryHintParts.join(" · ") : "No bird breakdown recorded"}
@@ -316,7 +317,7 @@ export default function HomeView({
           />
           <StatCard
             tone="amber"
-            icon={<Egg size={20} />}
+            icon={<Egg size={20} strokeWidth={1.5} />}
             label="Chicks on farm"
             value={formatNumber(totalChicks)}
             hint="Day-old to four weeks"
@@ -324,7 +325,7 @@ export default function HomeView({
           />
           <StatCard
             tone="blue"
-            icon={<Beef size={20} />}
+            icon={<Beef size={20} strokeWidth={1.5} />}
             label="Cattle herd"
             value={formatNumber(totalCattle)}
             hint={cattleHintParts.length > 0 ? cattleHintParts.join(" · ") : "No cattle breakdown recorded"}
@@ -332,7 +333,7 @@ export default function HomeView({
           />
           <StatCard
             tone="plum"
-            icon={<Beef size={20} />}
+            icon={<Beef size={20} strokeWidth={1.5} />}
             label="Calves & heifers"
             value={formatNumber(totalCalves + totalHeifers)}
             hint={`${formatNumber(totalCalves)} calves · ${formatNumber(totalHeifers)} growing heifers`}
@@ -353,7 +354,7 @@ export default function HomeView({
             <div className="kf-grid kf-grid--2">
               <StatCard
                 tone="forest"
-                icon={<Bird size={19} />}
+                icon={<Bird size={19} strokeWidth={1.5} />}
                 label="Birds surviving"
                 value={formatNumber(totalPoultryBirds || totalBirds)}
                 hint="Alive after additions, sales and deaths"
@@ -361,7 +362,7 @@ export default function HomeView({
               />
               <StatCard
                 tone="plum"
-                icon={<Beef size={19} />}
+                icon={<Beef size={19} strokeWidth={1.5} />}
                 label="Livestock active"
                 value={formatNumber(totalLivestockActive || totalCattle)}
                 hint="Animals with survivors above zero"
@@ -400,21 +401,21 @@ export default function HomeView({
             <div className="kf-stack kf-stack--sm">
               <StatCard
                 tone="green"
-                icon={<Coins size={19} />}
+                icon={<DollarSign size={19} strokeWidth={1.5} />}
                 label="Farm income"
                 value={formatCurrency(totalIncome)}
                 hint="Egg, milk, poultry and cattle sales"
               />
               <StatCard
                 tone="red"
-                icon={<TrendingDown size={19} />}
+                icon={<TrendingDown size={19} strokeWidth={1.5} />}
                 label="Operating expenses"
                 value={formatCurrency(totalExpenses)}
                 hint="Feed, labour, vaccines and maintenance"
               />
               <StatCard
                 tone={isProfitable ? "forest" : "red"}
-                icon={isProfitable ? <TrendingUp size={19} /> : <TrendingDown size={19} />}
+                icon={isProfitable ? <TrendingUp size={19} strokeWidth={1.5} /> : <TrendingDown size={19} strokeWidth={1.5} />}
                 label={isProfitable ? "Operating profit" : "Operating loss"}
                 value={isProfitable ? formatCurrency(profitOrLoss) : `-${formatCurrency(Math.abs(profitOrLoss))}`}
                 hint={netMargin !== null ? `Net margin ${percent(netMargin)}` : "Income minus operating costs"}
@@ -430,7 +431,7 @@ export default function HomeView({
         <section className="kf-grid kf-grid--stats" aria-label="Production and health">
           <StatCard
             tone="green"
-            icon={<Egg size={20} />}
+            icon={<Egg size={20} strokeWidth={1.5} />}
             label="Eggs produced"
             value={formatNumber(eggsTotal)}
             hint={`${eggLines.reduce((sum, line) => sum + line.recordCount, 0)} collection records`}
@@ -438,7 +439,7 @@ export default function HomeView({
           />
           <StatCard
             tone="blue"
-            icon={<Milk size={20} />}
+            icon={<Package size={20} strokeWidth={1.5} />}
             label="Milk produced"
             value={`${formatNumber(milkTotal)} L`}
             hint={`${milkLines.reduce((sum, line) => sum + line.recordCount, 0)} milking records`}
@@ -446,7 +447,7 @@ export default function HomeView({
           />
           <StatCard
             tone="amber"
-            icon={<Wheat size={20} />}
+            icon={<Wheat size={20} strokeWidth={1.5} />}
             label="Feed usage"
             value={feedDisplay}
             hint="Recorded across poultry and livestock"
@@ -454,7 +455,7 @@ export default function HomeView({
           />
           <StatCard
             tone={overdueVac > 0 ? "red" : dueTodayVac > 0 ? "amber" : "forest"}
-            icon={<ShieldAlert size={20} />}
+            icon={<Syringe size={20} strokeWidth={1.5} />}
             label="Vaccination status"
             value={overdueVac > 0 ? `${overdueVac} overdue` : dueTodayVac > 0 ? `${dueTodayVac} due today` : `${upcomingVac} upcoming`}
             hint={overdueVac > 0 ? "Immediate attention recommended" : "No overdue doses recorded"}

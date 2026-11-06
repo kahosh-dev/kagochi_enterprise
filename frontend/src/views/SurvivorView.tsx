@@ -9,6 +9,8 @@ import {
   loadPoultry,
   loadLivestock,
 } from "../services/storage";
+import { Bird, Beef, Plus, Trash2, AlertTriangle } from "lucide-react";
+import { PageHeader, Panel, StatCard, Button, IconButton, ErrorBanner } from "../components/ui";
 
 const EVENT_LABELS: Record<string, string> = {
   addition:     "Birds/animals added",
@@ -153,8 +155,8 @@ function SurvivorView() {
     return Math.max(0, net);
   }
 
-  if (loading) return <div className="management-page"><p>Loading survivor data…</p></div>;
-  if (error)   return <div className="management-page"><p style={{ color: 'red' }}>{error}</p></div>;
+  if (loading) return <main className="kf-page"><p className="kf-muted">Loading survivor data…</p></main>;
+  if (error)   return <main className="kf-page"><ErrorBanner message={error} /></main>;
 
   const totals = summary ? {
     poultryBirds: summary.totalPoultryBirds,
@@ -164,223 +166,228 @@ function SurvivorView() {
   const selectedTarget = summary?.targets.find((t) => t.targetId === filterTargetId);
 
   return (
-    <div className="management-page">
-      <div className="view-header-row" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.5rem' }}>
-        <div>
-          <h2>Animal Survivor Tracking</h2>
-          <p style={{ color: '#64748b', margin: 0 }}>Track population changes and survivors for each batch or animal.</p>
-        </div>
-        <button className="primary-action" onClick={() => { setShowForm(!showForm); setFormError(""); setFormWarning(""); }}>
-          {showForm ? "Cancel" : "Record Event"}
-        </button>
-      </div>
+    <main className="kf-page">
+      <PageHeader
+        title="Survivor Tracking"
+        description="Track population changes and survivors for each batch or animal."
+        actions={
+          <Button icon={<Plus size={16} strokeWidth={1.5} />} onClick={() => { setShowForm(!showForm); setFormError(""); setFormWarning(""); }}>
+            {showForm ? "Cancel" : "Record Event"}
+          </Button>
+        }
+      />
 
-      {/* KPI Summary */}
-      <div className="summary-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '1rem', marginBottom: '1.5rem' }}>
-        <div className="summary-card">
-          <p className="card-label">🐓 Total Birds Alive</p>
-          <h3>{totals.poultryBirds.toLocaleString()}</h3>
+      <div className="kf-stack">
+        {/* KPI Summary */}
+        <div className="kf-grid kf-grid--stats">
+          <StatCard
+            tone="forest"
+            icon={<Bird size={20} strokeWidth={1.5} />}
+            label="Total Birds Alive"
+            value={totals.poultryBirds.toLocaleString()}
+            hint="Survivor count across all poultry batches"
+          />
+          <StatCard
+            tone="blue"
+            icon={<Beef size={20} strokeWidth={1.5} />}
+            label="Livestock Active"
+            value={totals.livestockAnimals.toLocaleString()}
+            hint="Survivor count across all livestock"
+          />
+          {selectedTarget && selectedTarget.survivorRatePercent !== null && (
+            <StatCard
+              tone="green"
+              icon={<Bird size={20} strokeWidth={1.5} />}
+              label="Survivor Rate"
+              value={`${selectedTarget.survivorRatePercent.toFixed(1)}%`}
+              hint={selectedTarget.targetName}
+            />
+          )}
         </div>
-        <div className="summary-card">
-          <p className="card-label">🐄 Livestock Active</p>
-          <h3>{totals.livestockAnimals.toLocaleString()}</h3>
-        </div>
-        {selectedTarget && selectedTarget.survivorRatePercent !== null && (
-          <div className="summary-card">
-            <p className="card-label">Survivor Rate</p>
-            <h3>{selectedTarget.survivorRatePercent.toFixed(1)}%</h3>
-            <p style={{ fontSize: '0.8rem', color: '#64748b' }}>{selectedTarget.targetName}</p>
-          </div>
+
+        {/* Record Event Form */}
+        {showForm && (
+          <Panel title="Record a Population Event">
+            {formWarning && (
+              <div className="kf-alert kf-alert--warning">
+                <AlertTriangle size={16} strokeWidth={1.5} />
+                <span>{formWarning}</span>
+              </div>
+            )}
+            {formError && <ErrorBanner message={formError} />}
+            <form onSubmit={handleSubmit} className="kf-form">
+              <div className="kf-form-grid">
+                <div className="kf-field">
+                  <label className="kf-label">Species</label>
+                  <select value={formSpecies} onChange={(e) => { setFormSpecies(e.target.value as "poultry" | "cattle"); setFormTargetId(""); setFormTargetName(""); }}>
+                    <option value="poultry">Poultry</option>
+                    <option value="cattle">Livestock (Cattle)</option>
+                  </select>
+                </div>
+                <div className="kf-field">
+                  <label className="kf-label">Target Batch / Animal</label>
+                  <select value={formTargetId} onChange={(e) => handleTargetChange(e.target.value)} required>
+                    <option value="">-- Select --</option>
+                    {formSpecies === "poultry"
+                      ? poultryBatches.map((b) => (
+                          <option key={b.id} value={b.id}>{b.breed} — {b.purpose}</option>
+                        ))
+                      : livestock.map((l) => (
+                          <option key={l.id} value={l.id}>{l.name} ({l.type})</option>
+                        ))
+                    }
+                  </select>
+                </div>
+                <div className="kf-field">
+                  <label className="kf-label">Event Type</label>
+                  <select value={formEventType} onChange={(e) => setFormEventType(e.target.value as PopulationEvent["eventType"])}>
+                    {Object.entries(EVENT_LABELS).map(([val, label]) => (
+                      <option key={val} value={val}>{label}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="kf-field">
+                  <label className="kf-label">Count</label>
+                  <input
+                    type="number"
+                    min={1}
+                    max={100000}
+                    value={formCount}
+                    onChange={(e) => setFormCount(Number(e.target.value))}
+                    required
+                  />
+                  {wouldGoNegative && (
+                    <p className="kf-field-error">Only {currentSurvivors} survivors remain — count cannot exceed this.</p>
+                  )}
+                </div>
+                <div className="kf-field">
+                  <label className="kf-label">Date</label>
+                  <input
+                    type="date"
+                    value={formDate}
+                    max={new Date().toISOString().slice(0, 10)}
+                    onChange={(e) => setFormDate(e.target.value)}
+                    required
+                  />
+                </div>
+                <div className="kf-field">
+                  <label className="kf-label">Reason (optional)</label>
+                  <input
+                    type="text"
+                    maxLength={300}
+                    value={formReason}
+                    onChange={(e) => setFormReason(e.target.value)}
+                    placeholder="e.g. Disease, Predator attack"
+                  />
+                </div>
+                <div className="kf-field kf-field--full">
+                  <label className="kf-label">Notes (optional)</label>
+                  <textarea
+                    maxLength={500}
+                    value={formNotes}
+                    onChange={(e) => setFormNotes(e.target.value)}
+                    rows={2}
+                    placeholder="Any additional details"
+                  />
+                </div>
+              </div>
+              <div className="kf-form-actions">
+                <Button variant="ghost" type="button" onClick={() => { setShowForm(false); setFormError(""); setFormWarning(""); }}>
+                  Cancel
+                </Button>
+                <Button type="submit" loading={formSubmitting} disabled={wouldGoNegative}>
+                  Save Event
+                </Button>
+              </div>
+            </form>
+          </Panel>
         )}
-      </div>
 
-      {/* Record Event Form */}
-      {showForm && (
-        <div className="management-card" style={{ marginBottom: '1.5rem' }}>
-          <h3 className="card-heading">Record a Population Event</h3>
-          {formWarning && (
-            <div className="form-warning" style={{ background: '#fef9c3', border: '1px solid #f59e0b', borderRadius: '6px', padding: '0.75rem', marginBottom: '1rem' }}>
-              ⚠️ {formWarning}
-            </div>
-          )}
-          {formError && (
-            <div style={{ color: '#dc2626', background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: '6px', padding: '0.75rem', marginBottom: '1rem' }}>
-              {formError}
-            </div>
-          )}
-          <form onSubmit={handleSubmit} className="form-grid">
-            <div className="form-field">
-              <label>Species</label>
-              <select value={formSpecies} onChange={(e) => { setFormSpecies(e.target.value as any); setFormTargetId(""); setFormTargetName(""); }}>
-                <option value="poultry">Poultry</option>
-                <option value="cattle">Livestock (Cattle)</option>
-              </select>
-            </div>
-            <div className="form-field">
-              <label>Target Batch / Animal</label>
-              <select value={formTargetId} onChange={(e) => handleTargetChange(e.target.value)} required>
-                <option value="">-- Select --</option>
-                {formSpecies === "poultry"
-                  ? poultryBatches.map((b) => (
-                      <option key={b.id} value={b.id}>{b.breed} — {b.purpose}</option>
-                    ))
-                  : livestock.map((l) => (
-                      <option key={l.id} value={l.id}>{l.name} ({l.type})</option>
-                    ))
-                }
-              </select>
-            </div>
-            <div className="form-field">
-              <label>Event Type</label>
-              <select value={formEventType} onChange={(e) => setFormEventType(e.target.value as any)}>
-                {Object.entries(EVENT_LABELS).map(([val, label]) => (
-                  <option key={val} value={val}>{label}</option>
-                ))}
-              </select>
-            </div>
-            <div className="form-field">
-              <label>Count</label>
-              <input
-                type="number"
-                min={1}
-                max={100000}
-                value={formCount}
-                onChange={(e) => setFormCount(Number(e.target.value))}
-                required
-              />
-              {wouldGoNegative && (
-                <p style={{ color: '#dc2626', fontSize: '0.8rem', margin: '0.25rem 0 0' }}>
-                  Only {currentSurvivors} survivors remain — count cannot exceed this.
-                </p>
-              )}
-            </div>
-            <div className="form-field">
-              <label>Date</label>
-              <input
-                type="date"
-                value={formDate}
-                max={new Date().toISOString().slice(0, 10)}
-                onChange={(e) => setFormDate(e.target.value)}
-                required
-              />
-            </div>
-            <div className="form-field">
-              <label>Reason (optional)</label>
-              <input
-                type="text"
-                maxLength={300}
-                value={formReason}
-                onChange={(e) => setFormReason(e.target.value)}
-                placeholder="e.g. Disease, Predator attack"
-              />
-            </div>
-            <div className="form-field" style={{ gridColumn: '1 / -1' }}>
-              <label>Notes (optional)</label>
-              <textarea
-                maxLength={500}
-                value={formNotes}
-                onChange={(e) => setFormNotes(e.target.value)}
-                rows={2}
-                placeholder="Any additional details"
-              />
-            </div>
-            <div className="form-actions">
-              <button type="submit" className="primary-action" disabled={formSubmitting || wouldGoNegative}>
-                {formSubmitting ? "Saving…" : "Save Event"}
-              </button>
-              <button type="button" className="secondary-action" onClick={() => { setShowForm(false); setFormError(""); setFormWarning(""); }}>
-                Cancel
-              </button>
-            </div>
-          </form>
+        {/* Filters */}
+        <div className="kf-filter-row">
+          <span className="kf-label" style={{ margin: 0 }}>Filter:</span>
+          <select
+            className="kf-input"
+            value={filterSpecies}
+            onChange={(e) => { setFilterSpecies(e.target.value as "" | "poultry" | "cattle"); setFilterTargetId(""); }}
+            style={{ maxWidth: 160 }}
+          >
+            <option value="">All species</option>
+            <option value="poultry">Poultry</option>
+            <option value="cattle">Livestock</option>
+          </select>
+          <select
+            className="kf-input"
+            value={filterTargetId}
+            onChange={(e) => setFilterTargetId(e.target.value)}
+            style={{ maxWidth: 220 }}
+          >
+            <option value="">All targets</option>
+            {(filterSpecies === "poultry" ? poultryBatches
+              : filterSpecies === "cattle" ? livestock
+              : [...poultryBatches, ...livestock]
+            ).map((t) => (
+              <option key={t.id} value={t.id}>
+                {"purpose" in t ? `${(t as PoultryBatch).breed} (${(t as PoultryBatch).purpose})` : (t as LivestockAnimal).name}
+              </option>
+            ))}
+          </select>
         </div>
-      )}
 
-      {/* Filters */}
-      <div className="dashboard-filter-bar" style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', marginBottom: '1.25rem', flexWrap: 'wrap' }}>
-        <label style={{ fontWeight: 600, fontSize: '0.9rem' }}>Filter:</label>
-        <select
-          className="filter-chip"
-          value={filterSpecies}
-          onChange={(e) => { setFilterSpecies(e.target.value as any); setFilterTargetId(""); }}
-        >
-          <option value="">All species</option>
-          <option value="poultry">Poultry</option>
-          <option value="cattle">Livestock</option>
-        </select>
-        <select
-          className="filter-chip"
-          value={filterTargetId}
-          onChange={(e) => setFilterTargetId(e.target.value)}
-        >
-          <option value="">All targets</option>
-          {(filterSpecies === "poultry" ? poultryBatches
-            : filterSpecies === "cattle" ? livestock
-            : [...poultryBatches, ...livestock]
-          ).map((t) => (
-            <option key={t.id} value={t.id}>
-              {'purpose' in t ? `${(t as PoultryBatch).breed} (${(t as PoultryBatch).purpose})` : (t as LivestockAnimal).name}
-            </option>
-          ))}
-        </select>
-      </div>
+        {/* Survivor Targets Summary */}
+        {summary && summary.targets.length > 0 && (
+          <Panel title="Population Summary">
+            <div className="kf-table-wrap">
+              <table className="kf-table">
+                <thead>
+                  <tr>
+                    <th>Batch / Animal</th>
+                    <th>Species</th>
+                    <th>Start</th>
+                    <th>Added</th>
+                    <th>Died</th>
+                    <th>Sold</th>
+                    <th>Transferred</th>
+                    <th>Survivors</th>
+                    <th>Survivor Rate</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {summary.targets
+                    .filter((t) => !filterSpecies || t.species === filterSpecies)
+                    .filter((t) => !filterTargetId || t.targetId === filterTargetId)
+                    .map((t) => (
+                      <tr key={t.targetId}>
+                        <td>{t.targetName}</td>
+                        <td style={{ textTransform: "capitalize" }}>{t.species}</td>
+                        <td>{t.initialCount.toLocaleString()}</td>
+                        <td>{(t.additions + t.transfersIn) > 0 ? `+${(t.additions + t.transfersIn).toLocaleString()}` : "—"}</td>
+                        <td>{t.deaths > 0 ? t.deaths.toLocaleString() : "—"}</td>
+                        <td>{t.sales > 0 ? t.sales.toLocaleString() : "—"}</td>
+                        <td>{t.transfersOut > 0 ? `−${t.transfersOut.toLocaleString()}` : "—"}</td>
+                        <td><strong>{t.survivors.toLocaleString()}</strong></td>
+                        <td>
+                          {t.survivorRatePercent !== null
+                            ? `${t.survivorRatePercent.toFixed(1)}%`
+                            : <span style={{ color: "var(--kf-muted-2)" }}>—</span>
+                          }
+                        </td>
+                      </tr>
+                    ))
+                  }
+                </tbody>
+              </table>
+            </div>
+          </Panel>
+        )}
 
-      {/* Survivor Targets Summary Table */}
-      {summary && summary.targets.length > 0 && (
-        <div className="management-card" style={{ marginBottom: '1.5rem' }}>
-          <h3 className="card-heading">Population Summary</h3>
-          <div style={{ overflowX: 'auto' }}>
-            <table className="modern-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
-              <thead>
-                <tr>
-                  <th>Batch / Animal</th>
-                  <th>Species</th>
-                  <th>Start</th>
-                  <th>Added</th>
-                  <th>Died</th>
-                  <th>Sold</th>
-                  <th>Transferred</th>
-                  <th>Survivors</th>
-                  <th>Survivor Rate</th>
-                </tr>
-              </thead>
-              <tbody>
-                {summary.targets
-                  .filter((t) => !filterSpecies || t.species === filterSpecies)
-                  .filter((t) => !filterTargetId || t.targetId === filterTargetId)
-                  .map((t) => (
-                    <tr key={t.targetId}>
-                      <td>{t.targetName}</td>
-                      <td style={{ textTransform: 'capitalize' }}>{t.species}</td>
-                      <td>{t.initialCount.toLocaleString()}</td>
-                      <td>{(t.additions + t.transfersIn) > 0 ? `+${(t.additions + t.transfersIn).toLocaleString()}` : '—'}</td>
-                      <td>{t.deaths > 0 ? t.deaths.toLocaleString() : '—'}</td>
-                      <td>{t.sales > 0 ? t.sales.toLocaleString() : '—'}</td>
-                      <td>{t.transfersOut > 0 ? `−${t.transfersOut.toLocaleString()}` : '—'}</td>
-                      <td><strong>{t.survivors.toLocaleString()}</strong></td>
-                      <td>
-                        {t.survivorRatePercent !== null
-                          ? `${t.survivorRatePercent.toFixed(1)}%`
-                          : <span style={{ color: '#94a3b8' }}>—</span>
-                        }
-                      </td>
-                    </tr>
-                  ))
-                }
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
-
-      {/* Event Ledger */}
-      <div className="management-card">
-        <h3 className="card-heading">Population Event Ledger</h3>
-        {filteredEvents.length === 0
-          ? <p style={{ color: '#94a3b8', textAlign: 'center', padding: '2rem 0' }}>No events recorded yet. Use the "Record Event" button to add one.</p>
-          : (
-            <div style={{ overflowX: 'auto' }}>
-              <table className="modern-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
+        {/* Event Ledger */}
+        <Panel title="Population Event Ledger">
+          {filteredEvents.length === 0 ? (
+            <p className="kf-muted" style={{ textAlign: "center", padding: "2rem 0" }}>No events recorded yet. Use the "Record Event" button to add one.</p>
+          ) : (
+            <div className="kf-table-wrap">
+              <table className="kf-table">
                 <thead>
                   <tr>
                     <th>Date</th>
@@ -398,30 +405,28 @@ function SurvivorView() {
                       <td>{ev.date}</td>
                       <td>{ev.targetName}</td>
                       <td>{EVENT_LABELS[ev.eventType] ?? ev.eventType}</td>
-                      <td style={{ textAlign: 'right' }}>
+                      <td style={{ textAlign: "right" }}>
                         {["addition", "transfer_in"].includes(ev.eventType) ? `+${ev.count}` : `−${ev.count}`}
                       </td>
-                      <td>{ev.reason || <span style={{ color: '#94a3b8' }}>—</span>}</td>
-                      <td style={{ textAlign: 'right' }}>{runningSurvivorAfter(ev).toLocaleString()}</td>
+                      <td>{ev.reason || <span style={{ color: "var(--kf-muted-2)" }}>—</span>}</td>
+                      <td style={{ textAlign: "right" }}>{runningSurvivorAfter(ev).toLocaleString()}</td>
                       <td>
-                        <button
-                          className="delete-button"
+                        <IconButton
+                          label="Delete event"
+                          icon={<Trash2 size={15} strokeWidth={1.5} />}
                           onClick={() => handleDelete(ev.id)}
-                          title="Delete event"
-                          style={{ fontSize: '0.8rem' }}
-                        >
-                          Delete
-                        </button>
+                          tone="danger"
+                        />
                       </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
-          )
-        }
+          )}
+        </Panel>
       </div>
-    </div>
+    </main>
   );
 }
 

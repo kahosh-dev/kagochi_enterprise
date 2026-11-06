@@ -7,15 +7,11 @@ import {
   deletePoultry,
 } from "../services/storage";
 import {
-  ChickIcon,
-  ChickenIcon,
-} from "../components/FarmIcons";
-import {
-  AlertTriangle,
   Bird,
   Pencil,
   Plus,
   Trash2,
+  TrendingDown,
 } from "lucide-react";
 import {
   Badge,
@@ -263,28 +259,28 @@ export default function PoultryView() {
         <div className="kf-grid kf-grid--stats">
           <StatCard
             tone="forest"
-            icon={<ChickenIcon size={20} />}
+            icon={<Bird size={20} strokeWidth={1.5} />}
             label="Current Living Birds"
             value={totalCurrent.toLocaleString()}
             hint="Total across all batches"
           />
           <StatCard
             tone="amber"
-            icon={<ChickIcon size={20} />}
+            icon={<Bird size={20} strokeWidth={1.5} />}
             label="Chicks in Brooder"
             value={totalChicks.toLocaleString()}
             hint="Day-old to 4 weeks"
           />
           <StatCard
             tone="blue"
-            icon={<ChickenIcon size={20} />}
+            icon={<Bird size={20} strokeWidth={1.5} />}
             label="Layers & Broilers"
             value={`${totalLayers} layers / ${totalBroilers} broilers`}
             hint="Active production birds"
           />
           <StatCard
             tone={parseFloat(overallLossRate) > 5 ? "red" : "slate"}
-            icon={<AlertTriangle size={20} />}
+            icon={<TrendingDown size={20} strokeWidth={1.5} />}
             label="Recorded Mortality"
             value={`${totalLoss.toLocaleString()} (${overallLossRate}%)`}
             hint={parseFloat(overallLossRate) > 5 ? "High mortality warning" : "Normal mortality"}

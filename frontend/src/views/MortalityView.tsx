@@ -1,6 +1,8 @@
 import { useEffect, useState, useCallback } from "react";
 import type { MortalitySummary, MortalityPoint } from "../types/farm";
 import { loadMortalitySummary } from "../services/storage";
+import { TrendingDown, Users, Clock, AlertTriangle } from "lucide-react";
+import { PageHeader, Panel, StatCard, Segmented } from "../components/ui";
 
 type Granularity = "daily" | "weekly" | "monthly" | "yearly";
 
@@ -57,17 +59,17 @@ function SvgBarChart({ points, maxVal }: { points: MortalityPoint[]; maxVal: num
 
   if (points.length === 0) {
     return (
-      <div style={{ textAlign: 'center', padding: '2rem', color: '#94a3b8', background: '#f8fafc', borderRadius: '8px' }}>
+      <div style={{ textAlign: "center", padding: "2rem", color: "var(--kf-muted-2)", background: "var(--kf-cream)", borderRadius: "var(--kf-radius-sm)" }}>
         No data for this period.
       </div>
     );
   }
 
   return (
-    <div style={{ overflowX: 'auto' }}>
-      <svg viewBox={`0 0 ${W} ${H}`} style={{ width: '100%', maxWidth: `${W}px`, height: `${H}px`, display: 'block' }} aria-label="Mortality rate chart">
+    <div style={{ overflowX: "auto" }}>
+      <svg viewBox={`0 0 ${W} ${H}`} style={{ width: "100%", maxWidth: `${W}px`, height: `${H}px`, display: "block" }} aria-label="Mortality rate chart">
         {/* Y-axis label */}
-        <text x={12} y={H / 2} fontSize={11} fill="#64748b" transform={`rotate(-90, 12, ${H / 2})`} textAnchor="middle">
+        <text x={12} y={H / 2} fontSize={11} fill="var(--kf-muted)" transform={`rotate(-90, 12, ${H / 2})`} textAnchor="middle">
           Deaths
         </text>
         {/* Y gridlines */}
@@ -76,8 +78,8 @@ function SvgBarChart({ points, maxVal }: { points: MortalityPoint[]; maxVal: num
           const val = Math.round(maxVal * frac);
           return (
             <g key={frac}>
-              <line x1={PAD_LEFT} y1={y} x2={W - 8} y2={y} stroke="#e2e8f0" strokeWidth={1} />
-              <text x={PAD_LEFT - 4} y={y + 4} fontSize={10} fill="#94a3b8" textAnchor="end">{val}</text>
+              <line x1={PAD_LEFT} y1={y} x2={W - 8} y2={y} stroke="var(--kf-border)" strokeWidth={1} />
+              <text x={PAD_LEFT - 4} y={y + 4} fontSize={10} fill="var(--kf-muted-2)" textAnchor="end">{val}</text>
             </g>
           );
         })}
@@ -86,18 +88,18 @@ function SvgBarChart({ points, maxVal }: { points: MortalityPoint[]; maxVal: num
           const x = PAD_LEFT + (chartW / points.length) * i + (chartW / points.length - barW) / 2;
           const barH = maxVal > 0 ? (pt.deaths / maxVal) * chartH : 0;
           const y = PAD_TOP + chartH - barH;
-          const fill = pt.cannotCalculate ? '#cbd5e1' : '#ef4444';
+          const fill = pt.cannotCalculate ? "var(--kf-slate)" : "var(--kf-red)";
           const labelX = x + barW / 2;
-          const labelText = pt.label.length > 8 ? pt.label.slice(5) : pt.label; // trim for space
+          const labelText = pt.label.length > 8 ? pt.label.slice(5) : pt.label;
           return (
             <g key={pt.label}>
               <rect x={x} y={y} width={barW} height={barH} fill={fill} rx={2}>
                 <title>
                   {pt.label}: {pt.deaths} deaths
-                  {pt.cannotCalculate ? ' (cannot calculate rate — no population data)' : pt.mortalityRatePercent !== null ? ` (${pt.mortalityRatePercent.toFixed(2)}% rate)` : ''}
+                  {pt.cannotCalculate ? " (cannot calculate rate — no population data)" : pt.mortalityRatePercent !== null ? ` (${pt.mortalityRatePercent.toFixed(2)}% rate)` : ""}
                 </title>
               </rect>
-              <text x={labelX} y={H - 4} fontSize={9} fill="#64748b" textAnchor="middle" transform={`rotate(-40, ${labelX}, ${H - 4})`}>
+              <text x={labelX} y={H - 4} fontSize={9} fill="var(--kf-muted)" textAnchor="middle" transform={`rotate(-40, ${labelX}, ${H - 4})`}>
                 {labelText}
               </text>
             </g>
@@ -157,140 +159,138 @@ function MortalityView() {
     : null;
 
   return (
-    <div className="management-page">
-      <div style={{ marginBottom: '1.5rem' }}>
-        <h2>Animal Deaths &amp; Mortality Rates</h2>
-        <p style={{ color: '#64748b', margin: 0 }}>Monitor deaths and mortality rate trends over time.</p>
-      </div>
+    <main className="kf-page">
+      <PageHeader
+        title="Mortality Monitor"
+        description="Monitor deaths and mortality rate trends over time."
+      />
 
-      {/* Period Filter Bar */}
-      <div className="dashboard-filter-bar" style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center', marginBottom: '1rem' }}>
-        {[
-          { key: "today", label: "Today" },
-          { key: "week",  label: "This Week" },
-          { key: "month", label: "This Month" },
-          { key: "year",  label: "This Year" },
-          { key: "custom", label: "Custom" },
-        ].map((p) => (
-          <button
-            key={p.key}
-            className={`filter-chip ${(p.key === "custom" ? isCustom : (!isCustom && preset === p.key)) ? "filter-chip-active" : ""}`}
-            onClick={() => {
-              if (p.key === "custom") { setIsCustom(true); }
-              else { setIsCustom(false); setPreset(p.key); }
-            }}
-            style={{ fontWeight: (p.key === "custom" ? isCustom : (!isCustom && preset === p.key)) ? 700 : 400 }}
-          >
-            {p.label}
-          </button>
-        ))}
+      <div className="kf-stack">
+        {/* Period Filter */}
+        <Segmented
+          label="Period"
+          options={[
+            { value: "today", label: "Today" },
+            { value: "week", label: "This Week" },
+            { value: "month", label: "This Month" },
+            { value: "year", label: "This Year" },
+            { value: "custom", label: "Custom" },
+          ]}
+          value={isCustom ? "custom" : preset}
+          onChange={(v) => {
+            if (v === "custom") { setIsCustom(true); }
+            else { setIsCustom(false); setPreset(v); }
+          }}
+        />
 
         {isCustom && (
-          <>
-            <input type="date" value={customFrom} max={customTo} onChange={(e) => setCustomFrom(e.target.value)}
-              style={{ padding: '0.3rem 0.6rem', borderRadius: '6px', border: '1px solid #e2e8f0', fontSize: '0.9rem' }} />
-            <span style={{ color: '#64748b' }}>to</span>
-            <input type="date" value={customTo} min={customFrom} max={today} onChange={(e) => setCustomTo(e.target.value)}
-              style={{ padding: '0.3rem 0.6rem', borderRadius: '6px', border: '1px solid #e2e8f0', fontSize: '0.9rem' }} />
-          </>
-        )}
-      </div>
-
-      {/* Granularity + Species */}
-      <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', alignItems: 'center', marginBottom: '1.5rem' }}>
-        <div style={{ display: 'flex', gap: '0.4rem' }}>
-          {(["daily","weekly","monthly","yearly"] as Granularity[]).map((g) => (
-            <button
-              key={g}
-              className={`filter-chip ${granularity === g ? "filter-chip-active" : ""}`}
-              onClick={() => setGranularity(g)}
-              style={{ textTransform: 'capitalize', fontWeight: granularity === g ? 700 : 400 }}
-            >
-              {g.charAt(0).toUpperCase() + g.slice(1)}
-            </button>
-          ))}
-        </div>
-        <select
-          className="filter-chip"
-          value={species}
-          onChange={(e) => setSpecies(e.target.value as any)}
-          style={{ padding: '0.35rem 0.75rem' }}
-        >
-          <option value="">All animals</option>
-          <option value="poultry">Poultry only</option>
-          <option value="cattle">Livestock only</option>
-        </select>
-      </div>
-
-      {/* KPI Cards */}
-      <div className="summary-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '1rem', marginBottom: '1.5rem' }}>
-        <div className="summary-card">
-          <p className="card-label">Animals that died</p>
-          <h3>{totalDeaths.toLocaleString()}</h3>
-          <p style={{ fontSize: '0.8rem', color: '#64748b', margin: 0 }}>{from} to {to}</p>
-        </div>
-        <div className="summary-card">
-          <p className="card-label">Avg Mortality Rate</p>
-          {avgRate !== null
-            ? <h3>{avgRate.toFixed(2)}%</h3>
-            : <p style={{ color: '#94a3b8', fontStyle: 'italic', margin: '0.5rem 0' }}>Cannot calculate</p>
-          }
-        </div>
-        <div className="summary-card">
-          <p className="card-label">Periods Tracked</p>
-          <h3>{series.length}</h3>
-        </div>
-      </div>
-
-      {error && (
-        <div style={{ color: '#dc2626', background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: '6px', padding: '0.75rem', marginBottom: '1rem' }}>
-          {error}
-        </div>
-      )}
-
-      {loading && <p style={{ color: '#64748b', textAlign: 'center' }}>Loading…</p>}
-
-      {!loading && summary && (
-        <>
-          {/* Bar Chart */}
-          <div className="management-card" style={{ marginBottom: '1.5rem' }}>
-            <h3 className="card-heading">Animals that died — by {granularity} period</h3>
-            <SvgBarChart points={series} maxVal={maxDeaths} />
-            <p style={{ fontSize: '0.8rem', color: '#94a3b8', marginTop: '0.5rem' }}>
-              Grey bars indicate periods where starting population is unknown and mortality rate cannot be calculated.
-            </p>
+          <div className="kf-filter-row">
+            <input type="date" value={customFrom} max={customTo} onChange={(e) => setCustomFrom(e.target.value)} />
+            <span className="kf-muted kf-small">to</span>
+            <input type="date" value={customTo} min={customFrom} max={today} onChange={(e) => setCustomTo(e.target.value)} />
           </div>
+        )}
 
-          {/* Data Table */}
-          <div className="management-card">
-            <h3 className="card-heading">Detailed Summary</h3>
-            {series.length === 0
-              ? <p style={{ color: '#94a3b8', textAlign: 'center', padding: '1.5rem 0' }}>No deaths recorded in this period.</p>
-              : (
-                <div style={{ overflowX: 'auto' }}>
-                  <table className="modern-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
+        {/* Granularity + Species */}
+        <div style={{ display: "flex", gap: "1rem", flexWrap: "wrap", alignItems: "center" }}>
+          <Segmented
+            label="Granularity"
+            options={(["daily","weekly","monthly","yearly"] as Granularity[]).map((g) => ({
+              value: g,
+              label: g.charAt(0).toUpperCase() + g.slice(1),
+            }))}
+            value={granularity}
+            onChange={(v) => setGranularity(v as Granularity)}
+          />
+          <select
+            className="kf-input"
+            value={species}
+            onChange={(e) => setSpecies(e.target.value as "" | "poultry" | "cattle")}
+            style={{ padding: "0.35rem 0.75rem", maxWidth: 180 }}
+          >
+            <option value="">All animals</option>
+            <option value="poultry">Poultry only</option>
+            <option value="cattle">Livestock only</option>
+          </select>
+        </div>
+
+        {/* KPI Cards */}
+        <div className="kf-grid kf-grid--stats">
+          <StatCard
+            tone="red"
+            icon={<TrendingDown size={20} strokeWidth={1.5} />}
+            label="Animals that died"
+            value={totalDeaths.toLocaleString()}
+            hint={`${from} to ${to}`}
+          />
+          <StatCard
+            tone={avgRate !== null && avgRate > 5 ? "red" : "amber"}
+            icon={<AlertTriangle size={20} strokeWidth={1.5} />}
+            label="Avg Mortality Rate"
+            value={avgRate !== null ? `${avgRate.toFixed(2)}%` : "—"}
+            hint={avgRate === null ? "Cannot calculate — no population data" : "Average across periods with data"}
+          />
+          <StatCard
+            tone="slate"
+            icon={<Clock size={20} strokeWidth={1.5} />}
+            label="Periods Tracked"
+            value={series.length}
+            hint="Data points in selected range"
+          />
+          <StatCard
+            tone="forest"
+            icon={<Users size={20} strokeWidth={1.5} />}
+            label="Periods with Deaths"
+            value={knowable.length}
+            hint="Periods where deaths were recorded"
+          />
+        </div>
+
+        {error && (
+          <div className="kf-alert kf-alert--error" role="alert">
+            <span>{error}</span>
+          </div>
+        )}
+
+        {loading && <p className="kf-muted" style={{ textAlign: "center" }}>Loading…</p>}
+
+        {!loading && summary && (
+          <>
+            <Panel title={`Deaths by ${granularity} period`}>
+              <SvgBarChart points={series} maxVal={maxDeaths} />
+              <p style={{ fontSize: "0.8rem", color: "var(--kf-muted-2)", marginTop: "0.5rem" }}>
+                Grey bars indicate periods where starting population is unknown and mortality rate cannot be calculated.
+              </p>
+            </Panel>
+
+            <Panel title="Detailed summary">
+              {series.length === 0 ? (
+                <p className="kf-muted" style={{ textAlign: "center", padding: "1.5rem 0" }}>No deaths recorded in this period.</p>
+              ) : (
+                <div className="kf-table-wrap">
+                  <table className="kf-table">
                     <thead>
                       <tr>
                         <th>Period</th>
-                        <th style={{ textAlign: 'right' }}>Animals that died</th>
-                        <th style={{ textAlign: 'right' }}>Starting Population</th>
-                        <th style={{ textAlign: 'right' }}>Mortality Rate</th>
+                        <th style={{ textAlign: "right" }}>Animals that died</th>
+                        <th style={{ textAlign: "right" }}>Starting Population</th>
+                        <th style={{ textAlign: "right" }}>Mortality Rate</th>
                       </tr>
                     </thead>
                     <tbody>
                       {series.map((pt) => (
                         <tr key={pt.label}>
                           <td>{pt.label}</td>
-                          <td style={{ textAlign: 'right' }}>{pt.deaths}</td>
-                          <td style={{ textAlign: 'right' }}>
-                            {pt.startPopulation !== null ? pt.startPopulation.toLocaleString() : <span style={{ color: '#94a3b8' }}>—</span>}
+                          <td style={{ textAlign: "right" }}>{pt.deaths}</td>
+                          <td style={{ textAlign: "right" }}>
+                            {pt.startPopulation !== null ? pt.startPopulation.toLocaleString() : <span style={{ color: "var(--kf-muted-2)" }}>—</span>}
                           </td>
-                          <td style={{ textAlign: 'right' }}>
+                          <td style={{ textAlign: "right" }}>
                             {pt.cannotCalculate
-                              ? <span style={{ color: '#94a3b8', fontStyle: 'italic' }}>Cannot calculate</span>
+                              ? <span style={{ color: "var(--kf-muted-2)", fontStyle: "italic" }}>Cannot calculate</span>
                               : pt.mortalityRatePercent !== null
                                 ? `${pt.mortalityRatePercent.toFixed(2)}%`
-                                : '0.00%'
+                                : "0.00%"
                             }
                           </td>
                         </tr>
@@ -298,12 +298,12 @@ function MortalityView() {
                     </tbody>
                   </table>
                 </div>
-              )
-            }
-          </div>
-        </>
-      )}
-    </div>
+              )}
+            </Panel>
+          </>
+        )}
+      </div>
+    </main>
   );
 }
 

@@ -3,7 +3,7 @@ import { getFarmAdvice } from "../services/aiService";
 import { loadFarmSummary } from "../services/storage";
 import type { FarmSummaryData } from "../types/farm";
 import FarmChatbot from "../components/FarmChatbot";
-import { Sparkles, Bird, Beef, Egg, Coins } from "lucide-react";
+import { Sparkles, Bird, Beef, Egg, DollarSign } from "lucide-react";
 import {
   PageHeader,
   StatCard,
@@ -176,25 +176,25 @@ export default function AdvisorView() {
               <StatCard
                 label="Birds"
                 value={formatNumber(summary?.population.poultry.currentBirds ?? 0)}
-                icon={<Bird size={18} />}
+                icon={<Bird size={18} strokeWidth={1.5} />}
                 tone="green"
               />
               <StatCard
                 label="Cattle"
                 value={formatNumber(summary?.population.livestock.animalCount ?? 0)}
-                icon={<Beef size={18} />}
+                icon={<Beef size={18} strokeWidth={1.5} />}
                 tone="forest"
               />
               <StatCard
                 label="Eggs"
                 value={formatNumber(summary?.production.eggsProduced ?? 0)}
-                icon={<Egg size={18} />}
+                icon={<Egg size={18} strokeWidth={1.5} />}
                 tone="amber"
               />
               <StatCard
                 label="Profit / Loss"
                 value={formatCurrency(summary?.financial.operatingProfitOrLoss ?? 0)}
-                icon={<Coins size={18} />}
+                icon={<DollarSign size={18} strokeWidth={1.5} />}
                 tone={
                   (summary?.financial.operatingProfitOrLoss ?? 0) >= 0 ? "green" : "red"
                 }

@@ -29,6 +29,26 @@ export const COLORS = {
 
   chartGrid:  "#e6ece4",
   chartTrack: "#eef2ec",
+
+  // Landscape / illustration colors (FarmBackground)
+  skyGlow:      "#f7e8b8",
+  farHillLight: "#779b69",
+  farHillDark:  "#4d7950",
+  nearHillTop:  "#426c42",
+  nearHillBase: "#183f2b",
+  sunHaloLight: "#fff4c4",
+  sunHaloDark:  "#f8d68a",
+  fieldLight:   "#6c8d4c",
+  fieldDark:    "#244c31",
+  cloudFill:    "#fff9e8",
+  cropRow:      "#a4bd70",
+  birdStroke:   "#263e32",
+  houseFill:    "#203f2c",
+  houseRoof:    "#493f2c",
+  houseDoor:    "#e7c77c",
+  houseWindow:  "#f4d99a",
+  livestockFill:"#1d3b2a",
+  horizonDark:  "#173c29",
 } as const;
 
 /** Default chart palette — matches design.css donut/bar segment order */

@@ -2,10 +2,10 @@ import {
   LayoutDashboard,
   Bird,
   Beef,
+  Egg,
   Wheat,
-  TrendingUp,
   TrendingDown,
-  Activity,
+  Users,
   Syringe,
   Wallet,
   BarChart2,
@@ -38,7 +38,7 @@ const NAV_SECTIONS = [
     items: [
       { id: "poultry", label: "Add Chickens", description: "Chicks & flocks", icon: <Bird size={19} strokeWidth={1.5} /> },
       { id: "livestock", label: "My Cattle", description: "Calves, heifers & cows", icon: <Beef size={19} strokeWidth={1.5} /> },
-      { id: "production", label: "Production Summary", description: "Eggs & milk", icon: <TrendingUp size={19} strokeWidth={1.5} /> },
+      { id: "production", label: "Production Summary", description: "Eggs & milk", icon: <Egg size={19} strokeWidth={1.5} /> },
       { id: "feeding", label: "Feed & Feeding", description: "Feed usage & costs", icon: <Wheat size={19} strokeWidth={1.5} /> },
       { id: "expenses", label: "Record Income or Expense", description: "Daily farm cashflow", icon: <Wallet size={19} strokeWidth={1.5} /> },
       { id: "vaccinations", label: "Vaccine Schedule", description: "Vaccinations & alerts", icon: <Syringe size={19} strokeWidth={1.5} /> },
@@ -47,7 +47,7 @@ const NAV_SECTIONS = [
   {
     label: "Population tracking",
     items: [
-      { id: "survivors", label: "Survivor Tracking", description: "Population ledger", icon: <Activity size={19} strokeWidth={1.5} /> },
+      { id: "survivors", label: "Survivor Tracking", description: "Population ledger", icon: <Users size={19} strokeWidth={1.5} /> },
       { id: "mortality", label: "Mortality Monitor", description: "Death rate trends", icon: <TrendingDown size={19} strokeWidth={1.5} /> },
     ],
   },

@@ -7,8 +7,10 @@ import {
 } from "../services/storage";
 import type { ProductionRecord } from "../types/farm";
 import {
+  CalendarDays,
+  ClipboardList,
   Egg,
-  Milk,
+  Package,
   Pencil,
   Plus,
   Trash2,
@@ -191,7 +193,7 @@ export default function ProductionView() {
         <div className="kf-grid kf-grid--stats">
           <StatCard
             tone="amber"
-            icon={<Egg size={20} />}
+            icon={<Egg size={20} strokeWidth={1.5} />}
             label="Eggs Produced"
             value={totalEggs.toLocaleString()}
             hint="Total pieces recorded"
@@ -199,7 +201,7 @@ export default function ProductionView() {
           />
           <StatCard
             tone="blue"
-            icon={<Milk size={20} />}
+            icon={<Package size={20} strokeWidth={1.5} />}
             label="Milk Produced"
             value={`${totalMilk.toLocaleString()} L`}
             hint="Total litres recorded"
@@ -207,14 +209,14 @@ export default function ProductionView() {
           />
           <StatCard
             tone="forest"
-            icon={<Egg size={20} />}
+            icon={<CalendarDays size={20} strokeWidth={1.5} />}
             label="This Month Records"
             value={thisMonthCount}
             hint={currentYYYYMM}
           />
           <StatCard
             tone="slate"
-            icon={<Egg size={20} />}
+            icon={<ClipboardList size={20} strokeWidth={1.5} />}
             label="Last Entry"
             value={lastRecord}
             hint="Most recent production date"

@@ -6,11 +6,11 @@ import {
 import {
   Sparkles,
   Send,
-  Calendar,
+  CalendarDays,
   AlertCircle,
-  RotateCcw,
+  RefreshCw,
   Bot,
-  User,
+  UserRound,
 } from "lucide-react";
 
 type ChatPeriod = "today" | "yesterday" | "7d" | "30d" | "month";
@@ -81,7 +81,7 @@ export default function FarmChatbot() {
         {/* Period Selector Chips */}
         <div className="chat-period-chips">
           <span style={{ fontSize: 12, color: "var(--kf-muted)", display: "flex", alignItems: "center", gap: 4 }}>
-            <Calendar size={13} /> Analyzing:
+            <CalendarDays size={13} strokeWidth={1.5} /> Analyzing:
           </span>
           <button
             type="button"
@@ -122,35 +122,35 @@ export default function FarmChatbot() {
           className="suggested-chip"
           onClick={() => handleSend("Did my farm make a profit today?")}
         >
-          💰 Did my farm make a profit?
+          Did my farm make a profit?
         </button>
         <button
           type="button"
           className="suggested-chip"
           onClick={() => handleSend("Which expenses were unusually high?")}
         >
-          💸 Which expenses were highest?
+          Which expenses were highest?
         </button>
         <button
           type="button"
           className="suggested-chip"
           onClick={() => handleSend("Which vaccinations are due today or overdue?")}
         >
-          💉 Are any vaccinations due?
+          Are any vaccinations due?
         </button>
         <button
           type="button"
           className="suggested-chip"
           onClick={() => handleSend("How is egg and milk production doing?")}
         >
-          🥚 Egg & Milk production trends?
+          Egg &amp; Milk production trends?
         </button>
         <button
           type="button"
           className="suggested-chip"
           onClick={() => handleSend("What are the key things I should check tomorrow?")}
         >
-          📋 What should I check tomorrow?
+          What should I check tomorrow?
         </button>
       </div>
 
@@ -158,7 +158,7 @@ export default function FarmChatbot() {
       <div className="chat-messages-scroll">
         {messages.length === 0 ? (
           <div className="chat-empty-state">
-            <Bot size={40} color="var(--kf-muted-2)" />
+            <Bot size={40} strokeWidth={1.5} color="var(--kf-muted-2)" />
             <p><strong>Ask your Farm Assistant anything about your farm records.</strong></p>
             <p style={{ fontSize: 13, color: "var(--kf-muted)" }}>
               Select a question above or type your own question below.
@@ -168,7 +168,7 @@ export default function FarmChatbot() {
           messages.map((m, idx) => (
             <div key={idx} className={`chat-message ${m.role === "user" ? "user-msg" : "bot-msg"}`}>
               <div className="msg-avatar">
-                {m.role === "user" ? <User size={16} /> : <Bot size={16} />}
+                {m.role === "user" ? <UserRound size={16} strokeWidth={1.5} /> : <Bot size={16} strokeWidth={1.5} />}
               </div>
               <div className="msg-bubble">
                 <p style={{ whiteSpace: "pre-wrap", margin: 0 }}>{m.text}</p>
@@ -179,7 +179,7 @@ export default function FarmChatbot() {
 
         {loading && (
           <div className="chat-message bot-msg">
-            <div className="msg-avatar"><Bot size={16} /></div>
+            <div className="msg-avatar"><Bot size={16} strokeWidth={1.5} /></div>
             <div className="msg-bubble loading-bubble">
               <span className="typing-dot" />
               <span className="typing-dot" />
@@ -216,7 +216,7 @@ export default function FarmChatbot() {
           disabled={loading || !question.trim()}
           aria-label="Send"
         >
-          <Send size={18} />
+          <Send size={18} strokeWidth={1.5} />
         </button>
         {messages.length > 0 && (
           <button
@@ -225,7 +225,7 @@ export default function FarmChatbot() {
             onClick={() => setMessages([])}
             title="Reset conversation"
           >
-            <RotateCcw size={16} />
+            <RefreshCw size={16} strokeWidth={1.5} />
           </button>
         )}
       </div>

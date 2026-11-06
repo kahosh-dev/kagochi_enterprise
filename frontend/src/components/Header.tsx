@@ -1,4 +1,4 @@
-import { Bell, Leaf, Menu, User } from "lucide-react";
+import { Bell, Leaf, Menu, UserRound } from "lucide-react";
 
 interface HeaderProps {
   farmName: string;
@@ -75,7 +75,7 @@ function Header({ farmName, userName, activeView = "home", onMenuToggle }: Heade
           </div>
         ) : (
           <span className="kf-avatar" aria-hidden="true">
-            <User size={15} strokeWidth={1.5} />
+            <UserRound size={15} strokeWidth={1.5} />
           </span>
         )}
       </div>

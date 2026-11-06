@@ -4,7 +4,7 @@ import {
   PlusCircle,
   CheckCircle2,
   AlertCircle,
-  Coins,
+  Wallet,
   TrendingDown,
   Egg,
   Wheat,
@@ -242,35 +242,35 @@ export default function DailyRecordModal({
             className={`daily-tab-btn ${activeTab === "income" ? "active" : ""}`}
             onClick={() => { setActiveTab("income"); setErrorMsg(""); }}
           >
-            <Coins size={16} /> Income
+            <Wallet size={16} strokeWidth={1.5} /> Income
           </button>
           <button
             type="button"
             className={`daily-tab-btn ${activeTab === "expense" ? "active" : ""}`}
             onClick={() => { setActiveTab("expense"); setErrorMsg(""); }}
           >
-            <TrendingDown size={16} /> Expense
+            <TrendingDown size={16} strokeWidth={1.5} /> Expense
           </button>
           <button
             type="button"
             className={`daily-tab-btn ${activeTab === "production" ? "active" : ""}`}
             onClick={() => { setActiveTab("production"); setErrorMsg(""); }}
           >
-            <Egg size={16} /> Production
+            <Egg size={16} strokeWidth={1.5} /> Production
           </button>
           <button
             type="button"
             className={`daily-tab-btn ${activeTab === "feeding" ? "active" : ""}`}
             onClick={() => { setActiveTab("feeding"); setErrorMsg(""); }}
           >
-            <Wheat size={16} /> Feeding
+            <Wheat size={16} strokeWidth={1.5} /> Feeding
           </button>
           <button
             type="button"
             className={`daily-tab-btn ${activeTab === "vaccination" ? "active" : ""}`}
             onClick={() => { setActiveTab("vaccination"); setErrorMsg(""); }}
           >
-            <Syringe size={16} /> Vaccine
+            <Syringe size={16} strokeWidth={1.5} /> Vaccine
           </button>
         </div>
 

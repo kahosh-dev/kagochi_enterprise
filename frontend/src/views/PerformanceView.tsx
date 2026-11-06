@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { loadFarmSummary } from "../services/storage";
 import type { FarmSummaryData } from "../types/farm";
-import { TrendingUp, TrendingDown, Coins, Calendar, Download, Bird, Beef, Egg } from "lucide-react";
+import { TrendingUp, TrendingDown, DollarSign, Wallet, CalendarDays, Download, Bird, Beef, Egg, Scale } from "lucide-react";
 import {
   PageHeader,
   StatCard,
@@ -148,7 +148,7 @@ export default function PerformanceView() {
       {periodKey === "custom" && (
         <div className="kf-filter-row">
           <label className="kf-label" htmlFor="perf-from">
-            <Calendar size={14} /> From
+            <CalendarDays size={14} /> From
           </label>
           <input
             id="perf-from"
@@ -179,7 +179,7 @@ export default function PerformanceView() {
               ? `${summary.income.changePercent >= 0 ? "+" : ""}${summary.income.changePercent}% vs prev`
               : "Realized sales in period"
           }
-          icon={<Coins size={20} />}
+          icon={<Wallet size={20} strokeWidth={1.5} />}
           tone="green"
         />
         <StatCard
@@ -190,14 +190,14 @@ export default function PerformanceView() {
               ? `${summary.expenses.changePercent >= 0 ? "+" : ""}${summary.expenses.changePercent}% vs prev`
               : "Operating costs in period"
           }
-          icon={<TrendingDown size={20} />}
+          icon={<TrendingDown size={20} strokeWidth={1.5} />}
           tone="red"
         />
         <StatCard
           label={isProfitable ? "Operating Profit" : "Operating Loss"}
           value={`${isProfitable ? "+" : ""}${formatCurrency(profitOrLoss)}`}
           hint={netMargin != null ? `Margin: ${netMargin}%` : "Income minus costs"}
-          icon={isProfitable ? <TrendingUp size={20} /> : <TrendingDown size={20} />}
+          icon={isProfitable ? <TrendingUp size={20} strokeWidth={1.5} /> : <TrendingDown size={20} strokeWidth={1.5} />}
           tone={isProfitable ? "green" : "red"}
         />
       </div>
@@ -255,14 +255,14 @@ export default function PerformanceView() {
             label="Poultry (birds)"
             value={formatNumber(summary?.population.poultry.currentBirds ?? 0)}
             hint="Active birds"
-            icon={<Bird size={20} />}
+            icon={<Bird size={20} strokeWidth={1.5} />}
             tone="green"
           />
           <StatCard
             label="Livestock (animals)"
             value={formatNumber(summary?.population.livestock.animalCount ?? 0)}
             hint="Active animals"
-            icon={<Beef size={20} />}
+            icon={<Beef size={20} strokeWidth={1.5} />}
             tone="forest"
           />
         </div>
@@ -288,7 +288,7 @@ export default function PerformanceView() {
             label="Eggs produced"
             value={formatNumber(summary?.production.eggsProduced ?? 0)}
             hint="In period"
-            icon={<Egg size={20} />}
+            icon={<Egg size={20} strokeWidth={1.5} />}
             tone="amber"
             trend={
               eggsLine?.changePercent != null
@@ -308,7 +308,7 @@ export default function PerformanceView() {
             label="Milk produced (L)"
             value={formatNumber(summary?.production.milkProduced ?? 0)}
             hint="In period"
-            icon={<Coins size={20} />}
+            icon={<DollarSign size={20} strokeWidth={1.5} />}
             tone="blue"
             trend={
               milkLine?.changePercent != null
@@ -334,14 +334,14 @@ export default function PerformanceView() {
             label="Feed (kg)"
             value={formatNumber(kgFeed?.total ?? 0)}
             hint="Kilograms fed"
-            icon={<Coins size={20} />}
+            icon={<Scale size={20} strokeWidth={1.5} />}
             tone="slate"
           />
           <StatCard
             label="Feed (bags)"
             value={formatNumber(bagsFeed?.total ?? 0)}
             hint="Bags used"
-            icon={<Coins size={20} />}
+            icon={<Scale size={20} strokeWidth={1.5} />}
             tone="slate"
           />
         </div>

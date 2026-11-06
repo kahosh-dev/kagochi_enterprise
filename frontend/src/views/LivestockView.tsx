@@ -7,16 +7,12 @@ import {
 } from "../services/storage";
 import type { LivestockAnimal } from "../types/farm";
 import {
-  CowIcon,
-  CalfIcon,
-  HeiferIcon,
-} from "../components/FarmIcons";
-import {
   ArrowRight,
   Beef,
   Pencil,
   Plus,
   Trash2,
+  Users,
 } from "lucide-react";
 import {
   Badge,
@@ -265,7 +261,7 @@ export default function LivestockView() {
         <div className="kf-grid kf-grid--stats">
           <StatCard
             tone="forest"
-            icon={<CowIcon size={20} />}
+            icon={<Beef size={20} strokeWidth={1.5} />}
             label="Total Cattle Herd"
             value={animals.length}
             hint="All registered animals"
@@ -273,7 +269,7 @@ export default function LivestockView() {
           />
           <StatCard
             tone="blue"
-            icon={<CowIcon size={20} />}
+            icon={<Beef size={20} strokeWidth={1.5} />}
             label="Adult Cows"
             value={countCows}
             hint="Milking & breeding cows"
@@ -281,7 +277,7 @@ export default function LivestockView() {
           />
           <StatCard
             tone="amber"
-            icon={<HeiferIcon size={20} />}
+            icon={<Beef size={20} strokeWidth={1.5} />}
             label="Calves & Heifers"
             value={countCalves + countHeifers}
             hint={`${countCalves} calves · ${countHeifers} heifers`}
@@ -289,7 +285,7 @@ export default function LivestockView() {
           />
           <StatCard
             tone="slate"
-            icon={<CalfIcon size={20} />}
+            icon={<Users size={20} strokeWidth={1.5} />}
             label="Bulls"
             value={countBulls}
             hint="Male animals on farm"

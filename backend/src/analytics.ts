@@ -18,9 +18,6 @@ export interface FarmRecords {
   production: Row[];
   feeding: Row[];
   expenses: Row[];
-  income?: Row[];
-  vaccinations?: Row[];
-  vaccination_schedules?: Row[];
 }
 
 export interface Period {
@@ -65,14 +62,6 @@ export function addDays(day: string, amount: number): string {
 /** A period of `days` days ending on `to` (inclusive). */
 export function makePeriod(to: string, days: number): Period {
   return { from: addDays(to, -(days - 1)), to, days };
-}
-
-/** A custom date range period from `from` to `to` (inclusive). */
-export function makeCustomPeriod(from: string, to: string): Period {
-  const fromMs = Date.parse(`${from}T00:00:00Z`);
-  const toMs = Date.parse(`${to}T00:00:00Z`);
-  const days = Math.max(1, Math.round((toMs - fromMs) / DAY_MS) + 1);
-  return { from, to, days };
 }
 
 /** The period of the same length immediately before `period`. */
@@ -141,17 +130,10 @@ export function summarizePopulation(records: FarmRecords, thresholds: Thresholds
     const initial = positiveNumber(row.initial_count) ?? 0;
     const current = positiveNumber(row.current_count) ?? 0;
     const losses = Math.max(initial - current, 0);
-    const ageWeeks = positiveNumber(row.age_weeks);
-    const stage = label(row.stage || (ageWeeks !== null && ageWeeks <= 4 ? "chicks" : "adult")).toLowerCase();
-
     return {
       breed: label(row.breed),
       purpose: label(row.purpose),
-      stage,
-      source: label(row.source || ""),
-      purchasePrice: positiveNumber(row.purchase_price) ?? 0,
-      notes: label(row.notes || ""),
-      ageWeeks,
+      ageWeeks: positiveNumber(row.age_weeks),
       initialCount: initial,
       currentCount: current,
       losses,
@@ -162,35 +144,14 @@ export function summarizePopulation(records: FarmRecords, thresholds: Thresholds
 
   const initialBirds = batches.reduce((s, b) => s + b.initialCount, 0);
   const currentBirds = batches.reduce((s, b) => s + b.currentCount, 0);
-  const layerBirds = batches.filter((b) => /layer/i.test(b.purpose) || b.stage === "layers").reduce((s, b) => s + b.currentCount, 0);
-  const chickBirds = batches.filter((b) => b.stage === "chicks" || (b.ageWeeks !== null && b.ageWeeks <= 4)).reduce((s, b) => s + b.currentCount, 0);
-  const broilerBirds = batches.filter((b) => /broiler/i.test(b.purpose) || b.stage === "broilers").reduce((s, b) => s + b.currentCount, 0);
+  const layerBirds = batches.filter((b) => /layer/i.test(b.purpose)).reduce((s, b) => s + b.currentCount, 0);
 
   const livestockByType = new Map<string, { type: string; count: number }>();
-  let calvesCount = 0;
-  let heifersCount = 0;
-  let cowsCount = 0;
-  let bullsCount = 0;
-
   for (const row of records.livestock) {
     const k = key(row.type);
     const entry = livestockByType.get(k) ?? { type: label(row.type), count: 0 };
     entry.count++;
     livestockByType.set(k, entry);
-
-    const cat = key(row.category);
-    const ageYears = positiveNumber(row.age_years) ?? 0;
-    const sex = key(row.sex);
-
-    if (cat === "calf" || ageYears < 1) {
-      calvesCount++;
-    } else if (cat === "heifer" || (ageYears >= 1 && ageYears < 2.5 && sex !== "male" && cat !== "cow" && cat !== "bull")) {
-      heifersCount++;
-    } else if (cat === "bull" || sex === "male") {
-      bullsCount++;
-    } else {
-      cowsCount++;
-    }
   }
 
   return {
@@ -199,8 +160,6 @@ export function summarizePopulation(records: FarmRecords, thresholds: Thresholds
       initialBirds,
       currentBirds,
       layerBirds,
-      chickBirds,
-      broilerBirds,
       totalLosses: Math.max(initialBirds - currentBirds, 0),
       lossPercent: initialBirds > 0 ? round(((initialBirds - currentBirds) / initialBirds) * 100, 1) : null,
       batches,
@@ -208,10 +167,6 @@ export function summarizePopulation(records: FarmRecords, thresholds: Thresholds
     },
     livestock: {
       animalCount: records.livestock.length,
-      calvesCount,
-      heifersCount,
-      cowsCount,
-      bullsCount,
       byType: [...livestockByType.values()].sort((a, b) => b.count - a.count),
     },
   };
@@ -224,30 +179,13 @@ export function summarizeProduction(rows: Row[], period: Period) {
   const previous = previousPeriod(period);
   const groups = new Map<string, { type: string; unit: string; current: CleanRow[]; previousTotal: number }>();
 
-  let eggsProduced = 0;
-  let eggsSold = 0;
-  let milkProduced = 0;
-  let milkSold = 0;
-
   for (const r of valid) {
     const type = key(r.row.type);
     const unit = key(r.row.unit);
-    const destination = key(r.row.destination || "produced");
     const k = `${type}|${unit}`;
     const group = groups.get(k) ?? { type, unit, current: [], previousTotal: 0 };
-
-    if (inPeriod(r.day, period)) {
-      group.current.push(r);
-      if (type === "eggs") {
-        if (destination === "sold") eggsSold += r.quantity;
-        else eggsProduced += r.quantity;
-      } else if (type === "milk") {
-        if (destination === "sold") milkSold += r.quantity;
-        else milkProduced += r.quantity;
-      }
-    } else if (inPeriod(r.day, previous)) {
-      group.previousTotal += r.quantity;
-    }
+    if (inPeriod(r.day, period)) group.current.push(r);
+    else if (inPeriod(r.day, previous)) group.previousTotal += r.quantity;
     groups.set(k, group);
   }
 
@@ -272,10 +210,6 @@ export function summarizeProduction(rows: Row[], period: Period) {
   const inCurrent = valid.filter((r) => inPeriod(r.day, period));
   return {
     lines,
-    eggsProduced: round(eggsProduced),
-    eggsSold: round(eggsSold),
-    milkProduced: round(milkProduced),
-    milkSold: round(milkSold),
     lastEggRecord: valid.filter((r) => key(r.row.type) === "eggs").map((r) => r.day).sort().pop() ?? null,
     invalidRecords: invalid,
     possibleDuplicates: countPossibleDuplicates(inCurrent, ["type", "unit"]),
@@ -295,20 +229,15 @@ export function summarizeFeeding(rows: Row[], period: Period) {
   const previous = previousPeriod(period);
   const byUnit = new Map<string, { unit: string; total: number; previousTotal: number; recordCount: number }>();
   const byFeed = new Map<string, { animalType: string; feedType: string; unit: string; total: number }>();
-  let totalFeedCost = 0;
 
   for (const r of valid) {
     const normalized = normalizeFeedUnit(r.quantity, r.row.unit);
     const current = inPeriod(r.day, period);
-    const cost = positiveNumber(r.row.cost) ?? 0;
-
     if (!current && !inPeriod(r.day, previous)) continue;
     const unitEntry = byUnit.get(normalized.unit) ?? { unit: normalized.unit, total: 0, previousTotal: 0, recordCount: 0 };
     if (current) {
       unitEntry.total += normalized.quantity;
       unitEntry.recordCount++;
-      totalFeedCost += cost;
-
       const k = `${key(r.row.animal_type)}|${key(r.row.feed_type)}|${normalized.unit}`;
       const feedEntry = byFeed.get(k) ?? {
         animalType: label(r.row.animal_type),
@@ -337,7 +266,6 @@ export function summarizeFeeding(rows: Row[], period: Period) {
         changePercent: percentChange(u.total, u.previousTotal),
       })),
     byFeedType: [...byFeed.values()].map((f) => ({ ...f, total: round(f.total) })).sort((a, b) => b.total - a.total),
-    totalFeedCost: round(totalFeedCost),
     recordCount: inCurrent.length,
     invalidRecords: invalid,
     possibleDuplicates: countPossibleDuplicates(inCurrent, ["animal_type", "feed_type", "unit"]),
@@ -374,90 +302,6 @@ export function summarizeExpenses(rows: Row[], period: Period) {
       .sort((a, b) => b.total - a.total),
     invalidRecords: invalid,
     possibleDuplicates: countPossibleDuplicates(current, ["category", "description"]),
-  };
-}
-
-/* Income (Kenya shillings) */
-
-export function summarizeIncome(rows: Row[] = [], period: Period) {
-  const { valid, invalid } = clean(rows, "date", "amount");
-  const previous = previousPeriod(period);
-  const current = valid.filter((r) => inPeriod(r.day, period));
-  const previousTotal = valid.filter((r) => inPeriod(r.day, previous)).reduce((s, r) => s + r.quantity, 0);
-  const total = current.reduce((s, r) => s + r.quantity, 0);
-
-  const byCategory = new Map<string, { category: string; total: number; recordCount: number }>();
-  for (const r of current) {
-    const k = key(r.row.category);
-    const entry = byCategory.get(k) ?? { category: label(r.row.category), total: 0, recordCount: 0 };
-    entry.total += r.quantity;
-    entry.recordCount++;
-    byCategory.set(k, entry);
-  }
-
-  return {
-    currency: "KES",
-    total: round(total),
-    recordCount: current.length,
-    averagePerDay: round(total / period.days),
-    previousTotal: round(previousTotal),
-    changePercent: percentChange(total, previousTotal),
-    byCategory: [...byCategory.values()]
-      .map((c) => ({ ...c, total: round(c.total), sharePercent: total > 0 ? round((c.total / total) * 100, 1) : null }))
-      .sort((a, b) => b.total - a.total),
-    invalidRecords: invalid,
-    possibleDuplicates: countPossibleDuplicates(current, ["category", "description"]),
-  };
-}
-
-/* Vaccinations */
-
-export function summarizeVaccinations(rows: Row[] = [], period: Period) {
-  const dueToday: Row[] = [];
-  const upcoming7Days: Row[] = [];
-  const upcoming30Days: Row[] = [];
-  const overdue: Row[] = [];
-  const completed: Row[] = [];
-
-  const todayStr = period.to;
-  const in7 = addDays(todayStr, 7);
-  const in30 = addDays(todayStr, 30);
-
-  for (const r of rows) {
-    const status = key(r.status);
-    const dateDue = toDay(r.date_due);
-
-    if (status === "completed") {
-      completed.push(r);
-      continue;
-    }
-    if (status === "cancelled") {
-      continue;
-    }
-
-    if (dateDue) {
-      if (dateDue < todayStr) {
-        overdue.push(r);
-      } else if (dateDue === todayStr) {
-        dueToday.push(r);
-      } else if (dateDue <= in7) {
-        upcoming7Days.push(r);
-      } else if (dateDue <= in30) {
-        upcoming30Days.push(r);
-      }
-    }
-  }
-
-  return {
-    dueTodayCount: dueToday.length,
-    upcoming7DaysCount: upcoming7Days.length,
-    upcoming30DaysCount: upcoming30Days.length,
-    overdueCount: overdue.length,
-    completedCount: completed.length,
-    dueToday,
-    upcoming7Days,
-    upcoming30Days,
-    overdue,
   };
 }
 
@@ -558,26 +402,6 @@ export function evaluateRules(s: Summary, t: Thresholds = DEFAULT_THRESHOLDS): R
     });
   }
 
-  if (s.financial.revenueAvailable && s.financial.operatingProfitOrLoss < 0) {
-    results.push({
-      id: "operating-loss",
-      severity: "warning",
-      condition: "IF operating expenses exceed total income in the selected period",
-      finding: `Operating loss of KES ${Math.abs(s.financial.operatingProfitOrLoss)} (Income: KES ${s.financial.totalIncome}, Expenses: KES ${s.financial.totalExpenses}).`,
-      recommendation: "Review major expense drivers and sales to identify where margins can be improved.",
-    });
-  }
-
-  if (s.vaccinations.overdueCount > 0) {
-    results.push({
-      id: "overdue-vaccinations",
-      severity: "warning",
-      condition: "IF one or more scheduled vaccinations are overdue",
-      finding: `${s.vaccinations.overdueCount} scheduled vaccination(s) are overdue.`,
-      recommendation: "Review the vaccination schedule and administer overdue doses or consult a veterinarian to update the plan.",
-    });
-  }
-
   const duplicates = s.production.possibleDuplicates + s.feeding.possibleDuplicates + s.expenses.possibleDuplicates;
   if (duplicates > 0) {
     results.push({
@@ -599,20 +423,12 @@ function buildSummaryBase(records: FarmRecords, period: Period, thresholds: Thre
   const production = summarizeProduction(records.production, period);
   const feeding = summarizeFeeding(records.feeding, period);
   const expenses = summarizeExpenses(records.expenses, period);
-  const incomeRows = records.income ?? [];
-  const income = summarizeIncome(incomeRows, period);
-  const vaccinations = summarizeVaccinations(records.vaccinations ?? [], period);
 
   const eggPieces = production.lines.find((l) => l.type === "eggs" && l.unit === "pieces");
   const layingRate =
     eggPieces?.averagePerRecordedDay != null && population.poultry.layerBirds > 0
       ? round((eggPieces.averagePerRecordedDay / population.poultry.layerBirds) * 100, 1)
       : null;
-
-  const revenueAvailable = incomeRows.length > 0;
-  const operatingProfitOrLoss = round(income.total - expenses.total);
-  const previousOperatingProfitOrLoss = round(income.previousTotal - expenses.previousTotal);
-  const netMarginPercent = income.total > 0 ? round((operatingProfitOrLoss / income.total) * 100, 1) : null;
 
   return {
     period,
@@ -621,46 +437,21 @@ function buildSummaryBase(records: FarmRecords, period: Period, thresholds: Thre
     production,
     feeding,
     expenses,
-    income,
-    vaccinations,
     indicators: {
       /** Average eggs (pieces) per recorded day / current layer birds x 100. Estimate only. */
       estimatedLayingRatePercent: layingRate,
-      totalBirds: population.poultry.currentBirds,
-      totalChicks: population.poultry.chickBirds,
-      totalBroilers: population.poultry.broilerBirds,
-      totalLayers: population.poultry.layerBirds,
-      totalCattle: population.livestock.animalCount,
-      totalCalves: population.livestock.calvesCount,
-      totalHeifers: population.livestock.heifersCount,
-      totalCows: population.livestock.cowsCount,
-      totalBulls: population.livestock.bullsCount,
-      periodIncome: income.total,
-      periodExpenses: expenses.total,
-      periodProfitOrLoss: operatingProfitOrLoss,
-      vaccinationsDueToday: vaccinations.dueTodayCount,
-      vaccinationsOverdue: vaccinations.overdueCount,
     },
     financial: {
-      revenueAvailable,
-      totalIncome: income.total,
-      totalExpenses: expenses.total,
-      operatingProfitOrLoss,
-      netMarginPercent,
-      isProfitable: operatingProfitOrLoss >= 0,
-      cashReceived: income.total,
-      cashPaid: expenses.total,
-      previousOperatingProfitOrLoss,
-      note: revenueAvailable
-        ? "Operating Profit or Loss = Total Income - Total Operating Expenses."
-        : "Revenue and profit are not calculated because sales and prices are not recorded in the system.",
+      revenueAvailable: false,
+      note: "Revenue and profit are not calculated because sales and prices are not recorded in the system.",
     },
     dataQuality: {
-      invalidRecords: production.invalidRecords + feeding.invalidRecords + expenses.invalidRecords + income.invalidRecords,
-      possibleDuplicates: production.possibleDuplicates + feeding.possibleDuplicates + expenses.possibleDuplicates + income.possibleDuplicates,
+      invalidRecords: production.invalidRecords + feeding.invalidRecords + expenses.invalidRecords,
+      possibleDuplicates: production.possibleDuplicates + feeding.possibleDuplicates + expenses.possibleDuplicates,
     },
     thresholds,
   };
+
 }
 
 export function summarizeFarm(records: FarmRecords, period: Period, thresholds: Thresholds = DEFAULT_THRESHOLDS) {

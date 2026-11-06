@@ -6,7 +6,7 @@ import {
   deleteFeeding,
 } from "../services/storage";
 import type { FeedingRecord } from "../types/farm";
-import { Wheat, Plus, Pencil, Trash2 } from "lucide-react";
+import { ClipboardList, DollarSign, Scale, Wheat, Plus, Pencil, Trash2 } from "lucide-react";
 import {
   PageHeader,
   StatCard,
@@ -188,28 +188,28 @@ export default function FeedingView() {
           label="Total (kg)"
           value={formatNumber(totalKg)}
           hint="Sum of kg records"
-          icon={<Wheat size={20} />}
+          icon={<Scale size={20} strokeWidth={1.5} />}
           tone="green"
         />
         <StatCard
           label="Total (bags)"
           value={formatNumber(totalBags)}
           hint="Sum of bag records"
-          icon={<Wheat size={20} />}
+          icon={<Wheat size={20} strokeWidth={1.5} />}
           tone="forest"
         />
         <StatCard
           label="Total Feed Cost"
           value={formatCurrency(totalCost)}
           hint="Where cost recorded"
-          icon={<Wheat size={20} />}
+          icon={<DollarSign size={20} strokeWidth={1.5} />}
           tone="amber"
         />
         <StatCard
           label="Records"
           value={formatNumber(recordCount)}
           hint="All feeding entries"
-          icon={<Wheat size={20} />}
+          icon={<ClipboardList size={20} strokeWidth={1.5} />}
           tone="slate"
         />
       </div>
