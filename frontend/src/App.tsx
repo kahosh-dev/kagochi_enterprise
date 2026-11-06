@@ -354,11 +354,11 @@ function App() {
 
               <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
                 <div className="kf-callout" style={{ background: "rgba(255,255,255,0.06)", borderColor: "rgba(255,255,255,0.1)" }}>
-                  <div className="kf-callout-icon" style={{ background: "rgba(134,239,172,0.16)", color: "#86efac" }}>
+                  <div className="kf-callout-icon" style={{ background: "rgba(134,239,172,0.16)", color: "var(--kf-green-300)" }}>
                     <TrendingUp size={18} />
                   </div>
                   <div>
-                    <strong style={{ color: "#fff" }}>Farm data that works for you</strong>
+                    <strong style={{ color: "var(--kf-surface)" }}>Farm data that works for you</strong>
                     <p style={{ color: "rgba(255,255,255,0.55)" }}>Track records, spot trends and plan with confidence.</p>
                   </div>
                 </div>

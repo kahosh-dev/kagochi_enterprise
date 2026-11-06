@@ -1,0 +1,7 @@
+{
+  "task_id": "task-kagochi-ui-redesign",
+  "task_description": "Complete visual redesign of the Kagochi Farm Enterprise React 19 + TypeScript + Vite frontend. Migrate all views from legacy non-kf classes to the kf-* design system, update brand tokens to the new palette, fix desktop sidebar, improve navigation, add CSS-only visualisations, and ensure a clean TypeScript build.",
+  "status": "pending",
+  "feature_order": ["FEAT-001", "FEAT-002", "FEAT-003", "FEAT-004"],
+  "blocked_reason": null
+}

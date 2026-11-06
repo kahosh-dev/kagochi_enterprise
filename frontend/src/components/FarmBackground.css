@@ -1,3 +1,28 @@
+/* ── Farm Background SVG colour tokens ───────────────────────────── */
+:root {
+  --fb-bg:             #c9d9d0;
+  --fb-sky-glow:       #f7e8b8;
+  --fb-far-hill-top:   #779b69;
+  --fb-far-hill-bot:   #4d7950;
+  --fb-mid-hill:       #5d8050;
+  --fb-near-hill-top:  #426c42;
+  --fb-near-hill-bot:  #183f2b;
+  --fb-sun-halo-inner: #fff4c4;
+  --fb-sun-halo-outer: #f8d68a;
+  --fb-sun:            #ffe8a5;
+  --fb-cloud:          #fff9e8;
+  --fb-bird:           #263e32;
+  --fb-field-top:      #6c8d4c;
+  --fb-field-bot:      #244c31;
+  --fb-crop-row:       #a4bd70;
+  --fb-house-body:     #203f2c;
+  --fb-house-roof:     #493f2c;
+  --fb-house-door:     #e7c77c;
+  --fb-house-window:   #f4d99a;
+  --fb-livestock:      #1d3b2a;
+  --fb-foreground:     #173c29;
+}
+
 .farm-background {
   position: absolute;
   z-index: 0;
@@ -5,7 +30,7 @@
   overflow: hidden;
   isolation: isolate;
   pointer-events: none;
-  background: #c9d9d0;
+  background: var(--fb-bg);
 }
 
 .farm-background__photo {

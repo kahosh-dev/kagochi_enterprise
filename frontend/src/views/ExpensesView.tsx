@@ -492,7 +492,7 @@ export default function ExpensesView() {
                     <td>{exp.category}</td>
                     <td>{exp.description}</td>
                     <td>
-                      <strong style={{ color: "var(--kf-red-600, #dc2626)" }}>
+                      <strong style={{ color: "var(--kf-red)" }}>
                         -{formatCurrency(exp.amount)}
                       </strong>
                     </td>

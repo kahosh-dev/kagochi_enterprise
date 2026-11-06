@@ -1,0 +1,30 @@
+{
+  "verdict": "CHANGES_REQUESTED",
+  "summary": "Build passes and most redesign criteria are met, but four blocking violations remain: hardcoded hex colors in App.tsx and FarmBackground.tsx, an undefined CSS token whose hex fallback is always applied in ExpensesView.tsx, and backend source files were modified despite criterion 8.",
+  "findings": [
+    {
+      "file": "frontend/src/App.tsx",
+      "line": "357-361",
+      "issue": "Two hardcoded hex color strings added in inline styles: color: \"#86efac\" and color: \"#fff\". Criterion 4 forbids hardcoded hex in TSX files; replace with var(--kf-green-300) and var(--kf-surface) or equivalent tokens already defined in tokens.css.",
+      "severity": "blocking"
+    },
+    {
+      "file": "frontend/src/components/FarmBackground.tsx",
+      "line": "21-104",
+      "issue": "Newly added file contains ~23 hardcoded hex color strings in SVG fill, stroke, and stopColor attributes (e.g. #ffe8a5, #779b69, #263e32, #183f2b, etc.). Criterion 4 forbids hardcoded hex in TSX files; define named CSS variables for each colour and reference them via a CSS class or var().",
+      "severity": "blocking"
+    },
+    {
+      "file": "frontend/src/views/ExpensesView.tsx",
+      "line": "495",
+      "issue": "Inline style uses color: \"var(--kf-red-600, #dc2626)\" but --kf-red-600 is not defined anywhere in the CSS/token files, so the hardcoded hex fallback #dc2626 is always applied. Criterion 4 forbids hardcoded hex; either define --kf-red-600 in tokens.css or use the already-defined --kf-danger token.",
+      "severity": "blocking"
+    },
+    {
+      "file": "backend/src/analytics.ts, backend/src/app.ts, backend/src/config.ts, backend/src/database.ts, backend/src/farmContextStore.ts, backend/src/postgres.ts, backend/src/postgresStore.ts, backend/src/schemas.ts, backend/src/server.ts, backend/src/sqliteStore.ts, backend/src/store.ts",
+      "line": "multiple",
+      "issue": "Criterion 8 requires no changes to backend files. The diff shows all listed backend/src/*.ts files modified. Revert these changes or obtain explicit approval before modifying backend source.",
+      "severity": "blocking"
+    }
+  ]
+}
