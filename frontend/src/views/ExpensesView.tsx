@@ -10,7 +10,7 @@ import {
   deleteIncome,
 } from "../services/storage";
 import type { ExpenseRecord, IncomeRecord } from "../types/farm";
-import { Wallet, TrendingDown, TrendingUp, Pencil, Trash2 } from "lucide-react";
+import { Wallet, TrendingDown, TrendingUp, Pencil, Trash2, Plus } from "lucide-react";
 import {
   PageHeader,
   StatCard,
@@ -207,6 +207,11 @@ export default function ExpensesView() {
       <PageHeader
         title="Income & Expenses"
         description="Track daily sales, operating expenses, and cashflow in Kenyan Shillings (KES)."
+        actions={
+          <Button icon={<Plus size={16} />} onClick={() => { resetForm(); window.scrollTo({ top: 380, behavior: "smooth" }); }}>
+            Add entry
+          </Button>
+        }
       />
 
       {/* Stats */}

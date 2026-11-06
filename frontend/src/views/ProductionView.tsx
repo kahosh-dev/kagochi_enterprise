@@ -189,6 +189,26 @@ export default function ProductionView() {
       />
 
       <div className="kf-stack">
+        {/* Visual sector header */}
+        <div className="kf-page-hero">
+          <div className="kf-page-hero-thumb">
+            <img src="/images/card-production.jpg" alt="Fresh farm eggs" />
+          </div>
+          <div className="kf-page-hero-content">
+            <h2 className="kf-page-hero-title">
+              <Egg size={20} strokeWidth={1.8} />
+              Daily Production & Yield Logs
+            </h2>
+            <p className="kf-page-hero-desc">
+              Log daily egg collection batches and cow milking volumes. Track destinations, customer sales prices and monthly yields.
+            </p>
+          </div>
+          <div className="kf-page-hero-stats">
+            <Badge tone="amber">{totalEggs.toLocaleString()} Total Eggs</Badge>
+            <Badge tone="blue">{totalMilk.toLocaleString()} L Milk</Badge>
+          </div>
+        </div>
+
         {/* KPI Stats */}
         <div className="kf-grid kf-grid--stats">
           <StatCard

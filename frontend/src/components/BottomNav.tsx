@@ -1,4 +1,4 @@
-import { LayoutDashboard, Bird, BarChart2, MessageCircle, Menu } from "lucide-react";
+import { LayoutDashboard, Bird, ChartNoAxesCombined, BrainCircuit, Menu } from "lucide-react";
 
 interface BottomNavProps {
   activeView: string;
@@ -38,7 +38,7 @@ function BottomNav({ activeView, setActiveView, onMore }: BottomNavProps) {
         aria-current={activeView === "performance" ? "page" : undefined}
         aria-label="Analytics"
       >
-        <BarChart2 size={20} strokeWidth={1.5} />
+        <ChartNoAxesCombined size={20} strokeWidth={1.5} />
         <span>Analytics</span>
       </button>
 
@@ -49,14 +49,14 @@ function BottomNav({ activeView, setActiveView, onMore }: BottomNavProps) {
         aria-current={activeView === "advisor" ? "page" : undefined}
         aria-label="Advisor"
       >
-        <MessageCircle size={20} strokeWidth={1.5} />
+        <BrainCircuit size={20} strokeWidth={1.5} />
         <span>Advisor</span>
       </button>
 
       <button
         type="button"
         onClick={onMore}
-        aria-label="More"
+        aria-label="More options"
       >
         <Menu size={20} strokeWidth={1.5} />
         <span>More</span>

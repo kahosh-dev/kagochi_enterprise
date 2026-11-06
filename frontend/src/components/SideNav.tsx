@@ -8,8 +8,8 @@ import {
   Users,
   Syringe,
   Wallet,
-  BarChart2,
-  MessageCircle,
+  ChartNoAxesCombined,
+  BrainCircuit,
   Settings,
   LogOut,
   X,
@@ -54,8 +54,8 @@ const NAV_SECTIONS = [
   {
     label: "Analytics & AI",
     items: [
-      { id: "performance", label: "Profit & Loss", description: "P&L reports", icon: <BarChart2 size={19} strokeWidth={1.5} /> },
-      { id: "advisor", label: "Farm Assistant", description: "AI daily advisor", icon: <MessageCircle size={19} strokeWidth={1.5} /> },
+      { id: "performance", label: "Profit & Loss", description: "P&L reports", icon: <ChartNoAxesCombined size={19} strokeWidth={1.5} /> },
+      { id: "advisor", label: "Farm Assistant", description: "AI daily advisor", icon: <BrainCircuit size={19} strokeWidth={1.5} /> },
     ],
   },
   {

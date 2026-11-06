@@ -255,6 +255,26 @@ export default function PoultryView() {
       />
 
       <div className="kf-stack">
+        {/* Visual sector header */}
+        <div className="kf-page-hero">
+          <div className="kf-page-hero-thumb">
+            <img src="/images/card-poultry.jpg" alt="Poultry flock" />
+          </div>
+          <div className="kf-page-hero-content">
+            <h2 className="kf-page-hero-title">
+              <Bird size={20} strokeWidth={1.8} />
+              Poultry Operations & Flock Register
+            </h2>
+            <p className="kf-page-hero-desc">
+              Manage day-old brooding chicks, active layers, broilers and kienyeji flocks. Track flock mortality and stock balance.
+            </p>
+          </div>
+          <div className="kf-page-hero-stats">
+            <Badge tone="forest">{totalCurrent.toLocaleString()} Live Birds</Badge>
+            <Badge tone="amber">{totalChicks.toLocaleString()} In Brooder</Badge>
+          </div>
+        </div>
+
         {/* KPI Summary Cards */}
         <div className="kf-grid kf-grid--stats">
           <StatCard

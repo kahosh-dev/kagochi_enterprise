@@ -4,12 +4,11 @@ import {
   type ChatMessage,
 } from "../services/aiService";
 import {
-  Sparkles,
+  BrainCircuit,
   Send,
   CalendarDays,
   AlertCircle,
   RefreshCw,
-  Bot,
   UserRound,
 } from "lucide-react";
 
@@ -68,7 +67,7 @@ export default function FarmChatbot() {
       <div className="chat-header-bar">
         <div className="chat-header-left">
           <div className="chat-avatar">
-            <Sparkles size={20} color="var(--kf-green-600)" />
+            <BrainCircuit size={20} color="var(--kf-action)" />
           </div>
           <div>
             <h4 style={{ margin: 0, fontSize: 16 }}>Farm Assistant Chat</h4>
@@ -158,7 +157,7 @@ export default function FarmChatbot() {
       <div className="chat-messages-scroll">
         {messages.length === 0 ? (
           <div className="chat-empty-state">
-            <Bot size={40} strokeWidth={1.5} color="var(--kf-muted-2)" />
+            <BrainCircuit size={40} strokeWidth={1.5} color="var(--kf-muted-2)" />
             <p><strong>Ask your Farm Assistant anything about your farm records.</strong></p>
             <p style={{ fontSize: 13, color: "var(--kf-muted)" }}>
               Select a question above or type your own question below.
@@ -168,7 +167,11 @@ export default function FarmChatbot() {
           messages.map((m, idx) => (
             <div key={idx} className={`chat-message ${m.role === "user" ? "user-msg" : "bot-msg"}`}>
               <div className="msg-avatar">
-                {m.role === "user" ? <UserRound size={16} strokeWidth={1.5} /> : <Bot size={16} strokeWidth={1.5} />}
+                {m.role === "user" ? (
+                  <UserRound size={16} strokeWidth={1.5} />
+                ) : (
+                  <BrainCircuit size={16} strokeWidth={1.5} color="var(--kf-action)" />
+                )}
               </div>
               <div className="msg-bubble">
                 <p style={{ whiteSpace: "pre-wrap", margin: 0 }}>{m.text}</p>
@@ -179,7 +182,9 @@ export default function FarmChatbot() {
 
         {loading && (
           <div className="chat-message bot-msg">
-            <div className="msg-avatar"><Bot size={16} strokeWidth={1.5} /></div>
+            <div className="msg-avatar">
+              <BrainCircuit size={16} strokeWidth={1.5} color="var(--kf-action)" />
+            </div>
             <div className="msg-bubble loading-bubble">
               <span className="typing-dot" />
               <span className="typing-dot" />

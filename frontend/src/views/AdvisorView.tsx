@@ -3,14 +3,13 @@ import { getFarmAdvice } from "../services/aiService";
 import { loadFarmSummary } from "../services/storage";
 import type { FarmSummaryData } from "../types/farm";
 import FarmChatbot from "../components/FarmChatbot";
-import { Sparkles, Bird, Beef, Egg, DollarSign } from "lucide-react";
+import { BrainCircuit, Bird, Beef, Egg, DollarSign } from "lucide-react";
 import {
   PageHeader,
   StatCard,
   Panel,
   Button,
   EmptyState,
-  ErrorBanner,
   Notice,
   Segmented,
 } from "../components/ui";
@@ -61,8 +60,9 @@ export default function AdvisorView() {
   return (
     <main className="kf-page kf-page--narrow">
       <PageHeader
+        eyebrow="AI Decision Support"
         title="AI Farm Advisor"
-        description="Rule-based analysis and AI-generated reports based on your farm records."
+        description="Grounded rule-based analysis and AI-generated decision support strictly based on your farm records."
       />
 
       <div className="kf-grid kf-grid--main-side" style={{ alignItems: "start" }}>
@@ -109,7 +109,7 @@ export default function AdvisorView() {
             actions={
               <Button
                 variant="primary"
-                icon={<Sparkles size={15} />}
+                icon={<BrainCircuit size={15} />}
                 loading={generating}
                 onClick={generateAdvice}
               >
@@ -118,90 +118,69 @@ export default function AdvisorView() {
             }
           >
             {aiUnavailable ? (
-              <Notice tone="info">
-                The AI advisor is not configured in this deployment. You can still use
-                rule-based farm observations above.
-              </Notice>
-            ) : error ? (
-              <ErrorBanner message={error} />
+              <EmptyState
+                compact
+                icon={<BrainCircuit size={28} />}
+                title="AI advisor unavailable"
+                description="The AI service is currently not configured or unreachable. Rule-based observations above remain fully functional."
+              />
             ) : advice ? (
-              <div className="kf-panel-body">
-                <pre
-                  style={{
-                    whiteSpace: "pre-wrap",
-                    fontFamily: "inherit",
-                    fontSize: "13px",
-                    lineHeight: 1.7,
-                    margin: 0,
-                  }}
-                >
-                  {advice}
-                </pre>
+              <div className="kf-advice-card">
+                <div style={{ whiteSpace: "pre-wrap", lineHeight: 1.6 }}>{advice}</div>
               </div>
             ) : (
               <EmptyState
                 compact
-                title="Generate an advisory report"
-                description="Click the button above to get a structured analysis of your farm records."
+                title="No advisory generated yet"
+                description="Click 'Generate advisory' to get an AI-powered summary of your farm's performance for this period."
               />
             )}
+            {error && !aiUnavailable && <Notice tone="warning">{error}</Notice>}
           </Panel>
-
-          {/* Chatbot */}
-          <FarmChatbot />
         </div>
 
-        {/* ── Right / side column ── */}
+        {/* ── Right / side column: Context stats ── */}
         <div className="kf-grid-side">
-          {/* Suggested questions */}
-          <Panel title="Suggested questions">
-            <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
-              {[
-                "How is my poultry mortality this week?",
-                "What should I feed my layers?",
-                "Are my expenses normal for this month?",
-                "When are my next vaccinations due?",
-                "What is my farm profit this month?",
-              ].map((q) => (
-                <span key={q} className="kf-chip" style={{ cursor: "default" }}>
-                  {q}
-                </span>
-              ))}
-            </div>
-          </Panel>
-
-          {/* Current period stats */}
-          <Panel title="Current period">
-            <div className="kf-stat-grid kf-stat-grid--2col">
-              <StatCard
-                label="Birds"
-                value={formatNumber(summary?.population.poultry.currentBirds ?? 0)}
-                icon={<Bird size={18} strokeWidth={1.5} />}
-                tone="green"
-              />
-              <StatCard
-                label="Cattle"
-                value={formatNumber(summary?.population.livestock.animalCount ?? 0)}
-                icon={<Beef size={18} strokeWidth={1.5} />}
-                tone="forest"
-              />
-              <StatCard
-                label="Eggs"
-                value={formatNumber(summary?.production.eggsProduced ?? 0)}
-                icon={<Egg size={18} strokeWidth={1.5} />}
-                tone="amber"
-              />
-              <StatCard
-                label="Profit / Loss"
-                value={formatCurrency(summary?.financial.operatingProfitOrLoss ?? 0)}
-                icon={<DollarSign size={18} strokeWidth={1.5} />}
-                tone={
-                  (summary?.financial.operatingProfitOrLoss ?? 0) >= 0 ? "green" : "red"
-                }
-              />
-            </div>
+          <Panel title="Period figures" subtitle={`Based on ${periodDays}-day window`}>
+            {summary ? (
+              <div className="kf-stack kf-stack--sm">
+                <StatCard
+                  tone="forest"
+                  label="Current flock"
+                  value={formatNumber(summary.population.poultry.currentBirds)}
+                  icon={<Bird size={16} strokeWidth={1.5} />}
+                />
+                <StatCard
+                  tone="amber"
+                  label="Cattle count"
+                  value={formatNumber(summary.population.livestock.animalCount)}
+                  icon={<Beef size={16} strokeWidth={1.5} />}
+                />
+                <StatCard
+                  tone="blue"
+                  label="Eggs produced"
+                  value={formatNumber(
+                    (summary.production.lines.find((l) => l.type === "eggs")?.total) ?? 0
+                  )}
+                  icon={<Egg size={16} strokeWidth={1.5} />}
+                />
+                <StatCard
+                  tone={summary.financial.operatingProfitOrLoss >= 0 ? "green" : "red"}
+                  label="Net margin"
+                  value={formatCurrency(summary.financial.operatingProfitOrLoss)}
+                  icon={<DollarSign size={16} strokeWidth={1.5} />}
+                />
+              </div>
+            ) : (
+              <p className="kf-muted kf-small">Loading farm figures…</p>
+            )}
           </Panel>
         </div>
+      </div>
+
+      {/* ── Interactive chatbot ── */}
+      <div style={{ marginTop: 24 }}>
+        <FarmChatbot />
       </div>
     </main>
   );

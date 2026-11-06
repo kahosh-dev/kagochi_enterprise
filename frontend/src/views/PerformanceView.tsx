@@ -1,7 +1,19 @@
 import { useEffect, useState } from "react";
 import { loadFarmSummary } from "../services/storage";
 import type { FarmSummaryData } from "../types/farm";
-import { TrendingUp, TrendingDown, DollarSign, Wallet, CalendarDays, Download, Bird, Beef, Egg, Scale } from "lucide-react";
+import {
+  TrendingUp,
+  TrendingDown,
+  DollarSign,
+  Wallet,
+  CalendarDays,
+  Download,
+  Bird,
+  Beef,
+  Egg,
+  Scale,
+  ChartNoAxesCombined,
+} from "lucide-react";
 import {
   PageHeader,
   StatCard,
@@ -99,14 +111,14 @@ export default function PerformanceView() {
       ["Expense Categories", "Amount (KES)", "Share %"],
       ...expenseCategories.map((c) => [c.category, c.total, `${c.sharePercent ?? 0}%`]),
     ];
-    const csvContent =
-      "data:text/csv;charset=utf-8," + rows.map((e) => e.join(",")).join("\n");
+
+    const csvContent = "data:text/csv;charset=utf-8," + rows.map((e) => e.join(",")).join("\n");
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement("a");
     link.setAttribute("href", encodedUri);
     link.setAttribute(
       "download",
-      `kagochi_pnl_${summary.period.from}_${summary.period.to}.csv`
+      `kagochi_farm_pnl_${summary.period.from}_to_${summary.period.to}.csv`
     );
     document.body.appendChild(link);
     link.click();
@@ -116,6 +128,7 @@ export default function PerformanceView() {
   return (
     <main className="kf-page">
       <PageHeader
+        eyebrow="Financial Analytics & Reports"
         title="Analytics & Performance"
         description="Actual operating financial statements and production analytics for your farm."
         actions={
@@ -179,170 +192,158 @@ export default function PerformanceView() {
               ? `${summary.income.changePercent >= 0 ? "+" : ""}${summary.income.changePercent}% vs prev`
               : "Realized sales in period"
           }
-          icon={<Wallet size={20} strokeWidth={1.5} />}
+          icon={<DollarSign size={20} strokeWidth={1.5} />}
           tone="green"
         />
         <StatCard
-          label="Operating Expenses"
+          label="Total Operating Expenses"
           value={formatCurrency(totalExpenses)}
           hint={
             summary?.expenses.changePercent != null
               ? `${summary.expenses.changePercent >= 0 ? "+" : ""}${summary.expenses.changePercent}% vs prev`
-              : "Operating costs in period"
+              : "Costs incurred in period"
           }
-          icon={<TrendingDown size={20} strokeWidth={1.5} />}
+          icon={<Wallet size={20} strokeWidth={1.5} />}
           tone="red"
         />
         <StatCard
           label={isProfitable ? "Operating Profit" : "Operating Loss"}
-          value={`${isProfitable ? "+" : ""}${formatCurrency(profitOrLoss)}`}
-          hint={netMargin != null ? `Margin: ${netMargin}%` : "Income minus costs"}
+          value={isProfitable ? formatCurrency(profitOrLoss) : `-${formatCurrency(Math.abs(profitOrLoss))}`}
+          hint={netMargin != null ? `Net margin: ${percent(netMargin)}` : "Income minus expenses"}
           icon={isProfitable ? <TrendingUp size={20} strokeWidth={1.5} /> : <TrendingDown size={20} strokeWidth={1.5} />}
-          tone={isProfitable ? "green" : "red"}
+          tone={isProfitable ? "forest" : "red"}
+        />
+        <StatCard
+          label="Performance Ratio"
+          value={netMargin != null ? percent(netMargin) : "N/A"}
+          hint="Operating efficiency index"
+          icon={<ChartNoAxesCombined size={20} strokeWidth={1.5} />}
+          tone="blue"
         />
       </div>
 
-      {/* Income by category */}
-      <Panel
-        title="Income breakdown"
-        subtitle="Top income sources this period"
-      >
-        {incomeCategories.length === 0 ? (
-          <EmptyState compact title="No income recorded" description="No income in this period." />
-        ) : (
-          <div className="kf-bar-chart">
-            {incomeCategories.map((c) => (
+      {/* Income vs Expenses breakdown */}
+      <div className="kf-grid kf-grid--2">
+        <Panel
+          title="Income by Category"
+          subtitle={
+            incomeCategories.length > 0
+              ? `${incomeCategories.length} sales streams active`
+              : "No income recorded in this period"
+          }
+        >
+          {incomeCategories.length === 0 ? (
+            <EmptyState
+              compact
+              title="No income recorded"
+              description="Record sales in the Cashflow page to see income distribution."
+            />
+          ) : (
+            incomeCategories.map((c) => (
               <CssBar
                 key={c.category}
                 label={c.category}
                 value={c.total}
                 max={maxIncome}
-                formatted={formatCurrency(c.total)}
+                formatted={`${formatCurrency(c.total)}${c.sharePercent != null ? ` (${c.sharePercent}%)` : ""}`}
                 tone="green"
               />
-            ))}
-          </div>
-        )}
-      </Panel>
+            ))
+          )}
+        </Panel>
 
-      {/* Expense by category */}
-      <Panel
-        title="Expense breakdown"
-        subtitle="Where your money was spent this period"
-      >
-        {expenseCategories.length === 0 ? (
-          <EmptyState compact title="No expenses recorded" description="No expenses in this period." />
-        ) : (
-          <div className="kf-bar-chart">
-            {expenseCategories.map((c) => (
+        <Panel
+          title="Expenses by Category"
+          subtitle={
+            expenseCategories.length > 0
+              ? `${expenseCategories.length} cost centres recorded`
+              : "No expenses recorded in this period"
+          }
+        >
+          {expenseCategories.length === 0 ? (
+            <EmptyState
+              compact
+              title="No expenses recorded"
+              description="Record operational expenses in Cashflow to track costs."
+            />
+          ) : (
+            expenseCategories.map((c) => (
               <CssBar
                 key={c.category}
                 label={c.category}
                 value={c.total}
                 max={maxExpense}
-                formatted={formatCurrency(c.total)}
+                formatted={`${formatCurrency(c.total)}${c.sharePercent != null ? ` (${c.sharePercent}%)` : ""}`}
                 tone="red"
               />
-            ))}
-          </div>
-        )}
-      </Panel>
+            ))
+          )}
+        </Panel>
+      </div>
 
-      {/* Population */}
-      <Panel title="Current population">
+      {/* Production Performance Panel */}
+      <Panel title="Production Summary" subtitle="Total yield recorded in this reporting period">
         <div className="kf-stat-grid">
           <StatCard
-            label="Poultry (birds)"
-            value={formatNumber(summary?.population.poultry.currentBirds ?? 0)}
-            hint="Active birds"
-            icon={<Bird size={20} strokeWidth={1.5} />}
-            tone="green"
-          />
-          <StatCard
-            label="Livestock (animals)"
-            value={formatNumber(summary?.population.livestock.animalCount ?? 0)}
-            hint="Active animals"
-            icon={<Beef size={20} strokeWidth={1.5} />}
-            tone="forest"
-          />
-        </div>
-      </Panel>
-
-      {/* Mortality rate */}
-      <Panel title="Mortality rate">
-        <div className="kf-bar-chart">
-          <CssBar
-            label="Bird mortality"
-            value={lossPercent ?? 0}
-            max={100}
-            formatted={percent(lossPercent)}
-            tone={lossPercent > 5 ? "red" : "amber"}
-          />
-        </div>
-      </Panel>
-
-      {/* Production */}
-      <Panel title="Production">
-        <div className="kf-stat-grid">
-          <StatCard
-            label="Eggs produced"
-            value={formatNumber(summary?.production.eggsProduced ?? 0)}
-            hint="In period"
+            label="Eggs Collected"
+            value={eggsLine ? formatNumber(eggsLine.total) : "0"}
+            hint={eggsLine ? `${eggsLine.recordCount} entries · ${eggsLine.unit}` : "No egg logs"}
             icon={<Egg size={20} strokeWidth={1.5} />}
             tone="amber"
-            trend={
-              eggsLine?.changePercent != null
-                ? {
-                    value: `${Math.abs(eggsLine.changePercent)}% vs prev`,
-                    direction:
-                      eggsLine.changePercent > 0
-                        ? "up"
-                        : eggsLine.changePercent < 0
-                        ? "down"
-                        : "flat",
-                  }
-                : undefined
-            }
           />
           <StatCard
-            label="Milk produced (L)"
-            value={formatNumber(summary?.production.milkProduced ?? 0)}
-            hint="In period"
-            icon={<DollarSign size={20} strokeWidth={1.5} />}
+            label="Milk Produced"
+            value={milkLine ? `${formatNumber(milkLine.total)} L` : "0 L"}
+            hint={milkLine ? `${milkLine.recordCount} entries · ${milkLine.unit}` : "No milk logs"}
+            icon={<Beef size={20} strokeWidth={1.5} />}
             tone="blue"
-            trend={
-              milkLine?.changePercent != null
-                ? {
-                    value: `${Math.abs(milkLine.changePercent)}% vs prev`,
-                    direction:
-                      milkLine.changePercent > 0
-                        ? "up"
-                        : milkLine.changePercent < 0
-                        ? "down"
-                        : "flat",
-                  }
-                : undefined
-            }
           />
         </div>
       </Panel>
 
-      {/* Feed */}
-      <Panel title="Feed consumption">
+      {/* Herd & Flock Population Performance */}
+      <Panel title="Flock & Herd Status" subtitle="Current living inventory and mortality rates">
+        <div className="kf-stat-grid">
+          <StatCard
+            label="Poultry Population"
+            value={formatNumber(summary?.population.poultry.currentBirds ?? 0)}
+            hint={`Initial: ${formatNumber(summary?.population.poultry.initialBirds ?? 0)}`}
+            icon={<Bird size={20} strokeWidth={1.5} />}
+            tone="forest"
+          />
+          <StatCard
+            label="Poultry Mortality Rate"
+            value={`${percent(lossPercent)}`}
+            hint={`${formatNumber(summary?.population.poultry.totalLosses ?? 0)} birds lost`}
+            icon={<TrendingDown size={20} strokeWidth={1.5} />}
+            tone={lossPercent > 5 ? "red" : "green"}
+          />
+          <StatCard
+            label="Cattle Herd"
+            value={formatNumber(summary?.population.livestock.animalCount ?? 0)}
+            hint={`${formatNumber(summary?.population.livestock.cowsCount ?? 0)} cows · ${formatNumber(summary?.population.livestock.calvesCount ?? 0)} calves`}
+            icon={<Beef size={20} strokeWidth={1.5} />}
+            tone="blue"
+          />
+        </div>
+      </Panel>
+
+      {/* Feed Performance */}
+      <Panel title="Feed Utilization" subtitle="Total feed supplied to poultry and cattle">
         <div className="kf-stat-grid">
           <StatCard
             label="Feed (kg)"
-            value={formatNumber(kgFeed?.total ?? 0)}
-            hint="Kilograms fed"
+            value={kgFeed ? `${formatNumber(kgFeed.total)} kg` : "0 kg"}
+            hint={kgFeed ? `${kgFeed.recordCount} feedings logged` : "No kg entries"}
             icon={<Scale size={20} strokeWidth={1.5} />}
-            tone="slate"
+            tone="forest"
           />
           <StatCard
             label="Feed (bags)"
-            value={formatNumber(bagsFeed?.total ?? 0)}
-            hint="Bags used"
+            value={bagsFeed ? `${formatNumber(bagsFeed.total)} bags` : "0 bags"}
+            hint={bagsFeed ? `${bagsFeed.recordCount} feedings logged` : "No bag entries"}
             icon={<Scale size={20} strokeWidth={1.5} />}
-            tone="slate"
+            tone="amber"
           />
         </div>
       </Panel>

@@ -183,7 +183,27 @@ export default function FeedingView() {
       />
 
       {/* Stats */}
-      <div className="kf-stat-grid">
+            {/* Visual sector header */}
+      <div className="kf-page-hero">
+        <div className="kf-page-hero-thumb">
+          <img src="/images/card-feeding.jpg" alt="Agricultural crops and feed" />
+        </div>
+        <div className="kf-page-hero-content">
+          <h2 className="kf-page-hero-title">
+            <Wheat size={20} strokeWidth={1.8} />
+            Feed & Nutrition Management
+          </h2>
+          <p className="kf-page-hero-desc">
+            Monitor daily feeding rations for chicks, growers, layers, and cattle. Track feed consumption in kilograms and bags.
+          </p>
+        </div>
+        <div className="kf-page-hero-stats">
+          <span className="kf-badge kf-badge--forest">{formatNumber(totalKg)} kg Feed Logged</span>
+          <span className="kf-badge kf-badge--amber">{formatCurrency(totalCost)} Feed Cost</span>
+        </div>
+      </div>
+
+      <div className="kf-grid kf-grid--stats">
         <StatCard
           label="Total (kg)"
           value={formatNumber(totalKg)}

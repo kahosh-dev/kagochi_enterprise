@@ -1,17 +1,17 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   ArrowRight,
-  BarChart2,
   Beef,
   Bird,
+  BrainCircuit,
   CalendarDays,
+  ChartNoAxesCombined,
   ChevronRight,
   DollarSign,
   Egg,
   Filter,
   Package,
   PlusCircle,
-  Sparkles,
   Syringe,
   TrendingDown,
   TrendingUp,
@@ -63,7 +63,7 @@ const QUICK_ACTIONS = [
   { view: "production", label: "Production", hint: "Eggs & milk logs", icon: Egg },
   { view: "feeding", label: "Feeding", hint: "Rations & feed costs", icon: Wheat },
   { view: "expenses", label: "Income & expenses", hint: "Daily cashflow ledger", icon: Wallet },
-  { view: "performance", label: "Profit & loss", hint: "Financial statements", icon: BarChart2 },
+  { view: "performance", label: "Profit & loss", hint: "Financial statements", icon: ChartNoAxesCombined },
   { view: "survivors", label: "Survivors", hint: "Population ledger", icon: Users },
   { view: "mortality", label: "Mortality", hint: "Death-rate trends", icon: TrendingDown },
   { view: "vaccinations", label: "Vaccinations", hint: "Schedule & reminders", icon: Syringe },
@@ -212,7 +212,7 @@ export default function HomeView({
         description="A live view of your poultry, cattle, production, finances and vaccination schedule."
         actions={
           <>
-            <Button variant="ghost" icon={<Sparkles size={16} />} onClick={() => onNavigate("advisor")}>
+            <Button variant="ghost" icon={<BrainCircuit size={16} />} onClick={() => onNavigate("advisor")}>
               Ask the assistant
             </Button>
             <Button icon={<PlusCircle size={16} />} onClick={() => setModalOpen(true)}>
@@ -284,6 +284,173 @@ export default function HomeView({
             </div>
           </Panel>
         )}
+
+        {/* Enterprise Farm Sectors Showcase with Real Photography */}
+        <section aria-label="Farm enterprise sectors">
+          <div className="kf-sector-grid">
+            {/* Sector 1: Poultry */}
+            <div
+              className="kf-sector-card"
+              onClick={() => onNavigate("poultry")}
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) => e.key === "Enter" && onNavigate("poultry")}
+            >
+              <div className="kf-sector-media">
+                <img
+                  src="/images/card-poultry.jpg"
+                  alt="Poultry flock"
+                  className="kf-sector-img"
+                  loading="lazy"
+                />
+                <div className="kf-sector-media-overlay">
+                  <span className="kf-sector-badge">
+                    <Bird size={13} strokeWidth={2} />
+                    {totalBirds > 0 ? `${formatNumber(totalBirds)} birds` : "Poultry active"}
+                  </span>
+                </div>
+              </div>
+              <div className="kf-sector-body">
+                <div className="kf-sector-header">
+                  <h3 className="kf-sector-title">
+                    <span className="kf-sector-icon"><Bird size={16} /></span>
+                    Poultry Operations
+                  </h3>
+                  <ChevronRight size={15} className="kf-muted" />
+                </div>
+                <p className="kf-sector-desc">
+                  Chicks, broilers, layers & kienyeji flocks with daily mortality tracking.
+                </p>
+                <div className="kf-sector-footer">
+                  <span>Manage flock</span>
+                  <ArrowRight size={13} />
+                </div>
+              </div>
+            </div>
+
+            {/* Sector 2: Livestock / Cattle */}
+            <div
+              className="kf-sector-card"
+              onClick={() => onNavigate("livestock")}
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) => e.key === "Enter" && onNavigate("livestock")}
+            >
+              <div className="kf-sector-media">
+                <img
+                  src="/images/card-livestock.jpg"
+                  alt="Dairy cattle in pasture"
+                  className="kf-sector-img"
+                  loading="lazy"
+                />
+                <div className="kf-sector-media-overlay">
+                  <span className="kf-sector-badge">
+                    <Beef size={13} strokeWidth={2} />
+                    {totalCattle > 0 ? `${formatNumber(totalCattle)} head` : "Cattle active"}
+                  </span>
+                </div>
+              </div>
+              <div className="kf-sector-body">
+                <div className="kf-sector-header">
+                  <h3 className="kf-sector-title">
+                    <span className="kf-sector-icon"><Beef size={16} /></span>
+                    Livestock & Cattle
+                  </h3>
+                  <ChevronRight size={15} className="kf-muted" />
+                </div>
+                <p className="kf-sector-desc">
+                  Calves, heifers, dairy cows & breeding bulls with pedigree tags.
+                </p>
+                <div className="kf-sector-footer">
+                  <span>Manage herd</span>
+                  <ArrowRight size={13} />
+                </div>
+              </div>
+            </div>
+
+            {/* Sector 3: Production */}
+            <div
+              className="kf-sector-card"
+              onClick={() => onNavigate("production")}
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) => e.key === "Enter" && onNavigate("production")}
+            >
+              <div className="kf-sector-media">
+                <img
+                  src="/images/card-production.jpg"
+                  alt="Farm fresh eggs"
+                  className="kf-sector-img"
+                  loading="lazy"
+                />
+                <div className="kf-sector-media-overlay">
+                  <span className="kf-sector-badge">
+                    <Egg size={13} strokeWidth={2} />
+                    {eggsTotal > 0 || milkTotal > 0
+                      ? `${formatNumber(eggsTotal)} eggs · ${formatNumber(milkTotal)}L`
+                      : "Daily yield"}
+                  </span>
+                </div>
+              </div>
+              <div className="kf-sector-body">
+                <div className="kf-sector-header">
+                  <h3 className="kf-sector-title">
+                    <span className="kf-sector-icon"><Egg size={16} /></span>
+                    Daily Production
+                  </h3>
+                  <ChevronRight size={15} className="kf-muted" />
+                </div>
+                <p className="kf-sector-desc">
+                  Egg collection counts, morning/evening milk yields & destination records.
+                </p>
+                <div className="kf-sector-footer">
+                  <span>Log yields</span>
+                  <ArrowRight size={13} />
+                </div>
+              </div>
+            </div>
+
+            {/* Sector 4: Feeding & Crops */}
+            <div
+              className="kf-sector-card"
+              onClick={() => onNavigate("feeding")}
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) => e.key === "Enter" && onNavigate("feeding")}
+            >
+              <div className="kf-sector-media">
+                <img
+                  src="/images/card-feeding.jpg"
+                  alt="Agricultural crops and feed"
+                  className="kf-sector-img"
+                  loading="lazy"
+                />
+                <div className="kf-sector-media-overlay">
+                  <span className="kf-sector-badge">
+                    <Wheat size={13} strokeWidth={2} />
+                    {feedDisplay}
+                  </span>
+                </div>
+              </div>
+              <div className="kf-sector-body">
+                <div className="kf-sector-header">
+                  <h3 className="kf-sector-title">
+                    <span className="kf-sector-icon"><Wheat size={16} /></span>
+                    Feed & Nutrition
+                  </h3>
+                  <ChevronRight size={15} className="kf-muted" />
+                </div>
+                <p className="kf-sector-desc">
+                  Rations for chicks, growers, layers and cattle with feed expense tracking.
+                </p>
+                <div className="kf-sector-footer">
+                  <span>Review feeding</span>
+                  <ArrowRight size={13} />
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
 
         {!loading && summary && !hasAnyPopulation && (
           <Panel title="Start with your first records" subtitle="Your farm overview will fill in as soon as you add animals and activity.">
@@ -405,6 +572,7 @@ export default function HomeView({
                 label="Farm income"
                 value={formatCurrency(totalIncome)}
                 hint="Egg, milk, poultry and cattle sales"
+                onClick={() => onNavigate("expenses")}
               />
               <StatCard
                 tone="red"
@@ -412,6 +580,7 @@ export default function HomeView({
                 label="Operating expenses"
                 value={formatCurrency(totalExpenses)}
                 hint="Feed, labour, vaccines and maintenance"
+                onClick={() => onNavigate("expenses")}
               />
               <StatCard
                 tone={isProfitable ? "forest" : "red"}
@@ -419,6 +588,7 @@ export default function HomeView({
                 label={isProfitable ? "Operating profit" : "Operating loss"}
                 value={isProfitable ? formatCurrency(profitOrLoss) : `-${formatCurrency(Math.abs(profitOrLoss))}`}
                 hint={netMargin !== null ? `Net margin ${percent(netMargin)}` : "Income minus operating costs"}
+                onClick={() => onNavigate("performance")}
               />
             </div>
 
@@ -501,14 +671,14 @@ export default function HomeView({
             <div className="kf-grow" style={{ maxWidth: 720 }}>
               <div className="kf-row" style={{ marginBottom: 8 }}>
                 <span className="kf-stat-icon" style={{ background: "rgba(134,239,172,0.16)", color: "var(--kf-green-300)" }}>
-                  <Sparkles size={19} />
+                  <BrainCircuit size={19} />
                 </span>
-                <Badge tone="green">AI farm assistant</Badge>
+                <Badge tone="green">AI Farm Decision Advisor</Badge>
               </div>
               <h2 className="kf-panel-title">Ask questions about your farm performance</h2>
               <p className="kf-panel-subtitle" style={{ marginTop: 6, maxWidth: 620 }}>
-                Get a grounded review of profit, high expenses, mortality risks and upcoming vaccinations. Answers are
-                based only on the records you have entered.
+                Get grounded reviews of profit, high expenses, mortality risks and upcoming vaccinations. Answers are
+                strictly based on the records you have entered.
               </p>
             </div>
             <Button variant="soft" icon={<ChevronRight size={16} />} onClick={() => onNavigate("advisor")}>

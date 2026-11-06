@@ -421,8 +421,8 @@ export default function DailyRecordModal({
                       setProductionUnit(t === "eggs" ? "pieces" : "litres");
                     }}
                   >
-                    <option value="eggs">🥚 Eggs Collected</option>
-                    <option value="milk">🥛 Milk Milked</option>
+                    <option value="eggs">Eggs Collected</option>
+                    <option value="milk">Milk Milked</option>
                   </select>
                 </div>
                 <div className="form-field">
@@ -537,8 +537,8 @@ export default function DailyRecordModal({
                     value={vacSpecies}
                     onChange={(e) => setVacSpecies(e.target.value as "poultry" | "cattle")}
                   >
-                    <option value="poultry">🐔 Poultry (Flock / Batch)</option>
-                    <option value="cattle">🐄 Cattle (Cow / Calf / Herd)</option>
+                    <option value="poultry">Poultry (Flock / Batch)</option>
+                    <option value="cattle">Cattle (Cow / Calf / Herd)</option>
                   </select>
                 </div>
                 <div className="form-field">

@@ -8,18 +8,18 @@ interface HeaderProps {
 }
 
 const VIEW_LABELS: Record<string, string> = {
-  home: "Dashboard",
-  poultry: "Poultry",
-  livestock: "Livestock",
-  production: "Production",
-  feeding: "Feeding",
-  expenses: "Expenses",
-  performance: "Analytics",
-  advisor: "AI Advisor",
-  admin: "Admin",
-  survivors: "Survivors",
-  mortality: "Mortality",
-  vaccinations: "Vaccinations",
+  home: "Dashboard Overview",
+  poultry: "Poultry Operations",
+  livestock: "Livestock & Cattle",
+  production: "Daily Production",
+  feeding: "Feed & Nutrition",
+  expenses: "Income & Expenses",
+  performance: "Performance Analytics",
+  advisor: "AI Farm Advisor",
+  admin: "Admin & Settings",
+  survivors: "Survivor Tracking",
+  mortality: "Mortality Monitor",
+  vaccinations: "Vaccination Schedules",
 };
 
 function getInitials(name: string): string {
@@ -60,14 +60,15 @@ function Header({ farmName, userName, activeView = "home", onMenuToggle }: Heade
       <div className="kf-header-right">
         <button
           className="kf-header-icon-button"
-          aria-label="Notifications"
+          aria-label="Notifications (No unread alerts)"
+          title="Notifications"
           type="button"
         >
           <Bell size={20} strokeWidth={1.5} />
         </button>
 
         {userName ? (
-          <div className="kf-header-user" title={userName}>
+          <div className="kf-header-user" title={`Logged in as ${userName}`}>
             <span className="kf-avatar" aria-hidden="true">
               {getInitials(userName)}
             </span>

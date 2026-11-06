@@ -257,6 +257,26 @@ export default function LivestockView() {
       />
 
       <div className="kf-stack">
+        {/* Visual sector header */}
+        <div className="kf-page-hero">
+          <div className="kf-page-hero-thumb">
+            <img src="/images/card-livestock.jpg" alt="Dairy cattle in pasture" />
+          </div>
+          <div className="kf-page-hero-content">
+            <h2 className="kf-page-hero-title">
+              <Beef size={20} strokeWidth={1.8} />
+              Cattle Herd Management & Pedigree
+            </h2>
+            <p className="kf-page-hero-desc">
+              Track dairy cows, growing heifers, calves and bulls. Monitor ear tag numbers, dam lineages, and health notes.
+            </p>
+          </div>
+          <div className="kf-page-hero-stats">
+            <Badge tone="forest">{animals.length} Registered Cattle</Badge>
+            <Badge tone="blue">{animals.filter(a => a.category === 'cow').length} Milking Cows</Badge>
+          </div>
+        </div>
+
         {/* KPI Cards */}
         <div className="kf-grid kf-grid--stats">
           <StatCard
