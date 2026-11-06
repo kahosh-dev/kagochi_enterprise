@@ -10,13 +10,22 @@ import {
   deleteIncome,
 } from "../services/storage";
 import type { ExpenseRecord, IncomeRecord } from "../types/farm";
+import { Wallet, TrendingDown, TrendingUp, Pencil, Trash2 } from "lucide-react";
 import {
-  Coins,
-  TrendingDown,
-  TrendingUp,
-  Edit2,
-  Trash2,
-} from "lucide-react";
+  PageHeader,
+  StatCard,
+  Panel,
+  Field,
+  Button,
+  IconButton,
+  EmptyState,
+  ErrorBanner,
+  Notice,
+  Segmented,
+  Modal,
+  CssBar,
+} from "../components/ui";
+import { formatCurrency } from "../utils/format";
 
 export default function ExpensesView() {
   const [activeTab, setActiveTab] = useState<"income" | "expense">("expense");
@@ -24,8 +33,8 @@ export default function ExpensesView() {
   const [incomes, setIncomes] = useState<IncomeRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; desc: string; type: "income" | "expense" } | null>(null);
 
   // Form fields
   const [category, setCategory] = useState("Poultry Feed");
@@ -45,7 +54,6 @@ export default function ExpensesView() {
       setExpenses(expData);
       setIncomes(incData);
     } catch (error) {
-      console.error(error);
       setErrorMsg(error instanceof Error ? error.message : "Failed to load financial records.");
     } finally {
       setLoading(false);
@@ -60,14 +68,44 @@ export default function ExpensesView() {
     () => incomes.reduce((sum, item) => sum + Number(item.amount || 0), 0),
     [incomes]
   );
-
   const totalExpense = useMemo(
     () => expenses.reduce((sum, item) => sum + Number(item.amount || 0), 0),
     [expenses]
   );
-
   const netProfitOrLoss = totalIncome - totalExpense;
   const isProfitable = netProfitOrLoss >= 0;
+
+  // Category breakdowns (top 8)
+  const expenseByCategory = useMemo(() => {
+    const map = expenses.reduce<Record<string, number>>((acc, e) => {
+      acc[e.category] = (acc[e.category] ?? 0) + Number(e.amount);
+      return acc;
+    }, {});
+    return Object.entries(map)
+      .map(([category, total]) => ({ category, total }))
+      .sort((a, b) => b.total - a.total)
+      .slice(0, 8);
+  }, [expenses]);
+
+  const incomeByCategory = useMemo(() => {
+    const map = incomes.reduce<Record<string, number>>((acc, i) => {
+      acc[i.category] = (acc[i.category] ?? 0) + Number(i.amount);
+      return acc;
+    }, {});
+    return Object.entries(map)
+      .map(([category, total]) => ({ category, total }))
+      .sort((a, b) => b.total - a.total)
+      .slice(0, 8);
+  }, [incomes]);
+
+  const maxExpense = useMemo(
+    () => Math.max(...expenseByCategory.map((c) => c.total), 1),
+    [expenseByCategory]
+  );
+  const maxIncome = useMemo(
+    () => Math.max(...incomeByCategory.map((c) => c.total), 1),
+    [incomeByCategory]
+  );
 
   function resetForm() {
     setEditingId(null);
@@ -80,15 +118,16 @@ export default function ExpensesView() {
     setErrorMsg("");
   }
 
-  function startEdit(item: any, type: "income" | "expense") {
+  function startEdit(item: ExpenseRecord | IncomeRecord, type: "income" | "expense") {
     setActiveTab(type);
     setEditingId(item.id);
     setCategory(item.category);
     setDescription(item.description);
     setAmount(String(item.amount));
     setDate(item.date ? item.date.slice(0, 10) : new Date().toISOString().slice(0, 10));
-    setQuantity(item.quantity ? String(item.quantity) : "");
-    setUnit(item.unit || "");
+    const inc = item as IncomeRecord;
+    setQuantity(inc.quantity ? String(inc.quantity) : "");
+    setUnit(inc.unit || "");
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
@@ -118,13 +157,12 @@ export default function ExpensesView() {
           quantity: parseFloat(quantity) || 0,
           unit: unit.trim(),
         };
-
         if (editingId) {
           await updateIncome(editingId, payload);
-          setSuccessMsg("✓ Income record updated.");
+          setSuccessMsg("Income record updated.");
         } else {
           await addIncome(payload);
-          setSuccessMsg(`✓ Recorded income of KES ${amt.toLocaleString()} (${category}).`);
+          setSuccessMsg(`Income recorded: KES ${amt.toLocaleString()} (${category}).`);
         }
       } else {
         const payload = {
@@ -133,132 +171,119 @@ export default function ExpensesView() {
           amount: amt,
           date,
         };
-
         if (editingId) {
           await updateExpense(editingId, payload);
-          setSuccessMsg("✓ Expense record updated.");
+          setSuccessMsg("Expense record updated.");
         } else {
           await addExpense(payload);
-          setSuccessMsg(`✓ Recorded expense of KES ${amt.toLocaleString()} (${category}).`);
+          setSuccessMsg(`Expense recorded: KES ${amt.toLocaleString()} (${category}).`);
         }
       }
-
       await refreshData();
       resetForm();
     } catch (err) {
-      console.error(err);
       setErrorMsg(err instanceof Error ? err.message : "Failed to save record.");
     } finally {
       setSaving(false);
     }
   }
 
-  async function handleDelete(id: string, desc: string, type: "income" | "expense") {
-    if (!window.confirm(`Delete record "${desc}"?`)) return;
+  async function confirmDelete() {
+    if (!deleteTarget) return;
     try {
-      if (type === "income") await deleteIncome(id);
-      else await deleteExpense(id);
-      setSuccessMsg("✓ Record deleted.");
+      if (deleteTarget.type === "income") await deleteIncome(deleteTarget.id);
+      else await deleteExpense(deleteTarget.id);
+      setSuccessMsg("Record deleted.");
+      setDeleteTarget(null);
       await refreshData();
     } catch (err) {
-      console.error(err);
       setErrorMsg("Failed to delete record.");
+      setDeleteTarget(null);
     }
   }
 
   return (
-    <div className="view-container">
-      {/* Header */}
-      <div className="view-header-row">
-        <div>
-          <h2>Record Income or Expense (Profit & Loss Ledger)</h2>
-          <p className="view-subtitle">
-            Track daily sales, operating expenses, and cashflow in Kenyan Shillings (KES).
-          </p>
-          {loading && <p style={{ color: "#64748b", margin: "0.25rem 0" }}>Loading ledger records...</p>}
-        </div>
+    <main className="kf-page">
+      <PageHeader
+        title="Income & Expenses"
+        description="Track daily sales, operating expenses, and cashflow in Kenyan Shillings (KES)."
+      />
+
+      {/* Stats */}
+      <div className="kf-stat-grid">
+        <StatCard
+          label="Total Farm Income"
+          value={formatCurrency(totalIncome)}
+          hint="All recorded sales"
+          icon={<TrendingUp size={20} />}
+          tone="green"
+        />
+        <StatCard
+          label="Total Expenses"
+          value={formatCurrency(totalExpense)}
+          hint="All recorded costs"
+          icon={<TrendingDown size={20} />}
+          tone="red"
+        />
+        <StatCard
+          label={isProfitable ? "Operating Profit" : "Operating Loss"}
+          value={`${isProfitable ? "+" : ""}${formatCurrency(netProfitOrLoss)}`}
+          hint={isProfitable ? "Surplus" : "Deficit"}
+          icon={isProfitable ? <TrendingUp size={20} /> : <TrendingDown size={20} />}
+          tone={isProfitable ? "green" : "red"}
+        />
       </div>
 
-      {/* Financial Summary Cards */}
-      <div className="poultry-kpi-grid">
-        <div className="kpi-card">
-          <div className="kpi-icon-wrap" style={{ background: "#ecfdf5", color: "#059669" }}>
-            <Coins size={26} />
-          </div>
-          <div>
-            <span className="kpi-label">Total Farm Income</span>
-            <h3 className="kpi-value">KES {totalIncome.toLocaleString()}</h3>
-            <span className="kpi-desc">Sales of eggs, milk & animals</span>
-          </div>
-        </div>
+      {/* Feedback */}
+      {errorMsg && <ErrorBanner message={errorMsg} onRetry={() => setErrorMsg("")} />}
+      {successMsg && <Notice tone="success">{successMsg}</Notice>}
 
-        <div className="kpi-card">
-          <div className="kpi-icon-wrap" style={{ background: "#fef2f2", color: "#dc2626" }}>
-            <TrendingDown size={26} />
-          </div>
-          <div>
-            <span className="kpi-label">Total Expenses</span>
-            <h3 className="kpi-value">KES {totalExpense.toLocaleString()}</h3>
-            <span className="kpi-desc">Feed, labor, vaccines & maintenance</span>
-          </div>
-        </div>
+      {/* Tab selector */}
+      <Segmented
+        label="Record type"
+        options={[
+          { value: "expense", label: "Expenses", icon: <TrendingDown size={15} /> },
+          { value: "income", label: "Income", icon: <TrendingUp size={15} /> },
+        ]}
+        value={activeTab}
+        onChange={(v) => {
+          setActiveTab(v as "income" | "expense");
+          setCategory(v === "income" ? "Egg Sales" : "Poultry Feed");
+          setEditingId(null);
+        }}
+      />
 
-        <div className="kpi-card">
-          <div
-            className="kpi-icon-wrap"
-            style={{
-              background: isProfitable ? "#ecfdf5" : "#fef2f2",
-              color: isProfitable ? "#059669" : "#dc2626",
-            }}
-          >
-            {isProfitable ? <TrendingUp size={26} /> : <TrendingDown size={26} />}
+      {/* Category breakdown */}
+      <Panel
+        title={activeTab === "income" ? "Income by category" : "Expenses by category"}
+        subtitle="Top 8 categories"
+      >
+        {(activeTab === "expense" ? expenseByCategory : incomeByCategory).length === 0 ? (
+          <EmptyState compact title="No records yet" description="Add records below to see the breakdown." />
+        ) : (
+          <div className="kf-bar-chart">
+            {(activeTab === "expense" ? expenseByCategory : incomeByCategory).map((c) => (
+              <CssBar
+                key={c.category}
+                label={c.category}
+                value={c.total}
+                max={activeTab === "expense" ? maxExpense : maxIncome}
+                formatted={formatCurrency(c.total)}
+                tone={activeTab === "expense" ? "red" : "green"}
+              />
+            ))}
           </div>
-          <div>
-            <span className="kpi-label">Operating Profit / Loss</span>
-            <h3 className="kpi-value" style={{ color: isProfitable ? "#059669" : "#dc2626" }}>
-              {isProfitable ? "+" : ""}KES {netProfitOrLoss.toLocaleString()}
-            </h3>
-            <span className="kpi-desc">{isProfitable ? "Surplus (In Profit)" : "Deficit (Operating Loss)"}</span>
-          </div>
-        </div>
-      </div>
+        )}
+      </Panel>
 
-      {/* Form: Record Income or Expense */}
-      <div className="card-box form-card">
-        <div className="type-toggle-tabs">
-          <button
-            type="button"
-            className={`type-tab-btn ${activeTab === "income" ? "active-income" : ""}`}
-            onClick={() => {
-              setActiveTab("income");
-              setCategory("Egg Sales");
-              setEditingId(null);
-            }}
-          >
-            <Coins size={18} /> Record Farm Income (Sales)
-          </button>
-          <button
-            type="button"
-            className={`type-tab-btn ${activeTab === "expense" ? "active-expense" : ""}`}
-            onClick={() => {
-              setActiveTab("expense");
-              setCategory("Poultry Feed");
-              setEditingId(null);
-            }}
-          >
-            <TrendingDown size={18} /> Record Farm Expense (Costs)
-          </button>
-        </div>
-
-        {errorMsg && <div className="daily-alert error-alert">{errorMsg}</div>}
-        {successMsg && <div className="daily-alert success-alert">{successMsg}</div>}
-
-        <form onSubmit={handleSubmit} className="poultry-form" style={{ marginTop: 20 }}>
-          <div className="form-row-3">
-            <div className="form-field">
-              <label>{activeTab === "income" ? "Income Category *" : "Expense Category *"}</label>
+      {/* Form */}
+      <Panel title={editingId ? `Edit ${activeTab} record` : `Add ${activeTab} record`}>
+        <form onSubmit={handleSubmit} className="kf-form">
+          <div className="kf-form-grid">
+            <Field label={activeTab === "income" ? "Income Category" : "Expense Category"} required>
               {activeTab === "income" ? (
                 <select
+                  className="kf-input"
                   value={category}
                   onChange={(e) => {
                     setCategory(e.target.value);
@@ -269,16 +294,20 @@ export default function ExpensesView() {
                 >
                   <option value="Egg Sales">Egg Sales</option>
                   <option value="Milk Sales">Milk Sales</option>
-                  <option value="Poultry Sales">Poultry Sales (Chickens/Broilers)</option>
+                  <option value="Poultry Sales">Poultry Sales</option>
                   <option value="Cattle Sales">Cattle / Calf Sales</option>
                   <option value="Manure Sales">Manure Sales</option>
                   <option value="Other Farm Income">Other Farm Income</option>
                 </select>
               ) : (
-                <select value={category} onChange={(e) => setCategory(e.target.value)}>
-                  <option value="Poultry Feed">Poultry Feed (Mash / Pellets)</option>
-                  <option value="Cattle Feed">Cattle Feed (Dairy Meal / Hay / Silage)</option>
-                  <option value="Chicks Purchased">Chicks Purchased (Day-old)</option>
+                <select
+                  className="kf-input"
+                  value={category}
+                  onChange={(e) => setCategory(e.target.value)}
+                >
+                  <option value="Poultry Feed">Poultry Feed</option>
+                  <option value="Cattle Feed">Cattle Feed</option>
+                  <option value="Chicks Purchased">Chicks Purchased</option>
                   <option value="Cattle Purchased">Cattle / Calf Purchased</option>
                   <option value="Vaccines & Medication">Vaccines & Medication</option>
                   <option value="Veterinary Services">Veterinary Services</option>
@@ -286,39 +315,37 @@ export default function ExpensesView() {
                   <option value="Transport">Transport & Logistics</option>
                   <option value="Water & Electricity">Water & Electricity</option>
                   <option value="Equipment & Repairs">Equipment & Housing Repairs</option>
-                  <option value="Packaging">Packaging (Egg trays, etc.)</option>
+                  <option value="Packaging">Packaging</option>
                   <option value="Other Operating Expense">Other Operating Expense</option>
                 </select>
               )}
-            </div>
+            </Field>
 
-            <div className="form-field">
-              <label>Amount (KES) *</label>
+            <Field label="Amount (KES)" required>
               <input
                 type="number"
+                className="kf-input"
                 placeholder="e.g. 5000"
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
                 required
               />
-            </div>
+            </Field>
 
-            <div className="form-field">
-              <label>Transaction Date *</label>
+            <Field label="Transaction Date" required>
               <input
                 type="date"
+                className="kf-input"
                 value={date}
                 onChange={(e) => setDate(e.target.value)}
                 required
               />
-            </div>
-          </div>
+            </Field>
 
-          <div className="form-row-2">
-            <div className="form-field" style={{ flex: 2 }}>
-              <label>Description / Notes *</label>
+            <Field label="Description / Notes" required className="kf-field--span2">
               <input
                 type="text"
+                className="kf-input"
                 placeholder={
                   activeTab === "income"
                     ? "e.g. Sold 15 trays of eggs to local bakery"
@@ -328,65 +355,80 @@ export default function ExpensesView() {
                 onChange={(e) => setDescription(e.target.value)}
                 required
               />
-            </div>
+            </Field>
 
             {activeTab === "income" && (
-              <div className="form-field" style={{ flex: 1 }}>
-                <label>Quantity & Unit (Optional)</label>
-                <div style={{ display: "flex", gap: 8 }}>
+              <>
+                <Field label="Quantity (optional)">
                   <input
                     type="number"
-                    placeholder="Qty"
+                    className="kf-input"
+                    placeholder="e.g. 15"
                     value={quantity}
                     onChange={(e) => setQuantity(e.target.value)}
                   />
+                </Field>
+                <Field label="Unit (optional)">
                   <input
                     type="text"
-                    placeholder="Unit"
+                    className="kf-input"
+                    placeholder="e.g. trays"
                     value={unit}
                     onChange={(e) => setUnit(e.target.value)}
                   />
-                </div>
-              </div>
+                </Field>
+              </>
             )}
           </div>
 
-          <div className="form-buttons-row">
+          <div className="kf-form-actions">
             {editingId && (
-              <button type="button" className="btn-secondary" onClick={resetForm}>
+              <Button variant="secondary" onClick={resetForm}>
                 Cancel Edit
-              </button>
+              </Button>
             )}
-            <button type="submit" className="btn-primary" disabled={saving}>
-              {saving ? "Saving..." : editingId ? "Update Record" : activeTab === "income" ? "+ Save Income" : "+ Save Expense"}
-            </button>
+            <Button variant="primary" loading={saving} onClick={() => {}}>
+              <span>
+                {saving
+                  ? "Saving…"
+                  : editingId
+                  ? "Update Record"
+                  : activeTab === "income"
+                  ? "Save Income"
+                  : "Save Expense"}
+              </span>
+            </Button>
           </div>
         </form>
-      </div>
+      </Panel>
 
-      {/* Financial Records Tables */}
-      <div className="card-box">
-        <h3 className="card-heading">
-          {activeTab === "income" ? `Recorded Farm Income (${incomes.length})` : `Recorded Farm Expenses (${expenses.length})`}
-        </h3>
-
-        {activeTab === "income" ? (
+      {/* Records table */}
+      <Panel
+        title={
+          activeTab === "income"
+            ? `Recorded Farm Income (${incomes.length})`
+            : `Recorded Farm Expenses (${expenses.length})`
+        }
+      >
+        {loading ? (
+          <EmptyState title="Loading…" description="Fetching financial records." />
+        ) : activeTab === "income" ? (
           incomes.length === 0 ? (
-            <div className="empty-state">
-              <Coins size={48} />
-              <h4>No income records yet</h4>
-              <p>Record your egg, milk, or chicken sales above to track farm profits.</p>
-            </div>
+            <EmptyState
+              icon={<Wallet size={40} />}
+              title="No income records yet"
+              description="Record your egg, milk, or chicken sales above to track farm profits."
+            />
           ) : (
-            <div className="table-responsive">
-              <table className="modern-table">
+            <div className="kf-table-wrap">
+              <table className="kf-table">
                 <thead>
                   <tr>
                     <th>Date</th>
                     <th>Category</th>
                     <th>Description</th>
                     <th>Qty / Unit</th>
-                    <th>Amount (KES)</th>
+                    <th>Amount KES</th>
                     <th>Actions</th>
                   </tr>
                 </thead>
@@ -394,25 +436,29 @@ export default function ExpensesView() {
                   {incomes.map((inc) => (
                     <tr key={inc.id}>
                       <td>{inc.date ? inc.date.slice(0, 10) : "—"}</td>
-                      <td>
-                        <span className="badge-stage badge-layers">{inc.category}</span>
-                      </td>
+                      <td>{inc.category}</td>
                       <td>{inc.description}</td>
                       <td>{inc.quantity ? `${inc.quantity} ${inc.unit || ""}` : "—"}</td>
                       <td>
-                        <strong style={{ color: "#059669" }}>+KES {Number(inc.amount).toLocaleString()}</strong>
+                        <strong style={{ color: "var(--kf-green-600, #16a34a)" }}>
+                          +{formatCurrency(inc.amount)}
+                        </strong>
                       </td>
                       <td>
-                        <div className="row-actions">
-                          <button className="btn-icon" onClick={() => startEdit(inc, "income")}>
-                            <Edit2 size={16} />
-                          </button>
-                          <button
-                            className="btn-icon delete-icon"
-                            onClick={() => handleDelete(inc.id, inc.description, "income")}
-                          >
-                            <Trash2 size={16} />
-                          </button>
+                        <div className="kf-row-actions">
+                          <IconButton
+                            label="Edit"
+                            icon={<Pencil size={15} />}
+                            onClick={() => startEdit(inc, "income")}
+                          />
+                          <IconButton
+                            label="Delete"
+                            icon={<Trash2 size={15} />}
+                            onClick={() =>
+                              setDeleteTarget({ id: inc.id, desc: inc.description, type: "income" })
+                            }
+                            tone="danger"
+                          />
                         </div>
                       </td>
                     </tr>
@@ -422,20 +468,20 @@ export default function ExpensesView() {
             </div>
           )
         ) : expenses.length === 0 ? (
-          <div className="empty-state">
-            <TrendingDown size={48} />
-            <h4>No expense records yet</h4>
-            <p>Record your feed, vet, and operating costs above.</p>
-          </div>
+          <EmptyState
+            icon={<TrendingDown size={40} />}
+            title="No expense records yet"
+            description="Record your feed, vet, and operating costs above."
+          />
         ) : (
-          <div className="table-responsive">
-            <table className="modern-table">
+          <div className="kf-table-wrap">
+            <table className="kf-table">
               <thead>
                 <tr>
                   <th>Date</th>
                   <th>Category</th>
                   <th>Description</th>
-                  <th>Amount (KES)</th>
+                  <th>Amount KES</th>
                   <th>Actions</th>
                 </tr>
               </thead>
@@ -443,24 +489,28 @@ export default function ExpensesView() {
                 {expenses.map((exp) => (
                   <tr key={exp.id}>
                     <td>{exp.date ? exp.date.slice(0, 10) : "—"}</td>
-                    <td>
-                      <span className="badge-stage badge-broilers">{exp.category}</span>
-                    </td>
+                    <td>{exp.category}</td>
                     <td>{exp.description}</td>
                     <td>
-                      <strong style={{ color: "#b91c1c" }}>-KES {Number(exp.amount).toLocaleString()}</strong>
+                      <strong style={{ color: "var(--kf-red-600, #dc2626)" }}>
+                        -{formatCurrency(exp.amount)}
+                      </strong>
                     </td>
                     <td>
-                      <div className="row-actions">
-                        <button className="btn-icon" onClick={() => startEdit(exp, "expense")}>
-                          <Edit2 size={16} />
-                        </button>
-                        <button
-                          className="btn-icon delete-icon"
-                          onClick={() => handleDelete(exp.id, exp.description, "expense")}
-                        >
-                          <Trash2 size={16} />
-                        </button>
+                      <div className="kf-row-actions">
+                        <IconButton
+                          label="Edit"
+                          icon={<Pencil size={15} />}
+                          onClick={() => startEdit(exp, "expense")}
+                        />
+                        <IconButton
+                          label="Delete"
+                          icon={<Trash2 size={15} />}
+                          onClick={() =>
+                            setDeleteTarget({ id: exp.id, desc: exp.description, type: "expense" })
+                          }
+                          tone="danger"
+                        />
                       </div>
                     </td>
                   </tr>
@@ -469,7 +519,29 @@ export default function ExpensesView() {
             </table>
           </div>
         )}
-      </div>
-    </div>
+      </Panel>
+
+      {/* Delete confirm modal */}
+      <Modal
+        open={!!deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        title="Delete record?"
+        size="sm"
+        footer={
+          <div className="kf-modal-footer-actions">
+            <Button variant="secondary" onClick={() => setDeleteTarget(null)}>
+              Cancel
+            </Button>
+            <Button variant="danger" onClick={confirmDelete}>
+              Delete
+            </Button>
+          </div>
+        }
+      >
+        <p>
+          Delete <strong>"{deleteTarget?.desc}"</strong>? This action cannot be undone.
+        </p>
+      </Modal>
+    </main>
   );
 }

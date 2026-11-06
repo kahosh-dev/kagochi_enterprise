@@ -1,13 +1,18 @@
 import { useEffect, useState } from "react";
 import { loadFarmSummary } from "../services/storage";
 import type { FarmSummaryData } from "../types/farm";
+import { TrendingUp, TrendingDown, Coins, Calendar, Download, Bird, Beef, Egg } from "lucide-react";
 import {
-  TrendingUp,
-  TrendingDown,
-  Coins,
-  Calendar,
-  Download,
-} from "lucide-react";
+  PageHeader,
+  StatCard,
+  Panel,
+  Button,
+  EmptyState,
+  ErrorBanner,
+  Segmented,
+  CssBar,
+} from "../components/ui";
+import { formatCurrency, formatNumber, percent } from "../utils/format";
 
 type ReportPeriodKey = "daily" | "weekly" | "monthly" | "quarterly" | "annual" | "custom";
 
@@ -22,26 +27,18 @@ export default function PerformanceView() {
   const todayStr = new Date().toISOString().slice(0, 10);
 
   function getQueryParams(key: ReportPeriodKey) {
-    if (key === "daily") {
-      return { days: 1, to: todayStr, from: todayStr };
-    }
-    if (key === "weekly") {
-      return { days: 7, to: todayStr };
-    }
+    if (key === "daily") return { days: 1, to: todayStr, from: todayStr };
+    if (key === "weekly") return { days: 7, to: todayStr };
     if (key === "monthly") {
       const startOfMonth = `${todayStr.slice(0, 7)}-01`;
       return { to: todayStr, from: startOfMonth };
     }
-    if (key === "quarterly") {
-      return { days: 90, to: todayStr };
-    }
+    if (key === "quarterly") return { days: 90, to: todayStr };
     if (key === "annual") {
       const startOfYear = `${todayStr.slice(0, 4)}-01-01`;
       return { to: todayStr, from: startOfYear };
     }
-    if (key === "custom" && customFrom && customTo) {
-      return { from: customFrom, to: customTo };
-    }
+    if (key === "custom" && customFrom && customTo) return { from: customFrom, to: customTo };
     return { days: 30, to: todayStr };
   }
 
@@ -53,7 +50,6 @@ export default function PerformanceView() {
       const data = await loadFarmSummary(params);
       setSummary(data);
     } catch (err) {
-      console.error(err);
       setErrorMsg(err instanceof Error ? err.message : "Failed to calculate farm performance.");
     } finally {
       setLoading(false);
@@ -70,10 +66,20 @@ export default function PerformanceView() {
   const isProfitable = profitOrLoss >= 0;
   const netMargin = summary?.financial.netMarginPercent;
 
-  const incomeCategories = summary?.income.byCategory ?? [];
-  const expenseCategories = summary?.expenses.byCategory ?? [];
+  const incomeCategories = (summary?.income.byCategory ?? []).slice(0, 8);
+  const expenseCategories = (summary?.expenses.byCategory ?? []).slice(0, 8);
+  const maxIncome = Math.max(...incomeCategories.map((c) => c.total), 1);
+  const maxExpense = Math.max(...expenseCategories.map((c) => c.total), 1);
 
-  // Export to CSV
+  const lossPercent = summary?.population.poultry.lossPercent ?? 0;
+
+  const eggsLine = summary?.production.lines.find((l) => l.type === "eggs");
+  const milkLine = summary?.production.lines.find((l) => l.type === "milk");
+
+  const kgFeed = summary?.feeding.totalsByUnit.find((u) => u.unit === "kg");
+  const bagsFeed = summary?.feeding.totalsByUnit.find((u) => u.unit === "bags");
+
+  // Export to CSV — preserved unchanged
   function exportCSV() {
     if (!summary) return;
     const rows = [
@@ -93,246 +99,253 @@ export default function PerformanceView() {
       ["Expense Categories", "Amount (KES)", "Share %"],
       ...expenseCategories.map((c) => [c.category, c.total, `${c.sharePercent ?? 0}%`]),
     ];
-
-    const csvContent = "data:text/csv;charset=utf-8," + rows.map((e) => e.join(",")).join("\n");
+    const csvContent =
+      "data:text/csv;charset=utf-8," + rows.map((e) => e.join(",")).join("\n");
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement("a");
     link.setAttribute("href", encodedUri);
-    link.setAttribute("download", `kagochi_pnl_${summary.period.from}_${summary.period.to}.csv`);
+    link.setAttribute(
+      "download",
+      `kagochi_pnl_${summary.period.from}_${summary.period.to}.csv`
+    );
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
   }
 
   return (
-    <div className="view-container">
-      {/* View Header */}
-      <div className="view-header-row">
-        <div>
-          <h2>Farm Profit & Loss Report</h2>
-          <p className="view-subtitle">
-            Actual daily, weekly, monthly, and yearly operating financial statements for Kagochi Farm.
-          </p>
+    <main className="kf-page">
+      <PageHeader
+        title="Analytics & Performance"
+        description="Actual operating financial statements and production analytics for your farm."
+        actions={
+          <Button
+            variant="ghost"
+            icon={<Download size={16} />}
+            onClick={exportCSV}
+            disabled={!summary}
+          >
+            Export CSV
+          </Button>
+        }
+      />
+
+      {/* Period selector */}
+      <Segmented
+        label="Report period"
+        options={[
+          { value: "daily", label: "Daily" },
+          { value: "weekly", label: "Weekly" },
+          { value: "monthly", label: "Monthly" },
+          { value: "quarterly", label: "Quarterly" },
+          { value: "annual", label: "Annual" },
+          { value: "custom", label: "Custom" },
+        ]}
+        value={periodKey}
+        onChange={(v) => setPeriodKey(v as ReportPeriodKey)}
+      />
+
+      {periodKey === "custom" && (
+        <div className="kf-filter-row">
+          <label className="kf-label" htmlFor="perf-from">
+            <Calendar size={14} /> From
+          </label>
+          <input
+            id="perf-from"
+            type="date"
+            className="kf-input"
+            value={customFrom}
+            onChange={(e) => setCustomFrom(e.target.value)}
+          />
+          <span style={{ padding: "0 0.5rem" }}>to</span>
+          <input
+            type="date"
+            className="kf-input"
+            value={customTo}
+            onChange={(e) => setCustomTo(e.target.value)}
+          />
         </div>
-        <button type="button" className="btn-secondary" onClick={exportCSV} disabled={!summary}>
-          <Download size={16} /> Export Statement (CSV)
-        </button>
+      )}
+
+      {errorMsg && <ErrorBanner message={errorMsg} onRetry={fetchReport} />}
+
+      {/* Financial summary cards */}
+      <div className="kf-stat-grid">
+        <StatCard
+          label="Gross Farm Income"
+          value={formatCurrency(totalIncome)}
+          hint={
+            summary?.income.changePercent != null
+              ? `${summary.income.changePercent >= 0 ? "+" : ""}${summary.income.changePercent}% vs prev`
+              : "Realized sales in period"
+          }
+          icon={<Coins size={20} />}
+          tone="green"
+        />
+        <StatCard
+          label="Operating Expenses"
+          value={formatCurrency(totalExpenses)}
+          hint={
+            summary?.expenses.changePercent != null
+              ? `${summary.expenses.changePercent >= 0 ? "+" : ""}${summary.expenses.changePercent}% vs prev`
+              : "Operating costs in period"
+          }
+          icon={<TrendingDown size={20} />}
+          tone="red"
+        />
+        <StatCard
+          label={isProfitable ? "Operating Profit" : "Operating Loss"}
+          value={`${isProfitable ? "+" : ""}${formatCurrency(profitOrLoss)}`}
+          hint={netMargin != null ? `Margin: ${netMargin}%` : "Income minus costs"}
+          icon={isProfitable ? <TrendingUp size={20} /> : <TrendingDown size={20} />}
+          tone={isProfitable ? "green" : "red"}
+        />
       </div>
 
-      {/* Period Selection Tabs */}
-      <div className="dashboard-filter-bar" style={{ marginBottom: 24 }}>
-        <div className="filter-chips">
-          <span className="filter-label">
-            <Calendar size={15} /> Period:
-          </span>
-          <button
-            className={`filter-chip ${periodKey === "daily" ? "active" : ""}`}
-            onClick={() => setPeriodKey("daily")}
-          >
-            Daily (Today)
-          </button>
-          <button
-            className={`filter-chip ${periodKey === "weekly" ? "active" : ""}`}
-            onClick={() => setPeriodKey("weekly")}
-          >
-            Weekly (7 Days)
-          </button>
-          <button
-            className={`filter-chip ${periodKey === "monthly" ? "active" : ""}`}
-            onClick={() => setPeriodKey("monthly")}
-          >
-            Month-to-Date
-          </button>
-          <button
-            className={`filter-chip ${periodKey === "quarterly" ? "active" : ""}`}
-            onClick={() => setPeriodKey("quarterly")}
-          >
-            Quarterly (90 Days)
-          </button>
-          <button
-            className={`filter-chip ${periodKey === "annual" ? "active" : ""}`}
-            onClick={() => setPeriodKey("annual")}
-          >
-            Year-to-Date
-          </button>
-          <button
-            className={`filter-chip ${periodKey === "custom" ? "active" : ""}`}
-            onClick={() => setPeriodKey("custom")}
-          >
-            Custom Range
-          </button>
-        </div>
-
-        {periodKey === "custom" && (
-          <div className="custom-range-inputs">
-            <input
-              type="date"
-              value={customFrom}
-              onChange={(e) => setCustomFrom(e.target.value)}
-              placeholder="From"
-            />
-            <span>to</span>
-            <input
-              type="date"
-              value={customTo}
-              onChange={(e) => setCustomTo(e.target.value)}
-              placeholder="To"
-            />
+      {/* Income by category */}
+      <Panel
+        title="Income breakdown"
+        subtitle="Top income sources this period"
+      >
+        {incomeCategories.length === 0 ? (
+          <EmptyState compact title="No income recorded" description="No income in this period." />
+        ) : (
+          <div className="kf-bar-chart">
+            {incomeCategories.map((c) => (
+              <CssBar
+                key={c.category}
+                label={c.category}
+                value={c.total}
+                max={maxIncome}
+                formatted={formatCurrency(c.total)}
+                tone="green"
+              />
+            ))}
           </div>
         )}
+      </Panel>
 
-        <div className="period-badge-indicator">
-          <span>
-            {summary ? `${summary.period.from} to ${summary.period.to} (${summary.period.days} day${summary.period.days > 1 ? "s" : ""})` : "Loading..."}
-          </span>
+      {/* Expense by category */}
+      <Panel
+        title="Expense breakdown"
+        subtitle="Where your money was spent this period"
+      >
+        {expenseCategories.length === 0 ? (
+          <EmptyState compact title="No expenses recorded" description="No expenses in this period." />
+        ) : (
+          <div className="kf-bar-chart">
+            {expenseCategories.map((c) => (
+              <CssBar
+                key={c.category}
+                label={c.category}
+                value={c.total}
+                max={maxExpense}
+                formatted={formatCurrency(c.total)}
+                tone="red"
+              />
+            ))}
+          </div>
+        )}
+      </Panel>
+
+      {/* Population */}
+      <Panel title="Current population">
+        <div className="kf-stat-grid">
+          <StatCard
+            label="Poultry (birds)"
+            value={formatNumber(summary?.population.poultry.currentBirds ?? 0)}
+            hint="Active birds"
+            icon={<Bird size={20} />}
+            tone="green"
+          />
+          <StatCard
+            label="Livestock (animals)"
+            value={formatNumber(summary?.population.livestock.animalCount ?? 0)}
+            hint="Active animals"
+            icon={<Beef size={20} />}
+            tone="forest"
+          />
         </div>
-      </div>
+      </Panel>
 
-      {errorMsg && <div className="daily-alert error-alert">{errorMsg}</div>}
-
-      {/* Main P&L KPI Cards */}
-      <div className="poultry-kpi-grid">
-        <div className="kpi-card">
-          <div className="kpi-icon-wrap" style={{ background: "#ecfdf5", color: "#059669" }}>
-            <Coins size={26} />
-          </div>
-          <div>
-            <span className="kpi-label">Gross Farm Income</span>
-            <h3 className="kpi-value">KES {totalIncome.toLocaleString()}</h3>
-            <span className="kpi-desc">
-              {summary?.income.changePercent !== null && summary?.income.changePercent !== undefined
-                ? `${summary.income.changePercent >= 0 ? "+" : ""}${summary.income.changePercent}% vs prev period`
-                : "Realized sales in period"}
-            </span>
-          </div>
+      {/* Mortality rate */}
+      <Panel title="Mortality rate">
+        <div className="kf-bar-chart">
+          <CssBar
+            label="Bird mortality"
+            value={lossPercent ?? 0}
+            max={100}
+            formatted={percent(lossPercent)}
+            tone={lossPercent > 5 ? "red" : "amber"}
+          />
         </div>
+      </Panel>
 
-        <div className="kpi-card">
-          <div className="kpi-icon-wrap" style={{ background: "#fef2f2", color: "#dc2626" }}>
-            <TrendingDown size={26} />
-          </div>
-          <div>
-            <span className="kpi-label">Operating Expenses</span>
-            <h3 className="kpi-value">KES {totalExpenses.toLocaleString()}</h3>
-            <span className="kpi-desc">
-              {summary?.expenses.changePercent !== null && summary?.expenses.changePercent !== undefined
-                ? `${summary.expenses.changePercent >= 0 ? "+" : ""}${summary.expenses.changePercent}% vs prev period`
-                : "Operating costs in period"}
-            </span>
-          </div>
+      {/* Production */}
+      <Panel title="Production">
+        <div className="kf-stat-grid">
+          <StatCard
+            label="Eggs produced"
+            value={formatNumber(summary?.production.eggsProduced ?? 0)}
+            hint="In period"
+            icon={<Egg size={20} />}
+            tone="amber"
+            trend={
+              eggsLine?.changePercent != null
+                ? {
+                    value: `${Math.abs(eggsLine.changePercent)}% vs prev`,
+                    direction:
+                      eggsLine.changePercent > 0
+                        ? "up"
+                        : eggsLine.changePercent < 0
+                        ? "down"
+                        : "flat",
+                  }
+                : undefined
+            }
+          />
+          <StatCard
+            label="Milk produced (L)"
+            value={formatNumber(summary?.production.milkProduced ?? 0)}
+            hint="In period"
+            icon={<Coins size={20} />}
+            tone="blue"
+            trend={
+              milkLine?.changePercent != null
+                ? {
+                    value: `${Math.abs(milkLine.changePercent)}% vs prev`,
+                    direction:
+                      milkLine.changePercent > 0
+                        ? "up"
+                        : milkLine.changePercent < 0
+                        ? "down"
+                        : "flat",
+                  }
+                : undefined
+            }
+          />
         </div>
+      </Panel>
 
-        <div className="kpi-card">
-          <div
-            className="kpi-icon-wrap"
-            style={{
-              background: isProfitable ? "#ecfdf5" : "#fef2f2",
-              color: isProfitable ? "#059669" : "#dc2626",
-            }}
-          >
-            {isProfitable ? <TrendingUp size={26} /> : <TrendingDown size={26} />}
-          </div>
-          <div>
-            <span className="kpi-label">Operating Profit / (Loss)</span>
-            <h3 className="kpi-value" style={{ color: isProfitable ? "#059669" : "#dc2626" }}>
-              {isProfitable ? "+" : ""}KES {profitOrLoss.toLocaleString()}
-            </h3>
-            <span className="kpi-desc">
-              {netMargin !== null && netMargin !== undefined ? `Margin: ${netMargin}%` : "Income minus operating costs"}
-            </span>
-          </div>
+      {/* Feed */}
+      <Panel title="Feed consumption">
+        <div className="kf-stat-grid">
+          <StatCard
+            label="Feed (kg)"
+            value={formatNumber(kgFeed?.total ?? 0)}
+            hint="Kilograms fed"
+            icon={<Coins size={20} />}
+            tone="slate"
+          />
+          <StatCard
+            label="Feed (bags)"
+            value={formatNumber(bagsFeed?.total ?? 0)}
+            hint="Bags used"
+            icon={<Coins size={20} />}
+            tone="slate"
+          />
         </div>
-      </div>
-
-      {/* Cash Flow vs Accounting Profit explanation */}
-      <div className="card-box" style={{ background: "#f8fafc", borderLeft: "4px solid #2563eb" }}>
-        <h4 style={{ margin: "0 0 6px 0", color: "#1e293b", fontSize: 15 }}>
-          💡 Farmer's Financial Distinction: Cashflow vs Profit
-        </h4>
-        <p style={{ margin: 0, fontSize: 13, color: "#475569", lineHeight: 1.5 }}>
-          <strong>Cash Flow:</strong> Actual money received (KES {summary?.financial.cashReceived.toLocaleString() ?? 0}) minus actual money paid out (KES {summary?.financial.cashPaid.toLocaleString() ?? 0}).
-          <br />
-          <strong>Operating Profit:</strong> Shows whether your poultry and cattle operations are generating more revenue than what is spent to feed, house, and vaccinate them. Capital investments (such as acquiring breeding stock or housing) build your farm asset base.
-        </p>
-      </div>
-
-      {/* Breakdown Grids: Top Incomes & Largest Expenses */}
-      <div className="two-column-grid" style={{ marginTop: 24 }}>
-        {/* Income Breakdown */}
-        <div className="card-box">
-          <div className="card-header-bar">
-            <div>
-              <h3 className="card-heading">Top Income Sources</h3>
-              <p className="card-subheading">Breakdown of farm sales in this period.</p>
-            </div>
-            <Coins size={20} color="#059669" />
-          </div>
-
-          {incomeCategories.length === 0 ? (
-            <div className="empty-state">
-              <Coins size={36} />
-              <p>No income recorded in this period.</p>
-            </div>
-          ) : (
-            <div className="category-bars-list">
-              {incomeCategories.map((c) => (
-                <div key={c.category} className="cat-bar-item">
-                  <div className="cat-bar-header">
-                    <span className="cat-name">{c.category}</span>
-                    <span className="cat-val">
-                      KES {c.total.toLocaleString()} ({c.sharePercent ?? 0}%)
-                    </span>
-                  </div>
-                  <div className="cat-bar-track">
-                    <div
-                      className="cat-bar-fill income-fill"
-                      style={{ width: `${Math.min(100, c.sharePercent ?? 0)}%` }}
-                    />
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Expense Breakdown */}
-        <div className="card-box">
-          <div className="card-header-bar">
-            <div>
-              <h3 className="card-heading">Largest Expense Categories</h3>
-              <p className="card-subheading">Where your money was spent in this period.</p>
-            </div>
-            <TrendingDown size={20} color="#dc2626" />
-          </div>
-
-          {expenseCategories.length === 0 ? (
-            <div className="empty-state">
-              <TrendingDown size={36} />
-              <p>No expenses recorded in this period.</p>
-            </div>
-          ) : (
-            <div className="category-bars-list">
-              {expenseCategories.map((c) => (
-                <div key={c.category} className="cat-bar-item">
-                  <div className="cat-bar-header">
-                    <span className="cat-name">{c.category}</span>
-                    <span className="cat-val">
-                      KES {c.total.toLocaleString()} ({c.sharePercent ?? 0}%)
-                    </span>
-                  </div>
-                  <div className="cat-bar-track">
-                    <div
-                      className="cat-bar-fill expense-fill"
-                      style={{ width: `${Math.min(100, c.sharePercent ?? 0)}%` }}
-                    />
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
+      </Panel>
+    </main>
   );
 }
-

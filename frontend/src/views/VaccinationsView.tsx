@@ -16,15 +16,124 @@ import type {
   PoultryBatch,
   LivestockAnimal,
 } from "../types/farm";
+import { Syringe, Trash2, CheckCircle2, Plus } from "lucide-react";
 import {
-  Syringe,
-  Calendar,
-  AlertTriangle,
-  CheckCircle2,
-  Clock,
-  Plus,
-  Trash2,
-} from "lucide-react";
+  PageHeader,
+  Panel,
+  Field,
+  Button,
+  IconButton,
+  EmptyState,
+  ErrorBanner,
+  Notice,
+  Segmented,
+  Modal,
+  Badge,
+} from "../components/ui";
+
+// Map status → Badge tone
+type BadgeTone = "green" | "amber" | "red" | "blue" | "slate";
+
+function statusTone(status: string): BadgeTone {
+  if (status === "completed") return "green";
+  if (status === "overdue") return "red";
+  if (status === "due_today" || status === "due") return "amber";
+  if (status === "upcoming" || status === "scheduled") return "blue";
+  return "slate";
+}
+
+function statusLabel(status: string): string {
+  if (status === "completed") return "Completed";
+  if (status === "overdue") return "Overdue";
+  if (status === "due_today" || status === "due") return "Due Today";
+  if (status === "upcoming") return "Upcoming";
+  if (status === "scheduled") return "Scheduled";
+  if (status === "cancelled") return "Cancelled";
+  return status;
+}
+
+// A small table component for a vaccination group
+function VaccGroup({
+  title,
+  tone,
+  vaccs,
+  onMarkDone,
+  onDelete,
+}: {
+  title: string;
+  tone: BadgeTone;
+  vaccs: VaccinationRecord[];
+  onMarkDone: (v: VaccinationRecord) => void;
+  onDelete: (id: string) => void;
+}) {
+  return (
+    <div style={{ marginBottom: "1.5rem" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.5rem" }}>
+        <Badge tone={tone}>{title}</Badge>
+        <Badge tone="slate">{vaccs.length}</Badge>
+      </div>
+      {vaccs.length === 0 ? (
+        <EmptyState compact title={`No ${title.toLowerCase()} vaccinations`} />
+      ) : (
+        <div className="kf-table-wrap">
+          <table className="kf-table">
+            <thead>
+              <tr>
+                <th>Vaccine Name</th>
+                <th>Species</th>
+                <th>Target</th>
+                <th>Date Due</th>
+                <th>Date Administered</th>
+                <th>Count</th>
+                <th>Status</th>
+                <th>Notes</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {vaccs.map((v) => (
+                <tr key={v.id}>
+                  <td>
+                    <strong>{v.vaccineName}</strong>
+                  </td>
+                  <td>{v.species === "poultry" ? "Poultry" : "Cattle"}</td>
+                  <td>{v.targetName}</td>
+                  <td>{v.dateDue ? v.dateDue.slice(0, 10) : "—"}</td>
+                  <td>{v.dateAdministered ? v.dateAdministered.slice(0, 10) : "—"}</td>
+                  <td>{v.countVaccinated ?? "—"}</td>
+                  <td>
+                    <Badge tone={statusTone(v.status)}>{statusLabel(v.status)}</Badge>
+                  </td>
+                  <td>{v.notes || "—"}</td>
+                  <td>
+                    <div className="kf-row-actions">
+                      {v.status !== "completed" && (
+                        <Button
+                          variant="soft"
+                          size="sm"
+                          icon={<CheckCircle2 size={14} />}
+                          onClick={() => onMarkDone(v)}
+                        >
+                          Mark done
+                        </Button>
+                      )}
+                      <IconButton
+                        label="Delete"
+                        icon={<Trash2 size={15} />}
+                        onClick={() => onDelete(v.id)}
+                        tone="danger"
+                      />
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function VaccinationsView() {
   const [activeTab, setActiveTab] = useState<"reminders" | "schedules" | "add">("reminders");
@@ -35,17 +144,20 @@ export default function VaccinationsView() {
   const [_loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
-  // Form states for new vaccination
+  // Vaccination form
   const [species, setSpecies] = useState<"poultry" | "cattle">("poultry");
   const [targetName, setTargetName] = useState("");
   const [vaccineName, setVaccineName] = useState("");
   const [disease, setDisease] = useState("");
   const [dateDue, setDateDue] = useState(new Date().toISOString().slice(0, 10));
-  const [countVaccinated, setCountVaccinated] = useState(0);
+  const [dateAdministered, setDateAdministered] = useState("");
   const [dose, setDose] = useState("");
+  const [countVaccinated, setCountVaccinated] = useState(0);
+  const [administeredBy, setAdministeredBy] = useState("");
+  const [vacStatus, setVacStatus] = useState<VaccinationRecord["status"]>("scheduled");
   const [notes, setNotes] = useState("");
 
-  // Schedule form state
+  // Schedule form
   const [schSpecies, setSchSpecies] = useState<"poultry" | "cattle">("poultry");
   const [schCategory, setSchCategory] = useState("chicks");
   const [schVaccine, setSchVaccine] = useState("");
@@ -56,7 +168,7 @@ export default function VaccinationsView() {
   const [errorMsg, setErrorMsg] = useState("");
   const [successMsg, setSuccessMsg] = useState("");
 
-  // Mark Done modal state
+  // Mark Done modal
   const [markDoneId, setMarkDoneId] = useState<string | null>(null);
   const [markDoneDate, setMarkDoneDate] = useState(new Date().toISOString().slice(0, 10));
   const [markDoneCount, setMarkDoneCount] = useState(0);
@@ -90,12 +202,12 @@ export default function VaccinationsView() {
     refreshData();
   }, []);
 
-  // Categorize reminders
-  const dueToday = vaccinations.filter(
-    (v) => v.status !== "completed" && v.dateDue && v.dateDue.slice(0, 10) === todayStr
-  );
+  // Reminder groups
   const overdue = vaccinations.filter(
     (v) => v.status !== "completed" && v.dateDue && v.dateDue.slice(0, 10) < todayStr
+  );
+  const dueToday = vaccinations.filter(
+    (v) => v.status !== "completed" && v.dateDue && v.dateDue.slice(0, 10) === todayStr
   );
   const upcoming7 = vaccinations.filter((v) => {
     if (v.status === "completed" || !v.dateDue) return false;
@@ -130,6 +242,8 @@ export default function VaccinationsView() {
 
   async function handleSaveVaccination(e: React.FormEvent) {
     e.preventDefault();
+    setErrorMsg("");
+    setSuccessMsg("");
     if (!vaccineName.trim()) {
       setErrorMsg("Please enter the vaccine name.");
       return;
@@ -144,19 +258,22 @@ export default function VaccinationsView() {
         vaccineName: vaccineName.trim(),
         disease: disease.trim() || "Preventative",
         dateDue,
-        dateAdministered: null,
+        dateAdministered: dateAdministered || null,
         dose: dose.trim(),
-        administeredBy: "Farm Vet",
-        status: "scheduled",
+        administeredBy: administeredBy.trim() || "Farm Vet",
+        status: vacStatus,
         countVaccinated,
         notes: notes.trim(),
       });
-      setSuccessMsg(`✓ Scheduled ${vaccineName} for ${dateDue}.`);
+      setSuccessMsg(`Scheduled ${vaccineName} for ${dateDue}.`);
       setVaccineName("");
       setDisease("");
       setDose("");
       setNotes("");
       setCountVaccinated(0);
+      setDateAdministered("");
+      setAdministeredBy("");
+      setVacStatus("scheduled");
       setActiveTab("reminders");
       await refreshData();
     } catch (err) {
@@ -168,6 +285,8 @@ export default function VaccinationsView() {
 
   async function handleSaveSchedule(e: React.FormEvent) {
     e.preventDefault();
+    setErrorMsg("");
+    setSuccessMsg("");
     if (!schVaccine.trim()) {
       setErrorMsg("Please enter the vaccine name.");
       return;
@@ -183,7 +302,7 @@ export default function VaccinationsView() {
         boosterIntervalDays: parseInt(schBoosterDays) || 0,
         notes: "",
       });
-      setSuccessMsg(`✓ Added schedule rule for ${schVaccine}.`);
+      setSuccessMsg(`Added schedule rule for ${schVaccine}.`);
       setSchVaccine("");
       setSchDisease("");
       await refreshData();
@@ -195,7 +314,6 @@ export default function VaccinationsView() {
   }
 
   async function handleDeleteVac(id: string) {
-    if (!window.confirm("Delete this vaccination record?")) return;
     try {
       await deleteVaccination(id);
       await refreshData();
@@ -205,7 +323,6 @@ export default function VaccinationsView() {
   }
 
   async function handleDeleteSch(id: string) {
-    if (!window.confirm("Delete this schedule template?")) return;
     try {
       await deleteVaccinationSchedule(id);
       await refreshData();
@@ -217,419 +334,114 @@ export default function VaccinationsView() {
   const markingRec = markDoneId ? vaccinations.find((r) => r.id === markDoneId) : null;
 
   return (
-    <div className="view-container">
-      {/* Header */}
-      <div className="view-header-row">
-        <div>
-          <h2>Vaccination & Veterinary Reminders</h2>
-          <p className="view-subtitle">
-            Keep your chickens and cattle protected with automated schedules and due-date alerts.
-          </p>
-        </div>
-      </div>
+    <main className="kf-page">
+      <PageHeader
+        title="Vaccinations"
+        description="Schedule, reminders and records for poultry and livestock vaccinations."
+      />
 
-      {/* KPI Cards */}
-      <div className="poultry-kpi-grid">
-        <div className="kpi-card">
-          <div className="kpi-icon-wrap" style={{ background: dueToday.length > 0 ? "#fef3c7" : "#ecfdf5", color: dueToday.length > 0 ? "#d97706" : "#059669" }}>
-            <Calendar size={26} />
-          </div>
-          <div>
-            <span className="kpi-label">Due Today</span>
-            <h3 className="kpi-value">{dueToday.length}</h3>
-            <span className="kpi-desc">Scheduled for today</span>
-          </div>
-        </div>
-        <div className="kpi-card">
-          <div className="kpi-icon-wrap" style={{ background: overdue.length > 0 ? "#fef2f2" : "#f1f5f9", color: overdue.length > 0 ? "#dc2626" : "#64748b" }}>
-            <AlertTriangle size={26} />
-          </div>
-          <div>
-            <span className="kpi-label">Overdue Vaccinations</span>
-            <h3 className="kpi-value" style={{ color: overdue.length > 0 ? "#dc2626" : "inherit" }}>
-              {overdue.length}
-            </h3>
-            <span className="kpi-desc">{overdue.length > 0 ? "⚠ Immediate attention needed" : "All up to date"}</span>
-          </div>
-        </div>
-        <div className="kpi-card">
-          <div className="kpi-icon-wrap" style={{ background: "#eff6ff", color: "#2563eb" }}>
-            <Clock size={26} />
-          </div>
-          <div>
-            <span className="kpi-label">Next 7 Days</span>
-            <h3 className="kpi-value">{upcoming7.length}</h3>
-            <span className="kpi-desc">Upcoming appointments</span>
-          </div>
-        </div>
-        <div className="kpi-card">
-          <div className="kpi-icon-wrap" style={{ background: "#ecfdf5", color: "#059669" }}>
-            <CheckCircle2 size={26} />
-          </div>
-          <div>
-            <span className="kpi-label">Completed</span>
-            <h3 className="kpi-value">{completed.length}</h3>
-            <span className="kpi-desc">Administered vaccines</span>
-          </div>
-        </div>
-      </div>
-
-      {errorMsg && <div className="daily-alert error-alert">{errorMsg}</div>}
-      {successMsg && <div className="daily-alert success-alert">{successMsg}</div>}
+      {/* Feedback */}
+      {errorMsg && <ErrorBanner message={errorMsg} onRetry={() => setErrorMsg("")} />}
+      {successMsg && <Notice tone="success">{successMsg}</Notice>}
 
       {/* Tabs */}
-      <div className="type-toggle-tabs" style={{ marginBottom: 20 }}>
-        <button
-          type="button"
-          className={`type-tab-btn ${activeTab === "reminders" ? "active-income" : ""}`}
-          onClick={() => setActiveTab("reminders")}
-        >
-          <Calendar size={18} /> Due & Overdue Reminders ({overdue.length + dueToday.length + upcoming7.length})
-        </button>
-        <button
-          type="button"
-          className={`type-tab-btn ${activeTab === "add" ? "active-income" : ""}`}
-          onClick={() => setActiveTab("add")}
-        >
-          <Plus size={18} /> Schedule Vaccination
-        </button>
-        <button
-          type="button"
-          className={`type-tab-btn ${activeTab === "schedules" ? "active-income" : ""}`}
-          onClick={() => setActiveTab("schedules")}
-        >
-          <Syringe size={18} /> Configurable Timetables ({schedules.length})
-        </button>
-      </div>
+      <Segmented
+        label="Vaccinations section"
+        options={[
+          {
+            value: "reminders",
+            label: "Reminders",
+            count: overdue.length + dueToday.length + upcoming7.length,
+            icon: <Syringe size={15} />,
+          },
+          {
+            value: "schedules",
+            label: "Schedules",
+            count: schedules.length,
+          },
+          {
+            value: "add",
+            label: "Add",
+            icon: <Plus size={15} />,
+          },
+        ]}
+        value={activeTab}
+        onChange={(v) => setActiveTab(v as "reminders" | "schedules" | "add")}
+      />
 
-      {/* Mark Done Modal */}
-      {markDoneId && markingRec && (
-        <div style={{
-          position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', display: 'flex',
-          alignItems: 'center', justifyContent: 'center', zIndex: 1000,
-        }}>
-          <div style={{ background: '#fff', borderRadius: '12px', padding: '1.75rem', maxWidth: '420px', width: '90%', boxShadow: '0 8px 32px rgba(0,0,0,0.2)' }}>
-            <h3 style={{ marginTop: 0 }}>Mark Vaccination Done</h3>
-            <p style={{ color: '#64748b', fontSize: '0.9rem' }}>
-              <strong>{markingRec.targetName}</strong> — {markingRec.vaccineName}
-            </p>
-            {markDoneError && (
-              <div style={{ color: '#dc2626', background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: '6px', padding: '0.6rem', marginBottom: '1rem' }}>
-                {markDoneError}
-              </div>
-            )}
-            <form onSubmit={handleMarkDone}>
-              <div className="form-field" style={{ marginBottom: '1rem' }}>
-                <label>Date Administered</label>
-                <input
-                  type="date"
-                  value={markDoneDate}
-                  max={new Date().toISOString().slice(0, 10)}
-                  onChange={(e) => setMarkDoneDate(e.target.value)}
-                  required
-                />
-              </div>
-              <div className="form-field" style={{ marginBottom: '1.25rem' }}>
-                <label>Count Vaccinated</label>
-                <input
-                  type="number"
-                  min={0}
-                  value={markDoneCount}
-                  onChange={(e) => setMarkDoneCount(Number(e.target.value))}
-                />
-              </div>
-              <div style={{ display: 'flex', gap: '0.75rem' }}>
-                <button type="submit" className="primary-action" disabled={markDoneSubmitting}>
-                  {markDoneSubmitting ? "Saving…" : "Mark as Done ✓"}
-                </button>
-                <button type="button" className="secondary-action" onClick={() => { setMarkDoneId(null); setMarkDoneError(""); }}>
-                  Cancel
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* TAB 1: REMINDERS LIST */}
+      {/* ── REMINDERS TAB ── */}
       {activeTab === "reminders" && (
-        <div className="card-box">
-          <h3 className="card-heading">Active Vaccination Schedules & Reminders</h3>
-          {vaccinations.length === 0 ? (
-            <div className="empty-state">
-              <Syringe size={48} />
-              <h4>No vaccination records yet</h4>
-              <p>Schedule your first poultry or cattle vaccine using the "Schedule Vaccination" tab.</p>
-            </div>
-          ) : (
-            <div className="table-responsive">
-              <table className="modern-table">
-                <thead>
-                  <tr>
-                    <th>Due Date</th>
-                    <th>Status</th>
-                    <th>Species</th>
-                    <th>Target Animal / Batch</th>
-                    <th>Vaccine Name</th>
-                    <th>Count</th>
-                    <th>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {vaccinations.map((v) => {
-                    const isDueToday = v.dateDue && v.dateDue.slice(0, 10) === todayStr;
-                    const isOver = v.status !== "completed" && v.dateDue && v.dateDue.slice(0, 10) < todayStr;
-                    const isDone = v.status === "completed";
-                    return (
-                      <tr key={v.id}>
-                        <td>
-                          <strong>{v.dateDue ? v.dateDue.slice(0, 10) : "—"}</strong>
-                        </td>
-                        <td>
-                          <span
-                            className={`badge-stage ${
-                              isDone ? "badge-chicks" : isOver ? "badge-broilers" : isDueToday ? "badge-layers" : "badge-adult"
-                            }`}
-                          >
-                            {isDone ? "✓ Done" : isOver ? "⚠ Overdue" : isDueToday ? "🔔 Due Today" : "Upcoming"}
-                          </span>
-                        </td>
-                        <td>{v.species === "poultry" ? "🐔 Poultry" : "🐄 Cattle"}</td>
-                        <td>
-                          <strong>{v.targetName}</strong>
-                        </td>
-                        <td>{v.vaccineName}</td>
-                        <td>{v.countVaccinated ? v.countVaccinated.toLocaleString() : "—"}</td>
-                        <td>
-                          <div className="row-actions">
-                            {!isDone && (
-                              <button
-                                className="btn-pill-promote"
-                                onClick={() => {
-                                  setMarkDoneId(v.id);
-                                  setMarkDoneDate(new Date().toISOString().slice(0, 10));
-                                  setMarkDoneCount(v.countVaccinated || 0);
-                                  setMarkDoneError("");
-                                }}
-                                title="Mark Administered"
-                              >
-                                Mark Done ✓
-                              </button>
-                            )}
-                            <button
-                              className="btn-icon delete-icon"
-                              onClick={() => handleDeleteVac(v.id)}
-                            >
-                              <Trash2 size={16} />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
+        <Panel title="Vaccination reminders" subtitle="Grouped by status">
+          <VaccGroup
+            title="Overdue"
+            tone="red"
+            vaccs={overdue}
+            onMarkDone={(v) => {
+              setMarkDoneId(v.id);
+              setMarkDoneDate(todayStr);
+              setMarkDoneCount(v.countVaccinated ?? 0);
+              setMarkDoneError("");
+            }}
+            onDelete={handleDeleteVac}
+          />
+          <VaccGroup
+            title="Due Today"
+            tone="amber"
+            vaccs={dueToday}
+            onMarkDone={(v) => {
+              setMarkDoneId(v.id);
+              setMarkDoneDate(todayStr);
+              setMarkDoneCount(v.countVaccinated ?? 0);
+              setMarkDoneError("");
+            }}
+            onDelete={handleDeleteVac}
+          />
+          <VaccGroup
+            title="Upcoming (7 days)"
+            tone="blue"
+            vaccs={upcoming7}
+            onMarkDone={(v) => {
+              setMarkDoneId(v.id);
+              setMarkDoneDate(todayStr);
+              setMarkDoneCount(v.countVaccinated ?? 0);
+              setMarkDoneError("");
+            }}
+            onDelete={handleDeleteVac}
+          />
+          <VaccGroup
+            title="Completed"
+            tone="green"
+            vaccs={completed}
+            onMarkDone={(v) => {
+              setMarkDoneId(v.id);
+              setMarkDoneDate(todayStr);
+              setMarkDoneCount(v.countVaccinated ?? 0);
+              setMarkDoneError("");
+            }}
+            onDelete={handleDeleteVac}
+          />
+        </Panel>
       )}
 
-      {/* TAB 2: SCHEDULE A VACCINATION */}
-      {activeTab === "add" && (
-        <div className="card-box form-card">
-          <h3 className="card-heading">Schedule a Vaccination Event</h3>
-          <p className="card-subheading">
-            Assign a vaccine due date to a poultry batch (e.g. Day-old chicks) or individual cattle.
-          </p>
-          <form onSubmit={handleSaveVaccination} className="poultry-form">
-            <div className="form-row-3">
-              <div className="form-field">
-                <label>Species *</label>
-                <select
-                  value={species}
-                  onChange={(e) => setSpecies(e.target.value as "poultry" | "cattle")}
-                >
-                  <option value="poultry">🐔 Poultry</option>
-                  <option value="cattle">🐄 Cattle</option>
-                </select>
-              </div>
-              <div className="form-field">
-                <label>Target Group / Animal Name *</label>
-                <input
-                  type="text"
-                  placeholder={species === "poultry" ? "e.g. Broiler Batch A, Chicks" : "e.g. Baraka, Neema"}
-                  value={targetName}
-                  onChange={(e) => setTargetName(e.target.value)}
-                  required
-                />
-              </div>
-              <div className="form-field">
-                <label>Date Due *</label>
-                <input
-                  type="date"
-                  value={dateDue}
-                  onChange={(e) => setDateDue(e.target.value)}
-                  required
-                />
-              </div>
-            </div>
-            <div className="form-row-3">
-              <div className="form-field">
-                <label>Vaccine Name *</label>
-                <input
-                  type="text"
-                  placeholder="e.g. Gumboro (IBD), Newcastle, ECF, Anthrax"
-                  value={vaccineName}
-                  onChange={(e) => setVaccineName(e.target.value)}
-                  required
-                />
-              </div>
-              <div className="form-field">
-                <label>Target Disease</label>
-                <input
-                  type="text"
-                  placeholder="e.g. Infectious Bursal Disease, FMD"
-                  value={disease}
-                  onChange={(e) => setDisease(e.target.value)}
-                />
-              </div>
-              <div className="form-field">
-                <label>Dose & Route</label>
-                <input
-                  type="text"
-                  placeholder="e.g. Eye drop, Drinking water, Subcutaneous"
-                  value={dose}
-                  onChange={(e) => setDose(e.target.value)}
-                />
-              </div>
-            </div>
-            <div className="form-row-3">
-              <div className="form-field">
-                <label>Count Scheduled</label>
-                <input
-                  type="number"
-                  min={0}
-                  value={countVaccinated}
-                  onChange={(e) => setCountVaccinated(Number(e.target.value))}
-                />
-              </div>
-              <div className="form-field" style={{ gridColumn: 'span 2' }}>
-                <label>Notes</label>
-                <input
-                  type="text"
-                  placeholder="e.g. Dr. Mwangi (Agrovet), check temperature before administering"
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                />
-              </div>
-            </div>
-            <div className="form-buttons-row">
-              <button type="submit" className="btn-primary" disabled={saving}>
-                {saving ? "Scheduling..." : "+ Schedule Vaccination"}
-              </button>
-            </div>
-          </form>
-        </div>
-      )}
-
-      {/* TAB 3: CONFIGURABLE SCHEDULE TEMPLATES */}
+      {/* ── SCHEDULES TAB ── */}
       {activeTab === "schedules" && (
-        <div className="card-box">
-          <div className="card-header-bar">
-            <div>
-              <h3 className="card-heading">Configurable Vaccination Timetables</h3>
-              <p className="card-subheading">
-                Define standard timetable rules based on age (e.g. Marek's at Day 1, Gumboro at Day 10).
-              </p>
-            </div>
-          </div>
-          <form onSubmit={handleSaveSchedule} className="poultry-form" style={{ marginBottom: 24, padding: 16, background: "#f8fafc", borderRadius: 8 }}>
-            <h4 style={{ margin: "0 0 12px 0", fontSize: 14 }}>+ Add Standard Schedule Template</h4>
-            <div className="form-row-3">
-              <div className="form-field">
-                <label>Species</label>
-                <select
-                  value={schSpecies}
-                  onChange={(e) => setSchSpecies(e.target.value as any)}
-                >
-                  <option value="poultry">Poultry</option>
-                  <option value="cattle">Cattle</option>
-                </select>
-              </div>
-              <div className="form-field">
-                <label>Target Category</label>
-                <select
-                  value={schCategory}
-                  onChange={(e) => setSchCategory(e.target.value)}
-                >
-                  <option value="chicks">Chicks (Brooding)</option>
-                  <option value="broilers">Broilers</option>
-                  <option value="layers">Layers</option>
-                  <option value="calves">Calves</option>
-                  <option value="heifers">Heifers</option>
-                  <option value="cows">Cows</option>
-                </select>
-              </div>
-              <div className="form-field">
-                <label>Vaccine Name *</label>
-                <input
-                  type="text"
-                  placeholder="e.g. Gumboro (Intermediate)"
-                  value={schVaccine}
-                  onChange={(e) => setSchVaccine(e.target.value)}
-                  required
-                />
-              </div>
-            </div>
-            <div className="form-row-3">
-              <div className="form-field">
-                <label>Target Disease</label>
-                <input
-                  type="text"
-                  placeholder="e.g. IBD"
-                  value={schDisease}
-                  onChange={(e) => setSchDisease(e.target.value)}
-                />
-              </div>
-              <div className="form-field">
-                <label>Due at Age (Days) *</label>
-                <input
-                  type="number"
-                  placeholder="e.g. 10"
-                  value={schAgeDays}
-                  onChange={(e) => setSchAgeDays(e.target.value)}
-                  required
-                />
-              </div>
-              <div className="form-field">
-                <label>Booster Interval (Days, 0 if none)</label>
-                <input
-                  type="number"
-                  placeholder="e.g. 14"
-                  value={schBoosterDays}
-                  onChange={(e) => setSchBoosterDays(e.target.value)}
-                />
-              </div>
-            </div>
-            <button type="submit" className="btn-primary" disabled={saving}>
-              Save Schedule Template
-            </button>
-          </form>
+        <Panel title="Vaccination schedules" subtitle="Standard timetable rules by species and age">
           {schedules.length === 0 ? (
-            <div className="empty-state">
-              <Syringe size={36} />
-              <p>No vaccination schedule templates created yet.</p>
-            </div>
+            <EmptyState
+              icon={<Syringe size={40} />}
+              title="No schedule templates"
+              description="Add a standard timetable rule below."
+            />
           ) : (
-            <div className="table-responsive">
-              <table className="modern-table">
+            <div className="kf-table-wrap" style={{ marginBottom: "1.5rem" }}>
+              <table className="kf-table">
                 <thead>
                   <tr>
                     <th>Species</th>
                     <th>Category</th>
-                    <th>Vaccine Name</th>
-                    <th>Disease</th>
-                    <th>Due at Age</th>
+                    <th>Vaccine</th>
+                    <th>Target Disease</th>
+                    <th>Age Days</th>
                     <th>Booster Interval</th>
                     <th>Actions</th>
                   </tr>
@@ -637,21 +449,23 @@ export default function VaccinationsView() {
                 <tbody>
                   {schedules.map((s) => (
                     <tr key={s.id}>
-                      <td>{s.species === "poultry" ? "🐔 Poultry" : "🐄 Cattle"}</td>
+                      <td>{s.species === "poultry" ? "Poultry" : "Cattle"}</td>
                       <td>
-                        <span className="badge-stage badge-chicks">{s.category}</span>
+                        <Badge tone="slate">{s.category}</Badge>
                       </td>
-                      <td><strong>{s.vaccineName}</strong></td>
+                      <td>
+                        <strong>{s.vaccineName}</strong>
+                      </td>
                       <td>{s.targetDisease}</td>
                       <td>Day {s.ageDaysDue}</td>
                       <td>{s.boosterIntervalDays ? `${s.boosterIntervalDays} days` : "None"}</td>
                       <td>
-                        <button
-                          className="btn-icon delete-icon"
+                        <IconButton
+                          label="Delete schedule"
+                          icon={<Trash2 size={15} />}
                           onClick={() => handleDeleteSch(s.id)}
-                        >
-                          <Trash2 size={16} />
-                        </button>
+                          tone="danger"
+                        />
                       </td>
                     </tr>
                   ))}
@@ -659,8 +473,246 @@ export default function VaccinationsView() {
               </table>
             </div>
           )}
-        </div>
+
+          {/* Schedule add form */}
+          <form onSubmit={handleSaveSchedule} className="kf-form">
+            <div className="kf-form-grid">
+              <Field label="Species" required>
+                <select
+                  className="kf-input"
+                  value={schSpecies}
+                  onChange={(e) => setSchSpecies(e.target.value as "poultry" | "cattle")}
+                >
+                  <option value="poultry">Poultry</option>
+                  <option value="cattle">Cattle</option>
+                </select>
+              </Field>
+              <Field label="Category" required>
+                <select
+                  className="kf-input"
+                  value={schCategory}
+                  onChange={(e) => setSchCategory(e.target.value)}
+                >
+                  <option value="chicks">Chicks</option>
+                  <option value="broilers">Broilers</option>
+                  <option value="layers">Layers</option>
+                  <option value="calves">Calves</option>
+                  <option value="heifers">Heifers</option>
+                  <option value="cows">Cows</option>
+                </select>
+              </Field>
+              <Field label="Vaccine Name" required>
+                <input
+                  type="text"
+                  className="kf-input"
+                  placeholder="e.g. Gumboro (Intermediate)"
+                  value={schVaccine}
+                  onChange={(e) => setSchVaccine(e.target.value)}
+                  required
+                />
+              </Field>
+              <Field label="Target Disease">
+                <input
+                  type="text"
+                  className="kf-input"
+                  placeholder="e.g. IBD"
+                  value={schDisease}
+                  onChange={(e) => setSchDisease(e.target.value)}
+                />
+              </Field>
+              <Field label="Due at Age (days)" required>
+                <input
+                  type="number"
+                  className="kf-input"
+                  placeholder="e.g. 10"
+                  value={schAgeDays}
+                  onChange={(e) => setSchAgeDays(e.target.value)}
+                  required
+                />
+              </Field>
+              <Field label="Booster Interval (days, 0 = none)">
+                <input
+                  type="number"
+                  className="kf-input"
+                  placeholder="e.g. 14"
+                  value={schBoosterDays}
+                  onChange={(e) => setSchBoosterDays(e.target.value)}
+                />
+              </Field>
+            </div>
+            <div className="kf-form-actions">
+              <Button variant="primary" loading={saving} onClick={() => {}}>
+                <span>{saving ? "Saving…" : "Save Schedule Template"}</span>
+              </Button>
+            </div>
+          </form>
+        </Panel>
       )}
-    </div>
+
+      {/* ── ADD TAB ── */}
+      {activeTab === "add" && (
+        <Panel title="Schedule a vaccination event">
+          <form onSubmit={handleSaveVaccination} className="kf-form">
+            <div className="kf-form-grid">
+              <Field label="Species" required>
+                <select
+                  className="kf-input"
+                  value={species}
+                  onChange={(e) => setSpecies(e.target.value as "poultry" | "cattle")}
+                >
+                  <option value="poultry">Poultry</option>
+                  <option value="cattle">Cattle</option>
+                </select>
+              </Field>
+              <Field label="Target Group / Animal" required>
+                <input
+                  type="text"
+                  className="kf-input"
+                  placeholder={species === "poultry" ? "e.g. Broiler Batch A" : "e.g. Baraka, Dairy Herd"}
+                  value={targetName}
+                  onChange={(e) => setTargetName(e.target.value)}
+                />
+              </Field>
+              <Field label="Vaccine Name" required>
+                <input
+                  type="text"
+                  className="kf-input"
+                  placeholder="e.g. Gumboro, Newcastle, ECF"
+                  value={vaccineName}
+                  onChange={(e) => setVaccineName(e.target.value)}
+                  required
+                />
+              </Field>
+              <Field label="Target Disease">
+                <input
+                  type="text"
+                  className="kf-input"
+                  placeholder="e.g. Infectious Bursal Disease"
+                  value={disease}
+                  onChange={(e) => setDisease(e.target.value)}
+                />
+              </Field>
+              <Field label="Date Due" required>
+                <input
+                  type="date"
+                  className="kf-input"
+                  value={dateDue}
+                  onChange={(e) => setDateDue(e.target.value)}
+                  required
+                />
+              </Field>
+              <Field label="Date Administered (optional)">
+                <input
+                  type="date"
+                  className="kf-input"
+                  value={dateAdministered}
+                  onChange={(e) => setDateAdministered(e.target.value)}
+                />
+              </Field>
+              <Field label="Dose & Route">
+                <input
+                  type="text"
+                  className="kf-input"
+                  placeholder="e.g. Eye drop, Drinking water"
+                  value={dose}
+                  onChange={(e) => setDose(e.target.value)}
+                />
+              </Field>
+              <Field label="Count Vaccinated">
+                <input
+                  type="number"
+                  className="kf-input"
+                  min={0}
+                  value={countVaccinated}
+                  onChange={(e) => setCountVaccinated(Number(e.target.value))}
+                />
+              </Field>
+              <Field label="Administered By">
+                <input
+                  type="text"
+                  className="kf-input"
+                  placeholder="e.g. Farm Vet, Dr. Mwangi"
+                  value={administeredBy}
+                  onChange={(e) => setAdministeredBy(e.target.value)}
+                />
+              </Field>
+              <Field label="Status" required>
+                <select
+                  className="kf-input"
+                  value={vacStatus}
+                  onChange={(e) => setVacStatus(e.target.value as VaccinationRecord["status"])}
+                >
+                  <option value="scheduled">Scheduled</option>
+                  <option value="due">Due</option>
+                  <option value="completed">Completed</option>
+                  <option value="overdue">Overdue</option>
+                  <option value="cancelled">Cancelled</option>
+                </select>
+              </Field>
+              <Field label="Notes" className="kf-field--span2">
+                <textarea
+                  className="kf-input"
+                  placeholder="e.g. Check temperature before administering"
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  rows={2}
+                />
+              </Field>
+            </div>
+            <div className="kf-form-actions">
+              <Button variant="primary" loading={saving} onClick={() => {}}>
+                <span>{saving ? "Saving…" : "Schedule Vaccination"}</span>
+              </Button>
+            </div>
+          </form>
+        </Panel>
+      )}
+
+      {/* Mark Done Modal */}
+      <Modal
+        open={!!markDoneId}
+        onClose={() => { setMarkDoneId(null); setMarkDoneError(""); }}
+        title="Mark vaccination done"
+        subtitle={markingRec ? `${markingRec.targetName} — ${markingRec.vaccineName}` : undefined}
+        size="sm"
+        footer={
+          <div className="kf-modal-footer-actions">
+            <Button variant="secondary" onClick={() => { setMarkDoneId(null); setMarkDoneError(""); }}>
+              Cancel
+            </Button>
+            <Button
+              variant="primary"
+              loading={markDoneSubmitting}
+              onClick={(e) => handleMarkDone(e as unknown as React.FormEvent)}
+            >
+              <span>{markDoneSubmitting ? "Saving…" : "Mark as Done"}</span>
+            </Button>
+          </div>
+        }
+      >
+        <form onSubmit={handleMarkDone} id="mark-done-form" className="kf-form">
+          {markDoneError && <ErrorBanner message={markDoneError} />}
+          <Field label="Date Administered" required>
+            <input
+              type="date"
+              className="kf-input"
+              value={markDoneDate}
+              max={todayStr}
+              onChange={(e) => setMarkDoneDate(e.target.value)}
+              required
+            />
+          </Field>
+          <Field label="Count Vaccinated">
+            <input
+              type="number"
+              className="kf-input"
+              min={0}
+              value={markDoneCount}
+              onChange={(e) => setMarkDoneCount(Number(e.target.value))}
+            />
+          </Field>
+        </form>
+      </Modal>
+    </main>
   );
 }

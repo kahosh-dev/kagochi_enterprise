@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   loadFeeding,
   addFeeding,
@@ -6,20 +6,44 @@ import {
   deleteFeeding,
 } from "../services/storage";
 import type { FeedingRecord } from "../types/farm";
+import { Wheat, Plus, Pencil, Trash2 } from "lucide-react";
+import {
+  PageHeader,
+  StatCard,
+  Panel,
+  Field,
+  Button,
+  IconButton,
+  EmptyState,
+  ErrorBanner,
+  Notice,
+  Segmented,
+  Modal,
+} from "../components/ui";
+import { formatCurrency, formatNumber } from "../utils/format";
+
+type AnimalFilter = "All" | "Poultry" | "Cattle";
 
 export default function FeedingView() {
   const [records, setRecords] = useState<FeedingRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [animalFilter, setAnimalFilter] = useState<AnimalFilter>("All");
 
+  // Form fields
   const [animalType, setAnimalType] = useState("Poultry");
   const [feedType, setFeedType] = useState("");
   const [quantity, setQuantity] = useState("");
   const [unit, setUnit] = useState("kg");
-  const [date, setDate] = useState(
-    new Date().toISOString().split("T")[0]
-  );
+  const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
+  const [cost, setCost] = useState("");
+  const [supplier, setSupplier] = useState("");
+  const [notes, setNotes] = useState("");
+
+  const [errorMsg, setErrorMsg] = useState("");
+  const [successMsg, setSuccessMsg] = useState("");
 
   async function refreshFeeding() {
     try {
@@ -27,8 +51,7 @@ export default function FeedingView() {
       const data = await loadFeeding();
       setRecords(data);
     } catch (error) {
-      console.error(error);
-      alert(error instanceof Error ? error.message : "Failed to load feeding records.");
+      setErrorMsg(error instanceof Error ? error.message : "Failed to load feeding records.");
     } finally {
       setLoading(false);
     }
@@ -45,48 +68,10 @@ export default function FeedingView() {
     setQuantity("");
     setUnit("kg");
     setDate(new Date().toISOString().split("T")[0]);
-  }
-
-  async function handleSubmit(event: React.FormEvent) {
-    event.preventDefault();
-
-    const amount = Number(quantity);
-
-    if (!feedType.trim()) {
-      alert("Please enter the feed type.");
-      return;
-    }
-
-    if (!Number.isFinite(amount) || amount <= 0) {
-      alert("Please enter a valid feed quantity.");
-      return;
-    }
-
-    try {
-      setSaving(true);
-
-      const record = {
-        animalType,
-        feedType: feedType.trim(),
-        quantity: amount,
-        unit,
-        date,
-      };
-
-      if (editingId) {
-        await updateFeeding(editingId, record);
-      } else {
-        await addFeeding(record);
-      }
-
-      await refreshFeeding();
-      resetForm();
-    } catch (error) {
-      console.error(error);
-      alert(error instanceof Error ? error.message : "Failed to save feeding record.");
-    } finally {
-      setSaving(false);
-    }
+    setCost("");
+    setSupplier("");
+    setNotes("");
+    setErrorMsg("");
   }
 
   function startEdit(record: FeedingRecord) {
@@ -96,227 +81,345 @@ export default function FeedingView() {
     setQuantity(String(record.quantity));
     setUnit(record.unit);
     setDate(record.date);
+    setCost(record.cost != null ? String(record.cost) : "");
+    setSupplier(record.supplier ?? "");
+    setNotes(record.notes ?? "");
+    setErrorMsg("");
+    window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
-  async function handleDelete(id: string) {
-    if (!window.confirm("Are you sure you want to delete this feeding record?")) {
+  async function handleSubmit(event: React.FormEvent) {
+    event.preventDefault();
+    setErrorMsg("");
+    setSuccessMsg("");
+
+    const amount = Number(quantity);
+    if (!feedType.trim()) {
+      setErrorMsg("Please enter the feed type.");
+      return;
+    }
+    if (!Number.isFinite(amount) || amount <= 0) {
+      setErrorMsg("Please enter a valid feed quantity.");
       return;
     }
 
     try {
-      await deleteFeeding(id);
-      await refreshFeeding();
+      setSaving(true);
+      const record = {
+        animalType,
+        feedType: feedType.trim(),
+        quantity: amount,
+        unit,
+        date,
+        cost: cost !== "" ? parseFloat(cost) : undefined,
+        supplier: supplier.trim() || undefined,
+        notes: notes.trim() || undefined,
+      };
 
-      if (editingId === id) {
-        resetForm();
+      if (editingId) {
+        await updateFeeding(editingId, record);
+        setSuccessMsg("Feeding record updated.");
+      } else {
+        await addFeeding(record);
+        setSuccessMsg(`Feeding record added: ${feedType} for ${animalType}.`);
       }
+
+      await refreshFeeding();
+      resetForm();
     } catch (error) {
-      console.error(error);
-      alert(error instanceof Error ? error.message : "Failed to delete feeding record.");
+      setErrorMsg(error instanceof Error ? error.message : "Failed to save feeding record.");
+    } finally {
+      setSaving(false);
     }
   }
 
-  const totalQuantity = records.reduce(
-    (sum, record) => sum + Number(record.quantity),
-    0
+  async function confirmDelete() {
+    if (!deleteId) return;
+    try {
+      await deleteFeeding(deleteId);
+      if (editingId === deleteId) resetForm();
+      setDeleteId(null);
+      await refreshFeeding();
+    } catch (error) {
+      setErrorMsg(error instanceof Error ? error.message : "Failed to delete feeding record.");
+      setDeleteId(null);
+    }
+  }
+
+  // Stats
+  const totalKg = useMemo(
+    () => records.filter((r) => r.unit === "kg").reduce((s, r) => s + Number(r.quantity), 0),
+    [records]
   );
+  const totalBags = useMemo(
+    () => records.filter((r) => r.unit === "bags").reduce((s, r) => s + Number(r.quantity), 0),
+    [records]
+  );
+  const totalCost = useMemo(
+    () => records.reduce((s, r) => s + Number(r.cost ?? 0), 0),
+    [records]
+  );
+  const recordCount = records.length;
 
-  const poultryRecords = records.filter(
-    (record) => record.animalType.toLowerCase() === "poultry"
-  ).length;
+  const filteredRecords = useMemo(() => {
+    if (animalFilter === "All") return records;
+    return records.filter(
+      (r) => r.animalType.toLowerCase() === animalFilter.toLowerCase()
+    );
+  }, [records, animalFilter]);
 
-  const livestockRecords = records.filter(
-    (record) => record.animalType.toLowerCase() === "livestock"
-  ).length;
+  const deleteRecord = deleteId ? records.find((r) => r.id === deleteId) : null;
 
   return (
-    <div className="management-page">
-      <div className="page-heading">
-        <div>
-          <h1>Feeding Management</h1>
-          <p>Track feed types, quantities and feeding activities.</p>
-        </div>
+    <main className="kf-page">
+      <PageHeader
+        title="Feeding Management"
+        description="Track feed types, quantities, costs, and feeding activities for poultry and livestock."
+        actions={
+          <Button variant="primary" icon={<Plus size={16} />} onClick={resetForm}>
+            Add Record
+          </Button>
+        }
+      />
+
+      {/* Stats */}
+      <div className="kf-stat-grid">
+        <StatCard
+          label="Total (kg)"
+          value={formatNumber(totalKg)}
+          hint="Sum of kg records"
+          icon={<Wheat size={20} />}
+          tone="green"
+        />
+        <StatCard
+          label="Total (bags)"
+          value={formatNumber(totalBags)}
+          hint="Sum of bag records"
+          icon={<Wheat size={20} />}
+          tone="forest"
+        />
+        <StatCard
+          label="Total Feed Cost"
+          value={formatCurrency(totalCost)}
+          hint="Where cost recorded"
+          icon={<Wheat size={20} />}
+          tone="amber"
+        />
+        <StatCard
+          label="Records"
+          value={formatNumber(recordCount)}
+          hint="All feeding entries"
+          icon={<Wheat size={20} />}
+          tone="slate"
+        />
       </div>
 
-      <div className="summary-grid">
-        <div className="summary-card">
-          <div className="summary-icon"><img src="https://images.unsplash.com/photo-1625246333195-78d9c38ad449?w=80&q=70" alt="Feeding" className="summary-icon-img" /></div>
-          <div><span className="summary-label">Feeding Records</span><strong>{records.length}</strong><small>Total entries</small></div>
-        </div>
-        <div className="summary-card">
-          <div className="summary-icon"><img src="https://images.unsplash.com/photo-1625246333195-78d9c38ad449?w=80&q=70" alt="Quantity" className="summary-icon-img" /></div>
-          <div><span className="summary-label">Total Quantity</span><strong>{totalQuantity.toFixed(1)}</strong><small>{unit}</small></div>
-        </div>
-        <div className="summary-card">
-          <div className="summary-icon"><img src="https://images.unsplash.com/photo-1548550023-2bdb3c5beed7?w=80&q=70" alt="Poultry" className="summary-icon-img" /></div>
-          <div><span className="summary-label">Poultry</span><strong>{poultryRecords}</strong><small>Feeding entries</small></div>
-        </div>
-        <div className="summary-card">
-          <div className="summary-icon"><img src="https://images.unsplash.com/photo-1570042225831-d98fa7577f1e?w=80&q=70" alt="Livestock" className="summary-icon-img" /></div>
-          <div><span className="summary-label">Livestock</span><strong>{livestockRecords}</strong><small>Feeding entries</small></div>
-        </div>
-      </div>
+      {/* Feedback */}
+      {errorMsg && <ErrorBanner message={errorMsg} onRetry={() => setErrorMsg("")} />}
+      {successMsg && <Notice tone="success">{successMsg}</Notice>}
 
-      <div className="management-card">
-        <div className="card-heading">
-          <div>
-            <h2>{editingId ? "Edit Feeding Record" : "Add Feeding Record"}</h2>
-            <p>Record feed usage for poultry or livestock.</p>
-          </div>
-        </div>
-
-        <form onSubmit={handleSubmit}>
-          <div className="form-grid">
-            <div className="form-field">
-              <label>Animal Type</label>
+      {/* Form */}
+      <Panel title={editingId ? "Edit Feeding Record" : "Add Feeding Record"}>
+        <form onSubmit={handleSubmit} className="kf-form">
+          <div className="kf-form-grid">
+            <Field label="Animal Type" required>
               <select
                 value={animalType}
                 onChange={(e) => setAnimalType(e.target.value)}
+                className="kf-input"
               >
                 <option value="Poultry">Poultry</option>
-                <option value="Livestock">Livestock</option>
+                <option value="Cattle">Cattle</option>
               </select>
-            </div>
+            </Field>
 
-            <div className="form-field">
-              <label>Feed Type</label>
+            <Field label="Feed Type" required>
               <input
                 type="text"
-                placeholder="e.g. Dairy Meal"
+                className="kf-input"
+                placeholder="e.g. Layers Mash, Dairy Meal"
                 value={feedType}
                 onChange={(e) => setFeedType(e.target.value)}
               />
-            </div>
+            </Field>
 
-            <div className="form-field">
-              <label>Quantity</label>
+            <Field label="Quantity" required>
               <input
                 type="number"
+                className="kf-input"
                 min="0"
                 step="0.01"
                 placeholder="e.g. 25"
                 value={quantity}
                 onChange={(e) => setQuantity(e.target.value)}
               />
-            </div>
+            </Field>
 
-            <div className="form-field">
-              <label>Unit</label>
+            <Field label="Unit" required>
               <select
                 value={unit}
                 onChange={(e) => setUnit(e.target.value)}
+                className="kf-input"
               >
                 <option value="kg">kg</option>
-                <option value="g">g</option>
-                <option value="litres">litres</option>
                 <option value="bags">bags</option>
+                <option value="litres">litres</option>
+                <option value="pieces">pieces</option>
               </select>
-            </div>
+            </Field>
 
-            <div className="form-field">
-              <label>Date</label>
+            <Field label="Date" required>
               <input
                 type="date"
+                className="kf-input"
                 value={date}
                 onChange={(e) => setDate(e.target.value)}
               />
-            </div>
+            </Field>
+
+            <Field label="Cost (KES)">
+              <input
+                type="number"
+                className="kf-input"
+                min="0"
+                step="0.01"
+                placeholder="Optional"
+                value={cost}
+                onChange={(e) => setCost(e.target.value)}
+              />
+            </Field>
+
+            <Field label="Supplier">
+              <input
+                type="text"
+                className="kf-input"
+                placeholder="e.g. Local Agrovet"
+                value={supplier}
+                onChange={(e) => setSupplier(e.target.value)}
+              />
+            </Field>
+
+            <Field label="Notes">
+              <input
+                type="text"
+                className="kf-input"
+                placeholder="Optional notes"
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+              />
+            </Field>
           </div>
 
-          <div className="form-actions">
-            <button
-              type="submit"
-              className="primary-button"
-              disabled={saving}
-            >
-              {saving
-                ? "Saving..."
-                : editingId
-                ? "Update Feeding"
-                : "Add Feeding"}
-            </button>
-
+          <div className="kf-form-actions">
             {editingId && (
-              <button
-                type="button"
-                className="secondary-button"
-                onClick={resetForm}
-              >
+              <Button variant="secondary" onClick={resetForm}>
                 Cancel Edit
-              </button>
+              </Button>
             )}
+            <Button variant="primary" loading={saving} onClick={() => {}}>
+              <span>{saving ? "Saving…" : editingId ? "Update Record" : "Add Feeding"}</span>
+            </Button>
           </div>
         </form>
-      </div>
+      </Panel>
 
-      <div className="management-card">
-        <div className="card-heading">
-          <div>
-            <h2>Feeding Records</h2>
-            <p>All feed usage records stored in the database.</p>
-          </div>
-
-          <span className="record-count">
-            {records.length} record{records.length === 1 ? "" : "s"}
-          </span>
+      {/* Filter + Table */}
+      <Panel title="Feeding Records">
+        <div className="kf-filter-row">
+          <Segmented
+            label="Filter by animal type"
+            options={[
+              { value: "All", label: "All" },
+              { value: "Poultry", label: "Poultry" },
+              { value: "Cattle", label: "Cattle" },
+            ]}
+            value={animalFilter}
+            onChange={(v) => setAnimalFilter(v as AnimalFilter)}
+          />
         </div>
 
         {loading ? (
-          <div className="empty-state">
-            <p>Loading feeding records...</p>
-          </div>
-        ) : records.length === 0 ? (
-          <div className="empty-state">
-            <h3>No feeding records yet</h3>
-            <p>Add your first feeding record above.</p>
-          </div>
+          <EmptyState title="Loading…" description="Fetching feeding records." />
+        ) : filteredRecords.length === 0 ? (
+          <EmptyState
+            icon={<Wheat size={40} />}
+            title="No feeding records"
+            description={
+              animalFilter === "All"
+                ? "Add your first feeding record above."
+                : `No records for ${animalFilter} yet.`
+            }
+          />
         ) : (
-          <div className="records-grid">
-            {records.map((record) => (
-              <div className="record-card" key={record.id}>
-                <div className="record-card-top">
-                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                    <div className="record-avatar"><img src="https://images.unsplash.com/photo-1625246333195-78d9c38ad449?w=80&q=70" alt="Feed" className="record-avatar-img" /></div>
-                    <div><h3>{record.feedType}</h3><span className="record-badge">{record.animalType}</span></div>
-                  </div>
-
-                  <div className="record-actions">
-                    <button
-                      type="button"
-                      className="edit-button"
-                      onClick={() => startEdit(record)}
-                    >
-                      Edit
-                    </button>
-
-                    <button
-                      type="button"
-                      className="delete-button"
-                      onClick={() => handleDelete(record.id)}
-                    >
-                      Delete
-                    </button>
-                  </div>
-                </div>
-
-                <div className="record-details">
-                  <div>
-                    <span>Quantity</span>
-                    <strong>
-                      {record.quantity} {record.unit}
-                    </strong>
-                  </div>
-
-                  <div>
-                    <span>Date</span>
-                    <strong>{record.date}</strong>
-                  </div>
-                </div>
-              </div>
-            ))}
+          <div className="kf-table-wrap">
+            <table className="kf-table">
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Animal Type</th>
+                  <th>Feed Type</th>
+                  <th>Quantity</th>
+                  <th>Unit</th>
+                  <th>Cost KES</th>
+                  <th>Supplier</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredRecords.map((record) => (
+                  <tr key={record.id}>
+                    <td>{record.date}</td>
+                    <td>{record.animalType}</td>
+                    <td>{record.feedType}</td>
+                    <td>{record.quantity}</td>
+                    <td>{record.unit}</td>
+                    <td>{record.cost != null ? formatCurrency(record.cost) : "—"}</td>
+                    <td>{record.supplier || "—"}</td>
+                    <td>
+                      <div className="kf-row-actions">
+                        <IconButton
+                          label="Edit"
+                          icon={<Pencil size={15} />}
+                          onClick={() => startEdit(record)}
+                        />
+                        <IconButton
+                          label="Delete"
+                          icon={<Trash2 size={15} />}
+                          onClick={() => setDeleteId(record.id)}
+                          tone="danger"
+                        />
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         )}
-      </div>
-    </div>
+      </Panel>
+
+      {/* Delete confirm modal */}
+      <Modal
+        open={!!deleteId}
+        onClose={() => setDeleteId(null)}
+        title="Delete feeding record?"
+        size="sm"
+        footer={
+          <div className="kf-modal-footer-actions">
+            <Button variant="secondary" onClick={() => setDeleteId(null)}>
+              Cancel
+            </Button>
+            <Button variant="danger" onClick={confirmDelete}>
+              Delete
+            </Button>
+          </div>
+        }
+      >
+        <p>
+          Delete <strong>{deleteRecord?.feedType}</strong> ({deleteRecord?.animalType},{" "}
+          {deleteRecord?.date})? This action cannot be undone.
+        </p>
+      </Modal>
+    </main>
   );
 }
