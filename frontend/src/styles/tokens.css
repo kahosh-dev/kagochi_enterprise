@@ -39,6 +39,20 @@
   --kf-plum:          #7c3aed;
   --kf-plum-soft:     #f5f3ff;
 
+  /* ── Extended green scale ── */
+  --kf-green-300:     #86efac;
+  --kf-green-600:     #16a34a;
+  --kf-green-700:     #2e7d32;
+  --kf-green-800:     #2d6a4f;
+  --kf-green-400:     #4ade80;
+  --kf-lime-dark:     #65a30d;
+  --kf-teal:          #0f766e;
+  --kf-slate:         #cbd5e1;
+
+  /* ── Chart utility ── */
+  --kf-chart-grid:    #e6ece4;
+  --kf-chart-track:   #eef2ec;
+
   /* ── Radii ── */
   --kf-radius-sm:     8px;
   --kf-radius:        12px;

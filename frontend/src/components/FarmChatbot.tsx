@@ -63,16 +63,16 @@ export default function FarmChatbot() {
   }
 
   return (
-    <div className="card-box farm-chatbot-container">
+    <div className="kf-panel farm-chatbot-container">
       {/* Chat header */}
       <div className="chat-header-bar">
         <div className="chat-header-left">
           <div className="chat-avatar">
-            <Sparkles size={20} color="#16a34a" />
+            <Sparkles size={20} color="var(--kf-green-600)" />
           </div>
           <div>
             <h4 style={{ margin: 0, fontSize: 16 }}>Farm Assistant Chat</h4>
-            <span style={{ fontSize: 12, color: "#64748b" }}>
+            <span style={{ fontSize: 12, color: "var(--kf-muted)" }}>
               Grounded in real recorded farm data only. Never fabricates figures.
             </span>
           </div>
@@ -80,7 +80,7 @@ export default function FarmChatbot() {
 
         {/* Period Selector Chips */}
         <div className="chat-period-chips">
-          <span style={{ fontSize: 12, color: "#64748b", display: "flex", alignItems: "center", gap: 4 }}>
+          <span style={{ fontSize: 12, color: "var(--kf-muted)", display: "flex", alignItems: "center", gap: 4 }}>
             <Calendar size={13} /> Analyzing:
           </span>
           <button
@@ -158,9 +158,9 @@ export default function FarmChatbot() {
       <div className="chat-messages-scroll">
         {messages.length === 0 ? (
           <div className="chat-empty-state">
-            <Bot size={40} color="#94a3b8" />
+            <Bot size={40} color="var(--kf-muted-2)" />
             <p><strong>Ask your Farm Assistant anything about your farm records.</strong></p>
-            <p style={{ fontSize: 13, color: "#64748b" }}>
+            <p style={{ fontSize: 13, color: "var(--kf-muted)" }}>
               Select a question above or type your own question below.
             </p>
           </div>
@@ -184,14 +184,14 @@ export default function FarmChatbot() {
               <span className="typing-dot" />
               <span className="typing-dot" />
               <span className="typing-dot" />
-              <span style={{ fontSize: 12, marginLeft: 8, color: "#64748b" }}>Analyzing records...</span>
+              <span style={{ fontSize: 12, marginLeft: 8, color: "var(--kf-muted)" }}>Analyzing records...</span>
             </div>
           </div>
         )}
       </div>
 
       {error && (
-        <div className="daily-alert error-alert" style={{ margin: "8px 16px" }}>
+        <div className="kf-alert kf-alert--error" style={{ margin: "8px 16px" }}>
           <AlertCircle size={15} /> <span>{error}</span>
         </div>
       )}

@@ -499,7 +499,7 @@ export default function HomeView({
           <div className="kf-row kf-row--between" style={{ alignItems: "flex-start" }}>
             <div className="kf-grow" style={{ maxWidth: 720 }}>
               <div className="kf-row" style={{ marginBottom: 8 }}>
-                <span className="kf-stat-icon" style={{ background: "rgba(134,239,172,0.16)", color: "#86efac" }}>
+                <span className="kf-stat-icon" style={{ background: "rgba(134,239,172,0.16)", color: "var(--kf-green-300)" }}>
                   <Sparkles size={19} />
                 </span>
                 <Badge tone="green">AI farm assistant</Badge>

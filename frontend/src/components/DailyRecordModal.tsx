@@ -277,14 +277,14 @@ export default function DailyRecordModal({
         {/* Dynamic Form Content */}
         <div className="daily-form-body">
           {errorMsg && (
-            <div className="daily-alert error-alert">
+            <div className="kf-alert kf-alert--error">
               <AlertCircle size={16} />
               <span>{errorMsg}</span>
             </div>
           )}
 
           {successMsg && (
-            <div className="daily-alert success-alert">
+            <div className="kf-alert kf-alert--success">
               <CheckCircle2 size={16} />
               <span>{successMsg}</span>
             </div>
@@ -590,7 +590,7 @@ export default function DailyRecordModal({
         <div className="modal-actions-footer">
           <button
             type="button"
-            className="btn-secondary"
+            className="kf-btn kf-btn--secondary"
             onClick={onClose}
             disabled={saving}
           >
@@ -607,7 +607,7 @@ export default function DailyRecordModal({
             </button>
             <button
               type="button"
-              className="btn-primary"
+              className="kf-btn kf-btn--primary"
               onClick={() => handleSave(false)}
               disabled={saving}
             >

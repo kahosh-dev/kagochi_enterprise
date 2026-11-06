@@ -1,6 +1,5 @@
 import type { ReactNode } from "react";
-
-const PALETTE = ["#2e7d32", "#4ade80", "#0f766e", "#d97706", "#7c3aed", "#dc2626", "#2563eb", "#65a30d"];
+import { COLORS, PALETTE } from "../styles/tokens";
 
 export interface ChartPoint {
   label: string;
@@ -24,7 +23,7 @@ function niceMax(value: number): number {
 export function LineChart({
   data,
   height = 220,
-  color = "#2e7d32",
+  color = COLORS.green700,
   valueSuffix = "",
   emptyLabel = "No data for this period.",
 }: {
@@ -69,7 +68,7 @@ export function LineChart({
           const y = pad.top + innerH * (1 - fraction);
           return (
             <g key={fraction}>
-              <line x1={pad.left} y1={y} x2={width - pad.right} y2={y} stroke="#e6ece4" strokeWidth="1" />
+              <line x1={pad.left} y1={y} x2={width - pad.right} y2={y} stroke={COLORS.chartGrid} strokeWidth="1" />
               <text x={pad.left - 8} y={y + 4} textAnchor="end" className="kf-chart-axis">
                 {Math.round(maxValue * fraction).toLocaleString()}
               </text>
@@ -80,7 +79,7 @@ export function LineChart({
         <path d={path} fill="none" stroke={color} strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
         {points.map((point, index) => (
           <g key={`${point.label}-${index}`}>
-            <circle cx={point.x} cy={point.y} r="3.2" fill="#fff" stroke={color} strokeWidth="2">
+            <circle cx={point.x} cy={point.y} r="3.2" fill={COLORS.white} stroke={color} strokeWidth="2">
               <title>{`${point.label}: ${point.value.toLocaleString()}${valueSuffix}`}</title>
             </circle>
             {index % labelEvery === 0 && (
@@ -124,10 +123,10 @@ export function BarChart({
   const labelEvery = Math.max(1, Math.ceil(data.length / 8));
 
   const fillFor = (tone: ChartPoint["tone"]) => {
-    if (tone === "red") return "#dc2626";
-    if (tone === "amber") return "#d97706";
-    if (tone === "slate") return "#cbd5e1";
-    return "#2e7d32";
+    if (tone === "red") return COLORS.red;
+    if (tone === "amber") return COLORS.amber;
+    if (tone === "slate") return COLORS.slate;
+    return COLORS.green700;
   };
 
   return (
@@ -137,7 +136,7 @@ export function BarChart({
           const y = pad.top + innerH * (1 - fraction);
           return (
             <g key={fraction}>
-              <line x1={pad.left} y1={y} x2={width - pad.right} y2={y} stroke="#e6ece4" strokeWidth="1" />
+              <line x1={pad.left} y1={y} x2={width - pad.right} y2={y} stroke={COLORS.chartGrid} strokeWidth="1" />
               <text x={pad.left - 8} y={y + 4} textAnchor="end" className="kf-chart-axis">
                 {Math.round(maxValue * fraction).toLocaleString()}
               </text>
@@ -201,7 +200,7 @@ export function DonutChart({
     <div className="kf-donut">
       <div className="kf-donut-visual">
         <svg viewBox="0 0 140 140" role="img" aria-label="Breakdown chart">
-          <circle cx="70" cy="70" r={radius} fill="none" stroke="#eef2ec" strokeWidth="16" />
+          <circle cx="70" cy="70" r={radius} fill="none" stroke={COLORS.chartTrack} strokeWidth="16" />
           {segments.map((segment, index) => {
             const share = Math.max(0, segment.value) / total;
             const dash = share * circumference;
