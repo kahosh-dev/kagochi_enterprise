@@ -258,8 +258,16 @@ function App() {
         setAuthError("Enter your name (at least 2 characters).");
         return;
       }
-      if (password.length < 6 || password.length > 128) {
-        setAuthError("Password must be at least 6 characters.");
+      if (password.length < 10 || password.length > 128) {
+        setAuthError("Password must be at least 10 characters.");
+        return;
+      }
+      if (!/[A-Za-z]/.test(password)) {
+        setAuthError("Password must contain at least one letter.");
+        return;
+      }
+      if (!/[0-9]/.test(password)) {
+        setAuthError("Password must contain at least one number.");
         return;
       }
       if (password !== confirmPassword) {

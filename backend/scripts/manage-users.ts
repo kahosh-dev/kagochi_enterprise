@@ -13,7 +13,10 @@ import crypto from "crypto";
 import readline from "readline";
 import { parseArgs } from "util";
 import { hashPassword } from "../src/auth.js";
-import * as store from "../src/database.js";
+import { config } from "../src/config.js";
+import { postgresPool, initializePostgresSchema } from "../src/postgres.js";
+import { postgresStore } from "../src/postgresStore.js";
+import { sqliteStore } from "../src/sqliteStore.js";
 import { newPassword } from "../src/schemas.js";
 
 function promptHidden(question: string): Promise<string> {
@@ -51,43 +54,65 @@ function parseRole(value: string | undefined): "farmer" | "admin" {
   fail('Role must be "farmer" or "admin".');
 }
 
-const { positionals, values } = parseArgs({
-  allowPositionals: true,
-  options: { name: { type: "string" }, email: { type: "string" }, role: { type: "string" } },
-});
+async function main() {
+  const isPostgres = config.databaseType === "postgres";
+  if (isPostgres) {
+    await initializePostgresSchema();
+  }
+  const store = isPostgres ? postgresStore : sqliteStore;
 
-const command = positionals[0];
+  const { positionals, values } = parseArgs({
+    allowPositionals: true,
+    options: { name: { type: "string" }, email: { type: "string" }, role: { type: "string" } },
+  });
 
-switch (command) {
-  case "list": {
-    console.table(store.getAllUsers());
-    break;
+  const command = positionals[0];
+
+  try {
+    switch (command) {
+      case "list": {
+        const users = await store.getAllUsers();
+        console.table(users);
+        break;
+      }
+      case "create": {
+        if (!values.name || !values.email) fail("--name and --email are required.");
+        if (await store.findUserByEmail(values.email)) fail("An account with this email already exists.");
+        const role = parseRole(values.role);
+        const password = await readNewPassword();
+        await store.createUser(crypto.randomUUID(), values.name, values.email, await hashPassword(password), role);
+        console.log(`Created ${role} account for ${values.email.toLowerCase()}.`);
+        break;
+      }
+      case "set-role": {
+        const user = values.email ? await store.findUserByEmail(values.email) : undefined;
+        if (!user) fail("No account with that email.");
+        const role = parseRole(values.role);
+        if (user.role === "admin" && role !== "admin" && (await store.countAdmins()) <= 1) {
+          fail("Cannot demote the last administrator.");
+        }
+        await store.setUserRole(user.id, role);
+        console.log(`${user.email} is now ${role}.`);
+        break;
+      }
+      case "reset-password": {
+        const user = values.email ? await store.findUserByEmail(values.email) : undefined;
+        if (!user) fail("No account with that email.");
+        await store.setUserPassword(user.id, await hashPassword(await readNewPassword()));
+        console.log(`Password reset for ${user.email}. Existing sessions were signed out.`);
+        break;
+      }
+      default:
+        fail("Usage: npm run users -- <list|create|set-role|reset-password> [--name ..] [--email ..] [--role farmer|admin]");
+    }
+  } finally {
+    if (isPostgres && postgresPool) {
+      await postgresPool.end();
+    }
   }
-  case "create": {
-    if (!values.name || !values.email) fail("--name and --email are required.");
-    if (store.findUserByEmail(values.email)) fail("An account with this email already exists.");
-    const role = parseRole(values.role);
-    const password = await readNewPassword();
-    store.createUser(crypto.randomUUID(), values.name, values.email, await hashPassword(password), role);
-    console.log(`Created ${role} account for ${values.email.toLowerCase()}.`);
-    break;
-  }
-  case "set-role": {
-    const user = values.email ? store.findUserByEmail(values.email) : undefined;
-    if (!user) fail("No account with that email.");
-    const role = parseRole(values.role);
-    if (user.role === "admin" && role !== "admin" && store.countAdmins() <= 1) fail("Cannot demote the last administrator.");
-    store.setUserRole(user.id, role);
-    console.log(`${user.email} is now ${role}.`);
-    break;
-  }
-  case "reset-password": {
-    const user = values.email ? store.findUserByEmail(values.email) : undefined;
-    if (!user) fail("No account with that email.");
-    store.setUserPassword(user.id, await hashPassword(await readNewPassword()));
-    console.log(`Password reset for ${user.email}. Existing sessions were signed out.`);
-    break;
-  }
-  default:
-    fail("Usage: npm run users -- <list|create|set-role|reset-password> [--name ..] [--email ..] [--role farmer|admin]");
 }
+
+main().catch((err) => {
+  console.error(err);
+  process.exit(1);
+});
