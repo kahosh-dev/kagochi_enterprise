@@ -1,14 +1,6 @@
+import type { ReactNode } from "react";
 import {
   LayoutDashboard,
-  Bird,
-  Beef,
-  Egg,
-  Wheat,
-  TrendingDown,
-  Users,
-  Syringe,
-  Wallet,
-  ChartNoAxesCombined,
   BrainCircuit,
   Settings,
   LogOut,
@@ -26,7 +18,20 @@ interface SideNavProps {
   onLogout: () => void;
 }
 
-const NAV_SECTIONS = [
+interface NavItem {
+  id: string;
+  label: string;
+  description: string;
+  image?: string;
+  icon?: ReactNode;
+}
+
+interface NavSection {
+  label: string;
+  items: NavItem[];
+}
+
+const NAV_SECTIONS: NavSection[] = [
   {
     label: "Overview",
     items: [
@@ -36,25 +41,25 @@ const NAV_SECTIONS = [
   {
     label: "Farm records",
     items: [
-      { id: "poultry", label: "Add Chickens", description: "Chicks & flocks", icon: <Bird size={19} strokeWidth={1.5} /> },
-      { id: "livestock", label: "My Cattle", description: "Calves, heifers & cows", icon: <Beef size={19} strokeWidth={1.5} /> },
-      { id: "production", label: "Production Summary", description: "Eggs & milk", icon: <Egg size={19} strokeWidth={1.5} /> },
-      { id: "feeding", label: "Feed & Feeding", description: "Feed usage & costs", icon: <Wheat size={19} strokeWidth={1.5} /> },
-      { id: "expenses", label: "Record Income or Expense", description: "Daily farm cashflow", icon: <Wallet size={19} strokeWidth={1.5} /> },
-      { id: "vaccinations", label: "Vaccine Schedule", description: "Vaccinations & alerts", icon: <Syringe size={19} strokeWidth={1.5} /> },
+      { id: "poultry", label: "Add Chickens", description: "Chicks & flocks", image: "/images/farm/chicken.webp" },
+      { id: "livestock", label: "My Cattle", description: "Calves, heifers & cows", image: "/images/farm/cow.webp" },
+      { id: "production", label: "Production Summary", description: "Eggs & milk", image: "/images/farm/eggs.webp" },
+      { id: "feeding", label: "Feed & Feeding", description: "Feed usage & costs", image: "/images/farm/animal-feed.webp" },
+      { id: "expenses", label: "Record Income or Expense", description: "Daily farm cashflow", image: "/images/farm/farm-income.webp" },
+      { id: "vaccinations", label: "Vaccine Schedule", description: "Vaccinations & alerts", image: "/images/farm/vaccination.webp" },
     ],
   },
   {
     label: "Population tracking",
     items: [
-      { id: "survivors", label: "Survivor Tracking", description: "Population ledger", icon: <Users size={19} strokeWidth={1.5} /> },
-      { id: "mortality", label: "Mortality Monitor", description: "Death rate trends", icon: <TrendingDown size={19} strokeWidth={1.5} /> },
+      { id: "survivors", label: "Survivor Tracking", description: "Population ledger", image: "/images/farm/chick.webp" },
+      { id: "mortality", label: "Mortality Monitor", description: "Death rate trends", image: "/images/farm/operating-loss.webp" },
     ],
   },
   {
     label: "Analytics & AI",
     items: [
-      { id: "performance", label: "Profit & Loss", description: "P&L reports", icon: <ChartNoAxesCombined size={19} strokeWidth={1.5} /> },
+      { id: "performance", label: "Profit & Loss", description: "P&L reports", image: "/images/farm/farm-income.webp" },
       { id: "advisor", label: "Farm Assistant", description: "AI daily advisor", icon: <BrainCircuit size={19} strokeWidth={1.5} /> },
     ],
   },
@@ -123,7 +128,13 @@ export default function SideNav({
                     onClick={() => handleNavigate(item.id)}
                     aria-current={isActive ? "page" : undefined}
                   >
-                    <span className="kf-nav-icon">{item.icon}</span>
+                    {item.image ? (
+                      <span className="kf-nav-icon kf-nav-icon--farm">
+                        <img src={item.image} alt="" className="kf-nav-farm-img" loading="lazy" />
+                      </span>
+                    ) : (
+                      <span className="kf-nav-icon">{item.icon}</span>
+                    )}
                     <span className="kf-nav-copy">
                       <strong>{item.label}</strong>
                       <span>{item.description}</span>

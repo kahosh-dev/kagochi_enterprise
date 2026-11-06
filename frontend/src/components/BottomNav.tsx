@@ -1,4 +1,4 @@
-import { LayoutDashboard, Bird, ChartNoAxesCombined, BrainCircuit, Menu } from "lucide-react";
+import { LayoutDashboard, BrainCircuit, Menu } from "lucide-react";
 
 interface BottomNavProps {
   activeView: string;
@@ -27,7 +27,9 @@ function BottomNav({ activeView, setActiveView, onMore }: BottomNavProps) {
         aria-current={activeView === "poultry" ? "page" : undefined}
         aria-label="Poultry"
       >
-        <Bird size={20} strokeWidth={1.5} />
+        <span className="kf-bottom-nav-media">
+          <img src="/images/farm/chicken.webp" alt="" className="kf-bottom-nav-img" />
+        </span>
         <span>Poultry</span>
       </button>
 
@@ -38,7 +40,9 @@ function BottomNav({ activeView, setActiveView, onMore }: BottomNavProps) {
         aria-current={activeView === "performance" ? "page" : undefined}
         aria-label="Analytics"
       >
-        <ChartNoAxesCombined size={20} strokeWidth={1.5} />
+        <span className="kf-bottom-nav-media">
+          <img src="/images/farm/farm-income.webp" alt="" className="kf-bottom-nav-img" />
+        </span>
         <span>Analytics</span>
       </button>
 
