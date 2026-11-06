@@ -220,21 +220,27 @@ export default function ExpensesView() {
           label="Total Farm Income"
           value={formatCurrency(totalIncome)}
           hint="All recorded sales"
-          icon={<Wallet size={20} strokeWidth={1.5} />}
+          image="/images/farm/farm-income.webp"
+          imageAlt="Farm Income"
+          layout="image-right"
           tone="green"
         />
         <StatCard
           label="Total Expenses"
           value={formatCurrency(totalExpense)}
           hint="All recorded costs"
-          icon={<TrendingDown size={20} strokeWidth={1.5} />}
+          image="/images/farm/farm-expenses.webp"
+          imageAlt="Farm Expenses"
+          layout="image-right"
           tone="red"
         />
         <StatCard
           label={isProfitable ? "Operating Profit" : "Operating Loss"}
           value={`${isProfitable ? "+" : ""}${formatCurrency(netProfitOrLoss)}`}
           hint={isProfitable ? "Surplus" : "Deficit"}
-          icon={isProfitable ? <TrendingUp size={20} strokeWidth={1.5} /> : <TrendingDown size={20} strokeWidth={1.5} />}
+          image={isProfitable ? "/images/farm/farm-income.webp" : "/images/farm/operating-loss.webp"}
+          imageAlt={isProfitable ? "Operating Profit" : "Operating Loss"}
+          layout="image-right"
           tone={isProfitable ? "green" : "red"}
         />
       </div>

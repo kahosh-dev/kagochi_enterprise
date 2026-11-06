@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from "react";
 import type { MortalitySummary, MortalityPoint } from "../types/farm";
 import { loadMortalitySummary } from "../services/storage";
-import { TrendingDown, Users, Clock, AlertTriangle } from "lucide-react";
+import { Users, Clock, AlertTriangle } from "lucide-react";
 import { PageHeader, Panel, StatCard, Segmented } from "../components/ui";
 
 type Granularity = "daily" | "weekly" | "monthly" | "yearly";
@@ -218,7 +218,9 @@ function MortalityView() {
         <div className="kf-grid kf-grid--stats">
           <StatCard
             tone="red"
-            icon={<TrendingDown size={20} strokeWidth={1.5} />}
+            image="/images/farm/operating-loss.webp"
+            imageAlt="Animals that died"
+            layout="image-right"
             label="Animals that died"
             value={totalDeaths.toLocaleString()}
             hint={`${from} to ${to}`}

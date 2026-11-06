@@ -7,14 +7,11 @@ import {
   CalendarDays,
   ChartNoAxesCombined,
   ChevronRight,
-  DollarSign,
   Egg,
   Filter,
-  Package,
   PlusCircle,
   Syringe,
   TrendingDown,
-  TrendingUp,
   Users,
   Wallet,
   Wheat,
@@ -58,15 +55,15 @@ const PERIOD_OPTIONS: { value: PeriodFilterKey; label: string }[] = [
 ];
 
 const QUICK_ACTIONS = [
-  { view: "poultry", label: "Poultry", hint: "Chicks, broilers & layers", icon: Bird },
-  { view: "livestock", label: "Cattle", hint: "Calves, heifers & cows", icon: Beef },
-  { view: "production", label: "Production", hint: "Eggs & milk logs", icon: Egg },
-  { view: "feeding", label: "Feeding", hint: "Rations & feed costs", icon: Wheat },
-  { view: "expenses", label: "Income & expenses", hint: "Daily cashflow ledger", icon: Wallet },
-  { view: "performance", label: "Profit & loss", hint: "Financial statements", icon: ChartNoAxesCombined },
-  { view: "survivors", label: "Survivors", hint: "Population ledger", icon: Users },
-  { view: "mortality", label: "Mortality", hint: "Death-rate trends", icon: TrendingDown },
-  { view: "vaccinations", label: "Vaccinations", hint: "Schedule & reminders", icon: Syringe },
+  { view: "poultry", label: "Poultry", hint: "Chicks, broilers & layers", image: "/images/farm/chicken.webp", icon: Bird },
+  { view: "livestock", label: "Cattle", hint: "Calves, heifers & cows", image: "/images/farm/cow.webp", icon: Beef },
+  { view: "production", label: "Production", hint: "Eggs & milk logs", image: "/images/farm/eggs.webp", icon: Egg },
+  { view: "feeding", label: "Feeding", hint: "Rations & feed costs", image: "/images/farm/animal-feed.webp", icon: Wheat },
+  { view: "expenses", label: "Income & expenses", hint: "Daily cashflow ledger", image: "/images/farm/farm-income.webp", icon: Wallet },
+  { view: "performance", label: "Profit & loss", hint: "Financial statements", image: "/images/farm/operating-loss.webp", icon: ChartNoAxesCombined },
+  { view: "survivors", label: "Survivors", hint: "Population ledger", image: "/images/farm/chicken.webp", icon: Users },
+  { view: "mortality", label: "Mortality", hint: "Death-rate trends", image: "/images/farm/operating-loss.webp", icon: TrendingDown },
+  { view: "vaccinations", label: "Vaccinations", hint: "Schedule & reminders", image: "/images/farm/vaccination.webp", icon: Syringe },
 ];
 
 function timeOfDayGreeting(): "morning" | "afternoon" | "evening" {
@@ -476,7 +473,9 @@ export default function HomeView({
         <section className="kf-grid kf-grid--stats" aria-label="Animal population">
           <StatCard
             tone="forest"
-            icon={<Bird size={20} strokeWidth={1.5} />}
+            image="/images/farm/chicken.webp"
+            imageAlt="Chickens"
+            layout="image-right"
             label="Chickens"
             value={formatNumber(totalBirds)}
             hint={poultryHintParts.length > 0 ? poultryHintParts.join(" · ") : "No bird breakdown recorded"}
@@ -484,7 +483,9 @@ export default function HomeView({
           />
           <StatCard
             tone="amber"
-            icon={<Egg size={20} strokeWidth={1.5} />}
+            image="/images/farm/chick.webp"
+            imageAlt="Chicks on farm"
+            layout="image-right"
             label="Chicks on farm"
             value={formatNumber(totalChicks)}
             hint="Day-old to four weeks"
@@ -492,7 +493,9 @@ export default function HomeView({
           />
           <StatCard
             tone="blue"
-            icon={<Beef size={20} strokeWidth={1.5} />}
+            image="/images/farm/cow.webp"
+            imageAlt="Cattle herd"
+            layout="image-right"
             label="Cattle herd"
             value={formatNumber(totalCattle)}
             hint={cattleHintParts.length > 0 ? cattleHintParts.join(" · ") : "No cattle breakdown recorded"}
@@ -500,7 +503,9 @@ export default function HomeView({
           />
           <StatCard
             tone="plum"
-            icon={<Beef size={20} strokeWidth={1.5} />}
+            image="/images/farm/calf.webp"
+            imageAlt="Calves & heifers"
+            layout="image-right"
             label="Calves & heifers"
             value={formatNumber(totalCalves + totalHeifers)}
             hint={`${formatNumber(totalCalves)} calves · ${formatNumber(totalHeifers)} growing heifers`}
@@ -521,7 +526,9 @@ export default function HomeView({
             <div className="kf-grid kf-grid--2">
               <StatCard
                 tone="forest"
-                icon={<Bird size={19} strokeWidth={1.5} />}
+                image="/images/farm/chicken.webp"
+                imageAlt="Birds surviving"
+                layout="image-right"
                 label="Birds surviving"
                 value={formatNumber(totalPoultryBirds || totalBirds)}
                 hint="Alive after additions, sales and deaths"
@@ -529,7 +536,9 @@ export default function HomeView({
               />
               <StatCard
                 tone="plum"
-                icon={<Beef size={19} strokeWidth={1.5} />}
+                image="/images/farm/cow.webp"
+                imageAlt="Livestock active"
+                layout="image-right"
                 label="Livestock active"
                 value={formatNumber(totalLivestockActive || totalCattle)}
                 hint="Animals with survivors above zero"
@@ -568,7 +577,9 @@ export default function HomeView({
             <div className="kf-stack kf-stack--sm">
               <StatCard
                 tone="green"
-                icon={<DollarSign size={19} strokeWidth={1.5} />}
+                image="/images/farm/farm-income.webp"
+                imageAlt="Farm income"
+                layout="image-right"
                 label="Farm income"
                 value={formatCurrency(totalIncome)}
                 hint="Egg, milk, poultry and cattle sales"
@@ -576,7 +587,9 @@ export default function HomeView({
               />
               <StatCard
                 tone="red"
-                icon={<TrendingDown size={19} strokeWidth={1.5} />}
+                image="/images/farm/farm-expenses.webp"
+                imageAlt="Operating expenses"
+                layout="image-right"
                 label="Operating expenses"
                 value={formatCurrency(totalExpenses)}
                 hint="Feed, labour, vaccines and maintenance"
@@ -584,7 +597,9 @@ export default function HomeView({
               />
               <StatCard
                 tone={isProfitable ? "forest" : "red"}
-                icon={isProfitable ? <TrendingUp size={19} strokeWidth={1.5} /> : <TrendingDown size={19} strokeWidth={1.5} />}
+                image={isProfitable ? "/images/farm/farm-income.webp" : "/images/farm/operating-loss.webp"}
+                imageAlt={isProfitable ? "Operating profit" : "Operating loss"}
+                layout="image-right"
                 label={isProfitable ? "Operating profit" : "Operating loss"}
                 value={isProfitable ? formatCurrency(profitOrLoss) : `-${formatCurrency(Math.abs(profitOrLoss))}`}
                 hint={netMargin !== null ? `Net margin ${percent(netMargin)}` : "Income minus operating costs"}
@@ -601,7 +616,9 @@ export default function HomeView({
         <section className="kf-grid kf-grid--stats" aria-label="Production and health">
           <StatCard
             tone="green"
-            icon={<Egg size={20} strokeWidth={1.5} />}
+            image="/images/farm/eggs.webp"
+            imageAlt="Eggs produced"
+            layout="image-right"
             label="Eggs produced"
             value={formatNumber(eggsTotal)}
             hint={`${eggLines.reduce((sum, line) => sum + line.recordCount, 0)} collection records`}
@@ -609,7 +626,9 @@ export default function HomeView({
           />
           <StatCard
             tone="blue"
-            icon={<Package size={20} strokeWidth={1.5} />}
+            image="/images/farm/milk-can.webp"
+            imageAlt="Milk produced"
+            layout="image-right"
             label="Milk produced"
             value={`${formatNumber(milkTotal)} L`}
             hint={`${milkLines.reduce((sum, line) => sum + line.recordCount, 0)} milking records`}
@@ -617,7 +636,9 @@ export default function HomeView({
           />
           <StatCard
             tone="amber"
-            icon={<Wheat size={20} strokeWidth={1.5} />}
+            image="/images/farm/animal-feed.webp"
+            imageAlt="Feed usage"
+            layout="image-right"
             label="Feed usage"
             value={feedDisplay}
             hint="Recorded across poultry and livestock"
@@ -625,7 +646,9 @@ export default function HomeView({
           />
           <StatCard
             tone={overdueVac > 0 ? "red" : dueTodayVac > 0 ? "amber" : "forest"}
-            icon={<Syringe size={20} strokeWidth={1.5} />}
+            image="/images/farm/vaccination.webp"
+            imageAlt="Vaccination status"
+            layout="image-right"
             label="Vaccination status"
             value={overdueVac > 0 ? `${overdueVac} overdue` : dueTodayVac > 0 ? `${dueTodayVac} due today` : `${upcomingVac} upcoming`}
             hint={overdueVac > 0 ? "Immediate attention recommended" : "No overdue doses recorded"}
@@ -639,7 +662,6 @@ export default function HomeView({
         >
           <div className="kf-record-list">
             {QUICK_ACTIONS.map((action) => {
-              const Icon = action.icon;
               return (
                 <button
                   key={action.view}
@@ -650,8 +672,8 @@ export default function HomeView({
                 >
                   <span className="kf-record-head">
                     <span className="kf-record-title">
-                      <span className="kf-record-icon">
-                        <Icon size={17} />
+                      <span className="kf-record-icon kf-record-icon--farm">
+                        <img src={action.image} alt={action.label} className="kf-record-farm-img" loading="lazy" />
                       </span>
                       <span>
                         <strong>{action.label}</strong>

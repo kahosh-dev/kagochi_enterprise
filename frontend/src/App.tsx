@@ -2,9 +2,6 @@ import { useEffect, useRef, useState } from "react";
 import {
   AlertCircle,
   ArrowLeft,
-  Beef,
-  Bird,
-  Egg,
   Eye,
   EyeOff,
   Leaf,
@@ -13,7 +10,6 @@ import {
   ShieldCheck,
   TrendingUp,
   UserPlus,
-  Wheat,
 } from "lucide-react";
 import "./App.css";
 import "./styles/design.css";
@@ -353,10 +349,10 @@ function App() {
                 </div>
 
                 <div className="kf-auth-features" style={{ marginTop: 24 }} aria-hidden="true">
-                  <div className="kf-auth-feature"><Bird size={16} /> Poultry</div>
-                  <div className="kf-auth-feature"><Beef size={16} /> Livestock</div>
-                  <div className="kf-auth-feature"><Egg size={16} /> Production</div>
-                  <div className="kf-auth-feature"><Wheat size={16} /> Feeding</div>
+                  <div className="kf-auth-feature"><img src="/images/farm/chicken.webp" alt="" className="kf-auth-feature-img" /> Poultry</div>
+                  <div className="kf-auth-feature"><img src="/images/farm/cow.webp" alt="" className="kf-auth-feature-img" /> Livestock</div>
+                  <div className="kf-auth-feature"><img src="/images/farm/eggs.webp" alt="" className="kf-auth-feature-img" /> Production</div>
+                  <div className="kf-auth-feature"><img src="/images/farm/animal-feed.webp" alt="" className="kf-auth-feature-img" /> Feeding</div>
                 </div>
               </div>
 

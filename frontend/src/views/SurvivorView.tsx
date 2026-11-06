@@ -9,7 +9,7 @@ import {
   loadPoultry,
   loadLivestock,
 } from "../services/storage";
-import { Bird, Beef, Plus, Trash2, AlertTriangle } from "lucide-react";
+import { Plus, Trash2, AlertTriangle } from "lucide-react";
 import { PageHeader, Panel, StatCard, Button, IconButton, ErrorBanner } from "../components/ui";
 
 const EVENT_LABELS: Record<string, string> = {
@@ -182,14 +182,18 @@ function SurvivorView() {
         <div className="kf-grid kf-grid--stats">
           <StatCard
             tone="forest"
-            icon={<Bird size={20} strokeWidth={1.5} />}
+            image="/images/farm/chicken.webp"
+            imageAlt="Total Birds Alive"
+            layout="image-right"
             label="Total Birds Alive"
             value={totals.poultryBirds.toLocaleString()}
             hint="Survivor count across all poultry batches"
           />
           <StatCard
             tone="blue"
-            icon={<Beef size={20} strokeWidth={1.5} />}
+            image="/images/farm/cow.webp"
+            imageAlt="Livestock Active"
+            layout="image-right"
             label="Livestock Active"
             value={totals.livestockAnimals.toLocaleString()}
             hint="Survivor count across all livestock"
@@ -197,7 +201,9 @@ function SurvivorView() {
           {selectedTarget && selectedTarget.survivorRatePercent !== null && (
             <StatCard
               tone="green"
-              icon={<Bird size={20} strokeWidth={1.5} />}
+              image="/images/farm/chick.webp"
+              imageAlt="Survivor Rate"
+              layout="image-right"
               label="Survivor Rate"
               value={`${selectedTarget.survivorRatePercent.toFixed(1)}%`}
               hint={selectedTarget.targetName}

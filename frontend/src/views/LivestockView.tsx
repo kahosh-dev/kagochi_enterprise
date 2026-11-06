@@ -12,7 +12,6 @@ import {
   Pencil,
   Plus,
   Trash2,
-  Users,
 } from "lucide-react";
 import {
   Badge,
@@ -281,7 +280,9 @@ export default function LivestockView() {
         <div className="kf-grid kf-grid--stats">
           <StatCard
             tone="forest"
-            icon={<Beef size={20} strokeWidth={1.5} />}
+            image="/images/farm/cow.webp"
+            imageAlt="Total Cattle Herd"
+            layout="image-right"
             label="Total Cattle Herd"
             value={animals.length}
             hint="All registered animals"
@@ -289,7 +290,9 @@ export default function LivestockView() {
           />
           <StatCard
             tone="blue"
-            icon={<Beef size={20} strokeWidth={1.5} />}
+            image="/images/farm/cow.webp"
+            imageAlt="Adult Cows"
+            layout="image-right"
             label="Adult Cows"
             value={countCows}
             hint="Milking & breeding cows"
@@ -297,7 +300,9 @@ export default function LivestockView() {
           />
           <StatCard
             tone="amber"
-            icon={<Beef size={20} strokeWidth={1.5} />}
+            image="/images/farm/calf.webp"
+            imageAlt="Calves & Heifers"
+            layout="image-right"
             label="Calves & Heifers"
             value={countCalves + countHeifers}
             hint={`${countCalves} calves · ${countHeifers} heifers`}
@@ -305,7 +310,9 @@ export default function LivestockView() {
           />
           <StatCard
             tone="slate"
-            icon={<Users size={20} strokeWidth={1.5} />}
+            image="/images/farm/cow.webp"
+            imageAlt="Bulls"
+            layout="image-right"
             label="Bulls"
             value={countBulls}
             hint="Male animals on farm"

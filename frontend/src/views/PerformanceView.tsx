@@ -2,16 +2,8 @@ import { useEffect, useState } from "react";
 import { loadFarmSummary } from "../services/storage";
 import type { FarmSummaryData } from "../types/farm";
 import {
-  TrendingUp,
-  TrendingDown,
-  DollarSign,
-  Wallet,
   CalendarDays,
   Download,
-  Bird,
-  Beef,
-  Egg,
-  Scale,
   ChartNoAxesCombined,
 } from "lucide-react";
 import {
@@ -192,7 +184,9 @@ export default function PerformanceView() {
               ? `${summary.income.changePercent >= 0 ? "+" : ""}${summary.income.changePercent}% vs prev`
               : "Realized sales in period"
           }
-          icon={<DollarSign size={20} strokeWidth={1.5} />}
+          image="/images/farm/farm-income.webp"
+          imageAlt="Gross Farm Income"
+          layout="image-right"
           tone="green"
         />
         <StatCard
@@ -203,14 +197,18 @@ export default function PerformanceView() {
               ? `${summary.expenses.changePercent >= 0 ? "+" : ""}${summary.expenses.changePercent}% vs prev`
               : "Costs incurred in period"
           }
-          icon={<Wallet size={20} strokeWidth={1.5} />}
+          image="/images/farm/farm-expenses.webp"
+          imageAlt="Operating Expenses"
+          layout="image-right"
           tone="red"
         />
         <StatCard
           label={isProfitable ? "Operating Profit" : "Operating Loss"}
           value={isProfitable ? formatCurrency(profitOrLoss) : `-${formatCurrency(Math.abs(profitOrLoss))}`}
           hint={netMargin != null ? `Net margin: ${percent(netMargin)}` : "Income minus expenses"}
-          icon={isProfitable ? <TrendingUp size={20} strokeWidth={1.5} /> : <TrendingDown size={20} strokeWidth={1.5} />}
+          image={isProfitable ? "/images/farm/farm-income.webp" : "/images/farm/operating-loss.webp"}
+          imageAlt={isProfitable ? "Operating Profit" : "Operating Loss"}
+          layout="image-right"
           tone={isProfitable ? "forest" : "red"}
         />
         <StatCard
@@ -288,14 +286,18 @@ export default function PerformanceView() {
             label="Eggs Collected"
             value={eggsLine ? formatNumber(eggsLine.total) : "0"}
             hint={eggsLine ? `${eggsLine.recordCount} entries · ${eggsLine.unit}` : "No egg logs"}
-            icon={<Egg size={20} strokeWidth={1.5} />}
+            image="/images/farm/eggs.webp"
+            imageAlt="Eggs Collected"
+            layout="image-right"
             tone="amber"
           />
           <StatCard
             label="Milk Produced"
             value={milkLine ? `${formatNumber(milkLine.total)} L` : "0 L"}
             hint={milkLine ? `${milkLine.recordCount} entries · ${milkLine.unit}` : "No milk logs"}
-            icon={<Beef size={20} strokeWidth={1.5} />}
+            image="/images/farm/milk-can.webp"
+            imageAlt="Milk Produced"
+            layout="image-right"
             tone="blue"
           />
         </div>
@@ -308,21 +310,27 @@ export default function PerformanceView() {
             label="Poultry Population"
             value={formatNumber(summary?.population.poultry.currentBirds ?? 0)}
             hint={`Initial: ${formatNumber(summary?.population.poultry.initialBirds ?? 0)}`}
-            icon={<Bird size={20} strokeWidth={1.5} />}
+            image="/images/farm/chicken.webp"
+            imageAlt="Poultry Population"
+            layout="image-right"
             tone="forest"
           />
           <StatCard
             label="Poultry Mortality Rate"
             value={`${percent(lossPercent)}`}
             hint={`${formatNumber(summary?.population.poultry.totalLosses ?? 0)} birds lost`}
-            icon={<TrendingDown size={20} strokeWidth={1.5} />}
+            image="/images/farm/operating-loss.webp"
+            imageAlt="Poultry Mortality"
+            layout="image-right"
             tone={lossPercent > 5 ? "red" : "green"}
           />
           <StatCard
             label="Cattle Herd"
             value={formatNumber(summary?.population.livestock.animalCount ?? 0)}
             hint={`${formatNumber(summary?.population.livestock.cowsCount ?? 0)} cows · ${formatNumber(summary?.population.livestock.calvesCount ?? 0)} calves`}
-            icon={<Beef size={20} strokeWidth={1.5} />}
+            image="/images/farm/cow.webp"
+            imageAlt="Cattle Herd"
+            layout="image-right"
             tone="blue"
           />
         </div>
@@ -335,14 +343,18 @@ export default function PerformanceView() {
             label="Feed (kg)"
             value={kgFeed ? `${formatNumber(kgFeed.total)} kg` : "0 kg"}
             hint={kgFeed ? `${kgFeed.recordCount} feedings logged` : "No kg entries"}
-            icon={<Scale size={20} strokeWidth={1.5} />}
+            image="/images/farm/animal-feed.webp"
+            imageAlt="Feed in kg"
+            layout="image-right"
             tone="forest"
           />
           <StatCard
             label="Feed (bags)"
             value={bagsFeed ? `${formatNumber(bagsFeed.total)} bags` : "0 bags"}
             hint={bagsFeed ? `${bagsFeed.recordCount} feedings logged` : "No bag entries"}
-            icon={<Scale size={20} strokeWidth={1.5} />}
+            image="/images/farm/animal-feed.webp"
+            imageAlt="Feed in bags"
+            layout="image-right"
             tone="amber"
           />
         </div>

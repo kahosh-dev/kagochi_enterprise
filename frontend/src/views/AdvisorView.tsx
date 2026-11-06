@@ -3,7 +3,7 @@ import { getFarmAdvice } from "../services/aiService";
 import { loadFarmSummary } from "../services/storage";
 import type { FarmSummaryData } from "../types/farm";
 import FarmChatbot from "../components/FarmChatbot";
-import { BrainCircuit, Bird, Beef, Egg, DollarSign } from "lucide-react";
+import { BrainCircuit } from "lucide-react";
 import {
   PageHeader,
   StatCard,
@@ -146,29 +146,37 @@ export default function AdvisorView() {
               <div className="kf-stack kf-stack--sm">
                 <StatCard
                   tone="forest"
+                  image="/images/farm/chicken.webp"
+                  imageAlt="Current flock"
+                  layout="image-right"
                   label="Current flock"
                   value={formatNumber(summary.population.poultry.currentBirds)}
-                  icon={<Bird size={16} strokeWidth={1.5} />}
                 />
                 <StatCard
                   tone="amber"
+                  image="/images/farm/cow.webp"
+                  imageAlt="Cattle count"
+                  layout="image-right"
                   label="Cattle count"
                   value={formatNumber(summary.population.livestock.animalCount)}
-                  icon={<Beef size={16} strokeWidth={1.5} />}
                 />
                 <StatCard
                   tone="blue"
+                  image="/images/farm/eggs.webp"
+                  imageAlt="Eggs produced"
+                  layout="image-right"
                   label="Eggs produced"
                   value={formatNumber(
                     (summary.production.lines.find((l) => l.type === "eggs")?.total) ?? 0
                   )}
-                  icon={<Egg size={16} strokeWidth={1.5} />}
                 />
                 <StatCard
                   tone={summary.financial.operatingProfitOrLoss >= 0 ? "green" : "red"}
+                  image={summary.financial.operatingProfitOrLoss >= 0 ? "/images/farm/farm-income.webp" : "/images/farm/operating-loss.webp"}
+                  imageAlt="Net margin"
+                  layout="image-right"
                   label="Net margin"
                   value={formatCurrency(summary.financial.operatingProfitOrLoss)}
-                  icon={<DollarSign size={16} strokeWidth={1.5} />}
                 />
               </div>
             ) : (

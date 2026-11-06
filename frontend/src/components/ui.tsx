@@ -39,16 +39,63 @@ interface StatCardProps {
   value: ReactNode;
   hint?: string;
   icon?: ReactNode;
+  image?: string;
+  imageAlt?: string;
+  layout?: "standard" | "image-right";
   tone?: StatTone;
   onClick?: () => void;
   active?: boolean;
   trend?: { value: string; direction: "up" | "down" | "flat"; good?: boolean };
 }
 
-export function StatCard({ label, value, hint, icon, tone = "green", onClick, active, trend }: StatCardProps) {
-  const content = (
+export function StatCard({
+  label,
+  value,
+  hint,
+  icon,
+  image,
+  imageAlt,
+  layout = "standard",
+  tone = "green",
+  onClick,
+  active,
+  trend,
+}: StatCardProps) {
+  const isImageRight = layout === "image-right" && Boolean(image);
+
+  const visualElement = image ? (
+    <span className={`kf-stat-media${isImageRight ? " kf-stat-media--right" : ""}`}>
+      <img
+        src={image}
+        alt={imageAlt || label}
+        className="kf-stat-img"
+        loading="lazy"
+        onError={(e) => {
+          (e.currentTarget as HTMLElement).style.display = "none";
+        }}
+      />
+    </span>
+  ) : icon ? (
+    <span className="kf-stat-icon">{icon}</span>
+  ) : null;
+
+  const content = isImageRight ? (
     <>
-      <span className="kf-stat-icon">{icon}</span>
+      <span className="kf-stat-body">
+        <span className="kf-stat-label">{label}</span>
+        <span className="kf-stat-value">{value}</span>
+        {hint && <span className="kf-stat-hint">{hint}</span>}
+        {trend && (
+          <span className={`kf-trend kf-trend--${trend.direction}${trend.good === false ? " kf-trend--bad" : ""}`}>
+            {trend.direction === "up" ? "▲" : trend.direction === "down" ? "▼" : "•"} {trend.value}
+          </span>
+        )}
+      </span>
+      {visualElement}
+    </>
+  ) : (
+    <>
+      {visualElement}
       <span className="kf-stat-body">
         <span className="kf-stat-label">{label}</span>
         <span className="kf-stat-value">{value}</span>
@@ -63,7 +110,9 @@ export function StatCard({ label, value, hint, icon, tone = "green", onClick, ac
     </>
   );
 
-  const classes = `kf-stat kf-stat--${tone}${onClick ? " kf-stat--interactive" : ""}${active ? " is-active" : ""}`;
+  const classes = `kf-stat kf-stat--${tone}${image ? " kf-stat--has-image" : ""}${
+    isImageRight ? " kf-stat--image-right" : ""
+  }${onClick ? " kf-stat--interactive" : ""}${active ? " is-active" : ""}`;
 
   if (onClick) {
     return (

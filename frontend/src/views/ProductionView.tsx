@@ -10,7 +10,6 @@ import {
   CalendarDays,
   ClipboardList,
   Egg,
-  Package,
   Pencil,
   Plus,
   Trash2,
@@ -213,7 +212,9 @@ export default function ProductionView() {
         <div className="kf-grid kf-grid--stats">
           <StatCard
             tone="amber"
-            icon={<Egg size={20} strokeWidth={1.5} />}
+            image="/images/farm/eggs.webp"
+            imageAlt="Eggs Produced"
+            layout="image-right"
             label="Eggs Produced"
             value={totalEggs.toLocaleString()}
             hint="Total pieces recorded"
@@ -221,7 +222,9 @@ export default function ProductionView() {
           />
           <StatCard
             tone="blue"
-            icon={<Package size={20} strokeWidth={1.5} />}
+            image="/images/farm/milk-can.webp"
+            imageAlt="Milk Produced"
+            layout="image-right"
             label="Milk Produced"
             value={`${totalMilk.toLocaleString()} L`}
             hint="Total litres recorded"

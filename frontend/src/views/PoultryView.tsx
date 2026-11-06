@@ -11,7 +11,6 @@ import {
   Pencil,
   Plus,
   Trash2,
-  TrendingDown,
 } from "lucide-react";
 import {
   Badge,
@@ -279,28 +278,36 @@ export default function PoultryView() {
         <div className="kf-grid kf-grid--stats">
           <StatCard
             tone="forest"
-            icon={<Bird size={20} strokeWidth={1.5} />}
+            image="/images/farm/chicken.webp"
+            imageAlt="Current Living Birds"
+            layout="image-right"
             label="Current Living Birds"
             value={totalCurrent.toLocaleString()}
             hint="Total across all batches"
           />
           <StatCard
             tone="amber"
-            icon={<Bird size={20} strokeWidth={1.5} />}
+            image="/images/farm/chick.webp"
+            imageAlt="Chicks in Brooder"
+            layout="image-right"
             label="Chicks in Brooder"
             value={totalChicks.toLocaleString()}
             hint="Day-old to 4 weeks"
           />
           <StatCard
             tone="blue"
-            icon={<Bird size={20} strokeWidth={1.5} />}
+            image="/images/farm/chicken.webp"
+            imageAlt="Layers & Broilers"
+            layout="image-right"
             label="Layers & Broilers"
             value={`${totalLayers} layers / ${totalBroilers} broilers`}
             hint="Active production birds"
           />
           <StatCard
             tone={parseFloat(overallLossRate) > 5 ? "red" : "slate"}
-            icon={<TrendingDown size={20} strokeWidth={1.5} />}
+            image="/images/farm/operating-loss.webp"
+            imageAlt="Recorded Mortality"
+            layout="image-right"
             label="Recorded Mortality"
             value={`${totalLoss.toLocaleString()} (${overallLossRate}%)`}
             hint={parseFloat(overallLossRate) > 5 ? "High mortality warning" : "Normal mortality"}
