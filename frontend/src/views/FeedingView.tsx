@@ -102,6 +102,14 @@ export default function FeedingView() {
       setErrorMsg("Please enter a valid feed quantity.");
       return;
     }
+    if (!date) {
+      setErrorMsg("Please select a date.");
+      return;
+    }
+    if (cost !== "" && (isNaN(Number(cost)) || Number(cost) < 0)) {
+      setErrorMsg("Feed cost cannot be negative.");
+      return;
+    }
 
     try {
       setSaving(true);
@@ -338,11 +346,11 @@ export default function FeedingView() {
 
           <div className="kf-form-actions">
             {editingId && (
-              <Button variant="secondary" onClick={resetForm}>
+              <Button variant="secondary" type="button" onClick={resetForm}>
                 Cancel Edit
               </Button>
             )}
-            <Button variant="primary" loading={saving} onClick={() => {}}>
+            <Button type="submit" variant="primary" loading={saving}>
               <span>{saving ? "Saving…" : editingId ? "Update Record" : "Add Feeding"}</span>
             </Button>
           </div>

@@ -262,11 +262,12 @@ export function Button({
   className = "",
   children,
   disabled,
+  type = "button",
   ...rest
 }: ButtonProps) {
   return (
     <button
-      type="button"
+      type={type}
       className={`kf-btn kf-btn--${variant}${block ? " kf-btn--block" : ""}${size && size !== "md" ? " kf-btn--" + size : ""} ${className}`}
       disabled={disabled || loading}
       {...rest}

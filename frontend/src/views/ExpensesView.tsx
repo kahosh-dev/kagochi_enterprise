@@ -145,6 +145,10 @@ export default function ExpensesView() {
       setErrorMsg("Please enter a valid amount in KES.");
       return;
     }
+    if (!date) {
+      setErrorMsg("Please select a transaction date.");
+      return;
+    }
 
     try {
       setSaving(true);
@@ -394,11 +398,11 @@ export default function ExpensesView() {
 
           <div className="kf-form-actions">
             {editingId && (
-              <Button variant="secondary" onClick={resetForm}>
+              <Button variant="secondary" type="button" onClick={resetForm}>
                 Cancel Edit
               </Button>
             )}
-            <Button variant="primary" loading={saving} onClick={() => {}}>
+            <Button type="submit" variant="primary" loading={saving}>
               <span>
                 {saving
                   ? "Saving…"

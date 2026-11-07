@@ -16,7 +16,7 @@ import type {
   PoultryBatch,
   LivestockAnimal,
 } from "../types/farm";
-import { Syringe, Trash2, CheckCircle2, Plus } from "lucide-react";
+import { Syringe, Trash2, CheckCircle2, Plus, Pencil } from "lucide-react";
 import {
   PageHeader,
   Panel,
@@ -59,12 +59,14 @@ function VaccGroup({
   tone,
   vaccs,
   onMarkDone,
+  onEdit,
   onDelete,
 }: {
   title: string;
   tone: BadgeTone;
   vaccs: VaccinationRecord[];
   onMarkDone: (v: VaccinationRecord) => void;
+  onEdit?: (v: VaccinationRecord) => void;
   onDelete: (id: string) => void;
 }) {
   return (
@@ -132,6 +134,13 @@ function VaccGroup({
                       Mark done
                     </Button>
                   )}
+                  {onEdit && (
+                    <IconButton
+                      label="Edit"
+                      icon={<Pencil size={15} />}
+                      onClick={() => onEdit(v)}
+                    />
+                  )}
                   <IconButton
                     label="Delete"
                     icon={<Trash2 size={15} />}
@@ -186,6 +195,13 @@ function VaccGroup({
                             >
                               Mark done
                             </Button>
+                          )}
+                          {onEdit && (
+                            <IconButton
+                              label="Edit"
+                              icon={<Pencil size={15} />}
+                              onClick={() => onEdit(v)}
+                            />
                           )}
                           <IconButton
                             label="Delete"
@@ -281,13 +297,48 @@ export default function VaccinationsView() {
   const dueToday = vaccinations.filter(
     (v) => v.status !== "completed" && v.dateDue && v.dateDue.slice(0, 10) === todayStr
   );
-  const upcoming7 = vaccinations.filter((v) => {
+  const upcoming = vaccinations.filter((v) => {
     if (v.status === "completed" || !v.dateDue) return false;
     const d = v.dateDue.slice(0, 10);
-    const in7 = new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10);
-    return d > todayStr && d <= in7;
+    return d > todayStr;
   });
   const completed = vaccinations.filter((v) => v.status === "completed");
+
+  const [editingId, setEditingId] = useState<string | null>(null);
+
+  function resetVaccinationForm() {
+    setEditingId(null);
+    setSpecies("poultry");
+    setTargetName("");
+    setVaccineName("");
+    setDisease("");
+    setDateDue(new Date().toISOString().slice(0, 10));
+    setDateAdministered("");
+    setDose("");
+    setCountVaccinated(0);
+    setAdministeredBy("");
+    setVacStatus("scheduled");
+    setNotes("");
+    setErrorMsg("");
+  }
+
+  function startEdit(v: VaccinationRecord) {
+    setEditingId(v.id);
+    setSpecies(v.species);
+    setTargetName(v.targetName);
+    setVaccineName(v.vaccineName);
+    setDisease(v.disease || "");
+    setDateDue(v.dateDue ? v.dateDue.slice(0, 10) : new Date().toISOString().slice(0, 10));
+    setDateAdministered(v.dateAdministered ? v.dateAdministered.slice(0, 10) : "");
+    setDose(v.dose || "");
+    setCountVaccinated(v.countVaccinated ?? 0);
+    setAdministeredBy(v.administeredBy || "");
+    setVacStatus(v.status || "scheduled");
+    setNotes(v.notes || "");
+    setErrorMsg("");
+    setActiveTab("add");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
 
   async function handleMarkDone(e: React.FormEvent) {
     e.preventDefault();
@@ -316,40 +367,52 @@ export default function VaccinationsView() {
     e.preventDefault();
     setErrorMsg("");
     setSuccessMsg("");
+
+    if (!targetName.trim()) {
+      setErrorMsg("Please enter the animal or group name.");
+      return;
+    }
     if (!vaccineName.trim()) {
       setErrorMsg("Please enter the vaccine name.");
       return;
     }
+    if (!dateDue) {
+      setErrorMsg("Please select the date to give the vaccine.");
+      return;
+    }
+
     try {
       setSaving(true);
-      await addVaccination({
+      const record = {
         species,
         targetType: species === "poultry" ? "batch" : "animal",
         targetId: "custom",
-        targetName: targetName.trim() || (species === "poultry" ? "Main Flock" : "Dairy Herd"),
+        targetName: targetName.trim(),
         vaccineName: vaccineName.trim(),
         disease: disease.trim() || "Preventative",
-        dateDue,
-        dateAdministered: dateAdministered || null,
+        dateDue: dateDue.slice(0, 10),
+        dateAdministered: dateAdministered ? dateAdministered.slice(0, 10) : "",
         dose: dose.trim(),
         administeredBy: administeredBy.trim() || "Farm Vet",
         status: vacStatus,
-        countVaccinated,
+        countVaccinated: Math.max(0, Math.floor(Number(countVaccinated) || 0)),
         notes: notes.trim(),
-      });
-      setSuccessMsg(`Scheduled ${vaccineName} for ${dateDue}.`);
-      setVaccineName("");
-      setDisease("");
-      setDose("");
-      setNotes("");
-      setCountVaccinated(0);
-      setDateAdministered("");
-      setAdministeredBy("");
-      setVacStatus("scheduled");
+      };
+
+      if (editingId) {
+        await updateVaccination(editingId, record);
+        setSuccessMsg(`Vaccination record updated: ${vaccineName} (${species}).`);
+      } else {
+        await addVaccination(record);
+        setSuccessMsg(`Vaccination record saved: ${vaccineName} (${species}).`);
+      }
+
+      resetVaccinationForm();
       setActiveTab("reminders");
       await refreshData();
     } catch (err) {
-      setErrorMsg("Failed to schedule vaccination.");
+      console.error(err);
+      setErrorMsg(err instanceof Error ? err.message : "Failed to save vaccination record.");
     } finally {
       setSaving(false);
     }
@@ -441,11 +504,11 @@ export default function VaccinationsView() {
         <StatCard
           tone="blue"
           image="/images/farm/vaccination.webp"
-          imageAlt="Upcoming 7 Days"
+          imageAlt="Upcoming"
           layout="image-right"
-          label="Due This Week"
-          value={upcoming7.length}
-          hint="Vaccines due within a week"
+          label="Upcoming"
+          value={upcoming.length}
+          hint="Future scheduled vaccinations"
           onClick={() => setActiveTab("reminders")}
         />
         <StatCard
@@ -466,8 +529,8 @@ export default function VaccinationsView() {
         options={[
           {
             value: "reminders",
-            label: "Upcoming & Overdue",
-            count: overdue.length + dueToday.length + upcoming7.length,
+            label: "Vaccination List",
+            count: overdue.length + dueToday.length + upcoming.length + completed.length,
             icon: <Syringe size={15} />,
           },
           {
@@ -477,12 +540,15 @@ export default function VaccinationsView() {
           },
           {
             value: "add",
-            label: "Record Vaccine",
+            label: editingId ? "Edit Vaccine" : "Record Vaccine",
             icon: <Plus size={15} />,
           },
         ]}
         value={activeTab}
-        onChange={(v) => setActiveTab(v as "reminders" | "schedules" | "add")}
+        onChange={(v) => {
+          setActiveTab(v as "reminders" | "schedules" | "add");
+          if (v !== "add" && editingId) resetVaccinationForm();
+        }}
       />
 
       {/* ── REMINDERS TAB ── */}
@@ -498,6 +564,7 @@ export default function VaccinationsView() {
               setMarkDoneCount(v.countVaccinated ?? 0);
               setMarkDoneError("");
             }}
+            onEdit={startEdit}
             onDelete={handleDeleteVac}
           />
           <VaccGroup
@@ -510,18 +577,20 @@ export default function VaccinationsView() {
               setMarkDoneCount(v.countVaccinated ?? 0);
               setMarkDoneError("");
             }}
+            onEdit={startEdit}
             onDelete={handleDeleteVac}
           />
           <VaccGroup
-            title="Upcoming (7 days)"
+            title="Upcoming"
             tone="blue"
-            vaccs={upcoming7}
+            vaccs={upcoming}
             onMarkDone={(v) => {
               setMarkDoneId(v.id);
               setMarkDoneDate(todayStr);
               setMarkDoneCount(v.countVaccinated ?? 0);
               setMarkDoneError("");
             }}
+            onEdit={startEdit}
             onDelete={handleDeleteVac}
           />
           <VaccGroup
@@ -534,6 +603,7 @@ export default function VaccinationsView() {
               setMarkDoneCount(v.countVaccinated ?? 0);
               setMarkDoneError("");
             }}
+            onEdit={startEdit}
             onDelete={handleDeleteVac}
           />
         </Panel>
