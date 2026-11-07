@@ -36,6 +36,7 @@ import {
   loadProduction,
   loadExpenses,
   loadSurvivorSummary,
+  loadVaccinations,
 } from "./services/storage";
 
 import {
@@ -94,6 +95,7 @@ function App() {
   const [totalPoultryBirds, setTotalPoultryBirds] = useState(0);
   const [totalLivestockActive, setTotalLivestockActive] = useState(0);
   const [loadingFarmData, setLoadingFarmData] = useState(false);
+  const [overdueVacCount, setOverdueVacCount] = useState(0);
   const [sideNavOpen, setSideNavOpen] = useState(false);
   const [publicView, setPublicView] = useState<'home' | 'about' | 'features' | 'how-it-works' | 'founder' | 'login'>('home');
 
@@ -206,12 +208,13 @@ function App() {
     async function loadDashboardData() {
       try {
         setLoadingFarmData(true);
-        const [poultry, livestock, production, expenses, survivors] = await Promise.all([
+        const [poultry, livestock, production, expenses, survivors, vacData] = await Promise.all([
           loadPoultry(),
           loadLivestock(),
           loadProduction(),
           loadExpenses(),
           loadSurvivorSummary(),
+          loadVaccinations(),
         ]);
         setPoultryCount(poultry.length);
         setLivestockCount(livestock.length);
@@ -221,6 +224,9 @@ function App() {
         );
         setTotalPoultryBirds(survivors.totalPoultryBirds);
         setTotalLivestockActive(survivors.totalLivestockAnimals);
+        const today = new Date().toISOString().slice(0, 10);
+        const overdue = vacData.filter(v => v.status !== "completed" && v.dateDue && v.dateDue.slice(0, 10) < today);
+        setOverdueVacCount(overdue.length);
       } catch (error) {
         console.error("Failed to load dashboard data:", error);
       } finally {
@@ -301,6 +307,7 @@ function App() {
     setPoultryCount(0); setLivestockCount(0);
     setProductionCount(0); setExpenseTotal(0);
     setTotalPoultryBirds(0); setTotalLivestockActive(0);
+    setOverdueVacCount(0);
   }
 
   /* =====================================================
@@ -654,6 +661,7 @@ function App() {
         activeView={activeView}
         setActiveView={setActiveView}
         onMore={() => setSideNavOpen(true)}
+        overdueVacCount={overdueVacCount}
       />
     </div>
   );

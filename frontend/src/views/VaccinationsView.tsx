@@ -76,61 +76,132 @@ function VaccGroup({
       {vaccs.length === 0 ? (
         <EmptyState compact title={`No ${title.toLowerCase()} vaccinations`} />
       ) : (
-        <div className="kf-table-wrap">
-          <table className="kf-table">
-            <thead>
-              <tr>
-                <th>Vaccine Name</th>
-                <th>Species</th>
-                <th>Target</th>
-                <th>Date Due</th>
-                <th>Date Administered</th>
-                <th>Count</th>
-                <th>Status</th>
-                <th>Notes</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {vaccs.map((v) => (
-                <tr key={v.id}>
-                  <td>
-                    <strong>{v.vaccineName}</strong>
-                  </td>
-                  <td>{v.species === "poultry" ? "Poultry" : "Cattle"}</td>
-                  <td>{v.targetName}</td>
-                  <td>{v.dateDue ? v.dateDue.slice(0, 10) : "—"}</td>
-                  <td>{v.dateAdministered ? v.dateAdministered.slice(0, 10) : "—"}</td>
-                  <td>{v.countVaccinated ?? "—"}</td>
-                  <td>
-                    <Badge tone={statusTone(v.status)}>{statusLabel(v.status)}</Badge>
-                  </td>
-                  <td>{v.notes || "—"}</td>
-                  <td>
-                    <div className="kf-row-actions">
-                      {v.status !== "completed" && (
-                        <Button
-                          variant="soft"
-                          size="sm"
-                          icon={<CheckCircle2 size={14} />}
-                          onClick={() => onMarkDone(v)}
-                        >
-                          Mark done
-                        </Button>
-                      )}
-                      <IconButton
-                        label="Delete"
-                        icon={<Trash2 size={15} />}
-                        onClick={() => onDelete(v.id)}
-                        tone="danger"
-                      />
+        <>
+          {/* Mobile card list */}
+          <div className="kf-vacc-cards--mobile">
+            {vaccs.map((v) => (
+              <div key={v.id} className="kf-vacc-card">
+                <div className="kf-vacc-card-top">
+                  <div>
+                    <h4 className="kf-vacc-card-title">{v.vaccineName}</h4>
+                    <p className="kf-vacc-card-target">
+                      {v.species === "poultry" ? "🐔 " : "🐄 "}
+                      {v.targetName}
+                      {v.disease ? ` · ${v.disease}` : ""}
+                    </p>
+                  </div>
+                  <Badge tone={statusTone(v.status)}>{statusLabel(v.status)}</Badge>
+                </div>
+                <div className="kf-vacc-card-meta">
+                  <div className="kf-vacc-card-meta-item">
+                    <span className="kf-vacc-card-meta-label">Due Date</span>
+                    <span className="kf-vacc-card-meta-value">{v.dateDue ? v.dateDue.slice(0, 10) : "—"}</span>
+                  </div>
+                  {v.dateAdministered && (
+                    <div className="kf-vacc-card-meta-item">
+                      <span className="kf-vacc-card-meta-label">Date Given</span>
+                      <span className="kf-vacc-card-meta-value">{v.dateAdministered.slice(0, 10)}</span>
                     </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+                  )}
+                  {v.countVaccinated !== undefined && v.countVaccinated > 0 && (
+                    <div className="kf-vacc-card-meta-item">
+                      <span className="kf-vacc-card-meta-label">Animals</span>
+                      <span className="kf-vacc-card-meta-value">{v.countVaccinated}</span>
+                    </div>
+                  )}
+                  {v.administeredBy && (
+                    <div className="kf-vacc-card-meta-item">
+                      <span className="kf-vacc-card-meta-label">Given By</span>
+                      <span className="kf-vacc-card-meta-value">{v.administeredBy}</span>
+                    </div>
+                  )}
+                </div>
+                {v.notes && (
+                  <p style={{ margin: "4px 0 0", fontSize: "12px", color: "var(--kf-muted)" }}>
+                    {v.notes}
+                  </p>
+                )}
+                <div className="kf-vacc-card-actions">
+                  {v.status !== "completed" && (
+                    <Button
+                      variant="soft"
+                      size="sm"
+                      icon={<CheckCircle2 size={14} />}
+                      onClick={() => onMarkDone(v)}
+                    >
+                      Mark done
+                    </Button>
+                  )}
+                  <IconButton
+                    label="Delete"
+                    icon={<Trash2 size={15} />}
+                    onClick={() => onDelete(v.id)}
+                    tone="danger"
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Desktop table */}
+          <div className="kf-vacc-table--desktop">
+            <div className="kf-table-wrap">
+              <table className="kf-table">
+                <thead>
+                  <tr>
+                    <th>Vaccine</th>
+                    <th>Species</th>
+                    <th>Animal / Group</th>
+                    <th>Due Date</th>
+                    <th>Date Given</th>
+                    <th>Animals</th>
+                    <th>Status</th>
+                    <th>Notes</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {vaccs.map((v) => (
+                    <tr key={v.id}>
+                      <td>
+                        <strong>{v.vaccineName}</strong>
+                      </td>
+                      <td>{v.species === "poultry" ? "Poultry" : "Cattle"}</td>
+                      <td>{v.targetName}</td>
+                      <td>{v.dateDue ? v.dateDue.slice(0, 10) : "—"}</td>
+                      <td>{v.dateAdministered ? v.dateAdministered.slice(0, 10) : "—"}</td>
+                      <td>{v.countVaccinated ?? "—"}</td>
+                      <td>
+                        <Badge tone={statusTone(v.status)}>{statusLabel(v.status)}</Badge>
+                      </td>
+                      <td>{v.notes || "—"}</td>
+                      <td>
+                        <div className="kf-row-actions">
+                          {v.status !== "completed" && (
+                            <Button
+                              variant="soft"
+                              size="sm"
+                              icon={<CheckCircle2 size={14} />}
+                              onClick={() => onMarkDone(v)}
+                            >
+                              Mark done
+                            </Button>
+                          )}
+                          <IconButton
+                            label="Delete"
+                            icon={<Trash2 size={15} />}
+                            onClick={() => onDelete(v.id)}
+                            tone="danger"
+                          />
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </>
       )}
     </div>
   );
@@ -338,7 +409,7 @@ export default function VaccinationsView() {
     <main className="kf-page">
       <PageHeader
         title="Vaccinations"
-        description="Schedule, reminders and records for poultry and livestock vaccinations."
+        description="Track vaccination schedules, record when vaccines are given, and view upcoming reminders for your animals."
       />
 
       {/* Feedback */}
@@ -354,7 +425,7 @@ export default function VaccinationsView() {
           layout="image-right"
           label="Overdue"
           value={overdue.length}
-          hint={overdue.length > 0 ? "Immediate attention required" : "No overdue doses"}
+          hint={overdue.length > 0 ? "These need attention now" : "No overdue doses"}
           onClick={() => setActiveTab("reminders")}
         />
         <StatCard
@@ -372,7 +443,7 @@ export default function VaccinationsView() {
           image="/images/farm/vaccination.webp"
           imageAlt="Upcoming 7 Days"
           layout="image-right"
-          label="Upcoming 7 Days"
+          label="Due This Week"
           value={upcoming7.length}
           hint="Vaccines due within a week"
           onClick={() => setActiveTab("reminders")}
@@ -382,9 +453,9 @@ export default function VaccinationsView() {
           image="/images/farm/vaccination.webp"
           imageAlt="Completed"
           layout="image-right"
-          label="Completed Records"
+          label="Completed"
           value={completed.length}
-          hint="Administered & confirmed"
+          hint="Vaccines recorded as done"
           onClick={() => setActiveTab("reminders")}
         />
       </div>
@@ -395,18 +466,18 @@ export default function VaccinationsView() {
         options={[
           {
             value: "reminders",
-            label: "Reminders",
+            label: "Upcoming & Overdue",
             count: overdue.length + dueToday.length + upcoming7.length,
             icon: <Syringe size={15} />,
           },
           {
             value: "schedules",
-            label: "Schedules",
+            label: "Timetables",
             count: schedules.length,
           },
           {
             value: "add",
-            label: "Add",
+            label: "Record Vaccine",
             icon: <Plus size={15} />,
           },
         ]}
@@ -470,11 +541,11 @@ export default function VaccinationsView() {
 
       {/* ── SCHEDULES TAB ── */}
       {activeTab === "schedules" && (
-        <Panel title="Vaccination schedules" subtitle="Standard timetable rules by species and age">
+        <Panel title="Vaccination timetables" subtitle="Standard timetable rules by species and age">
           {schedules.length === 0 ? (
             <EmptyState
               icon={<Syringe size={40} />}
-              title="No schedule templates"
+              title="No timetable templates"
               description="Add a standard timetable rule below."
             />
           ) : (
@@ -565,7 +636,7 @@ export default function VaccinationsView() {
                   onChange={(e) => setSchDisease(e.target.value)}
                 />
               </Field>
-              <Field label="Due at Age (days)" required>
+              <Field label="Give at age (days old)" required>
                 <input
                   type="number"
                   className="kf-input"
@@ -575,7 +646,7 @@ export default function VaccinationsView() {
                   required
                 />
               </Field>
-              <Field label="Booster Interval (days, 0 = none)">
+              <Field label="Repeat every (days, 0 = no repeat)">
                 <input
                   type="number"
                   className="kf-input"
@@ -587,7 +658,7 @@ export default function VaccinationsView() {
             </div>
             <div className="kf-form-actions">
               <Button variant="primary" loading={saving} onClick={() => {}}>
-                <span>{saving ? "Saving…" : "Save Schedule Template"}</span>
+                <span>{saving ? "Saving…" : "Save timetable"}</span>
               </Button>
             </div>
           </form>
@@ -596,7 +667,7 @@ export default function VaccinationsView() {
 
       {/* ── ADD TAB ── */}
       {activeTab === "add" && (
-        <Panel title="Schedule a vaccination event">
+        <Panel title="Record a vaccination event">
           <form onSubmit={handleSaveVaccination} className="kf-form">
             <div className="kf-form-grid">
               <Field label="Species" required>
@@ -609,7 +680,7 @@ export default function VaccinationsView() {
                   <option value="cattle">Cattle</option>
                 </select>
               </Field>
-              <Field label="Target Group / Animal" required>
+              <Field label="Animal or group name" required>
                 <input
                   type="text"
                   className="kf-input"
@@ -628,7 +699,7 @@ export default function VaccinationsView() {
                   required
                 />
               </Field>
-              <Field label="Target Disease">
+              <Field label="Disease it protects against (optional)">
                 <input
                   type="text"
                   className="kf-input"
@@ -637,7 +708,7 @@ export default function VaccinationsView() {
                   onChange={(e) => setDisease(e.target.value)}
                 />
               </Field>
-              <Field label="Date Due" required>
+              <Field label="Date to give the vaccine" required>
                 <input
                   type="date"
                   className="kf-input"
@@ -646,7 +717,7 @@ export default function VaccinationsView() {
                   required
                 />
               </Field>
-              <Field label="Date Administered (optional)">
+              <Field label="Date given (if already done)">
                 <input
                   type="date"
                   className="kf-input"
@@ -654,7 +725,7 @@ export default function VaccinationsView() {
                   onChange={(e) => setDateAdministered(e.target.value)}
                 />
               </Field>
-              <Field label="Dose & Route">
+              <Field label="How it is given (e.g. eye drop, injection)">
                 <input
                   type="text"
                   className="kf-input"
@@ -663,7 +734,7 @@ export default function VaccinationsView() {
                   onChange={(e) => setDose(e.target.value)}
                 />
               </Field>
-              <Field label="Count Vaccinated">
+              <Field label="Number of animals vaccinated">
                 <input
                   type="number"
                   className="kf-input"
@@ -672,7 +743,7 @@ export default function VaccinationsView() {
                   onChange={(e) => setCountVaccinated(Number(e.target.value))}
                 />
               </Field>
-              <Field label="Administered By">
+              <Field label="Given by (e.g. vet, farm worker)">
                 <input
                   type="text"
                   className="kf-input"
@@ -706,7 +777,7 @@ export default function VaccinationsView() {
             </div>
             <div className="kf-form-actions">
               <Button variant="primary" loading={saving} onClick={() => {}}>
-                <span>{saving ? "Saving…" : "Schedule Vaccination"}</span>
+                <span>{saving ? "Saving…" : "Save vaccination"}</span>
               </Button>
             </div>
           </form>
@@ -717,7 +788,7 @@ export default function VaccinationsView() {
       <Modal
         open={!!markDoneId}
         onClose={() => { setMarkDoneId(null); setMarkDoneError(""); }}
-        title="Mark vaccination done"
+        title="Record vaccination given"
         subtitle={markingRec ? `${markingRec.targetName} — ${markingRec.vaccineName}` : undefined}
         size="sm"
         footer={
@@ -730,14 +801,14 @@ export default function VaccinationsView() {
               loading={markDoneSubmitting}
               onClick={(e) => handleMarkDone(e as unknown as React.FormEvent)}
             >
-              <span>{markDoneSubmitting ? "Saving…" : "Mark as Done"}</span>
+              <span>{markDoneSubmitting ? "Saving…" : "Save"}</span>
             </Button>
           </div>
         }
       >
         <form onSubmit={handleMarkDone} id="mark-done-form" className="kf-form">
           {markDoneError && <ErrorBanner message={markDoneError} />}
-          <Field label="Date Administered" required>
+          <Field label="Date given" required>
             <input
               type="date"
               className="kf-input"
@@ -747,7 +818,7 @@ export default function VaccinationsView() {
               required
             />
           </Field>
-          <Field label="Count Vaccinated">
+          <Field label="Number of animals vaccinated">
             <input
               type="number"
               className="kf-input"

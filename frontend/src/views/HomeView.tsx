@@ -56,14 +56,14 @@ const PERIOD_OPTIONS: { value: PeriodFilterKey; label: string }[] = [
 
 const QUICK_ACTIONS = [
   { view: "poultry", label: "Poultry", hint: "Chicks, broilers & layers", image: "/images/farm/chicken.webp", icon: Bird },
-  { view: "livestock", label: "Cattle", hint: "Calves, heifers & cows", image: "/images/farm/cow.webp", icon: Beef },
-  { view: "production", label: "Production", hint: "Eggs & milk logs", image: "/images/farm/eggs.webp", icon: Egg },
-  { view: "feeding", label: "Feeding", hint: "Rations & feed costs", image: "/images/farm/animal-feed.webp", icon: Wheat },
-  { view: "expenses", label: "Income & expenses", hint: "Daily cashflow ledger", image: "/images/farm/farm-income.webp", icon: Wallet },
-  { view: "performance", label: "Profit & loss", hint: "Financial statements", image: "/images/farm/operating-loss.webp", icon: ChartNoAxesCombined },
-  { view: "survivors", label: "Survivors", hint: "Population ledger", image: "/images/farm/chicken.webp", icon: Users },
-  { view: "mortality", label: "Mortality", hint: "Death-rate trends", image: "/images/farm/operating-loss.webp", icon: TrendingDown },
-  { view: "vaccinations", label: "Vaccinations", hint: "Schedule & reminders", image: "/images/farm/vaccination.webp", icon: Syringe },
+  { view: "livestock", label: "Cattle", hint: "Calves, heifers & dairy cows", image: "/images/farm/cow.webp", icon: Beef },
+  { view: "production", label: "Production", hint: "Eggs collected & milk produced", image: "/images/farm/eggs.webp", icon: Egg },
+  { view: "feeding", label: "Feeding", hint: "Feed given to animals", image: "/images/farm/animal-feed.webp", icon: Wheat },
+  { view: "expenses", label: "Income & expenses", hint: "Money in and out", image: "/images/farm/farm-income.webp", icon: Wallet },
+  { view: "performance", label: "Profit & loss", hint: "How much you are making", image: "/images/farm/operating-loss.webp", icon: ChartNoAxesCombined },
+  { view: "survivors", label: "Survivors", hint: "How many animals are alive", image: "/images/farm/chicken.webp", icon: Users },
+  { view: "mortality", label: "Mortality", hint: "Animal deaths & losses", image: "/images/farm/operating-loss.webp", icon: TrendingDown },
+  { view: "vaccinations", label: "Vaccinations", hint: "Vaccine schedules & records", image: "/images/farm/vaccination.webp", icon: Syringe },
 ];
 
 function timeOfDayGreeting(): "morning" | "afternoon" | "evening" {
@@ -200,20 +200,20 @@ export default function HomeView({
   return (
     <main className="kf-page">
       <div className="kf-welcome-banner">
-        <p className="kf-eyebrow">Good {timeOfDayGreeting()}, farm manager</p>
+        <p className="kf-eyebrow">Good {timeOfDayGreeting()}!</p>
         <h2>Welcome back to Kagochi Farm</h2>
       </div>
       <PageHeader
         eyebrow="Farm overview"
-        title="Dashboard"
-        description="A live view of your poultry, cattle, production, finances and vaccination schedule."
+        title="My Farm"
+        description="Here is what is happening on your farm today."
         actions={
           <>
             <Button variant="ghost" icon={<BrainCircuit size={16} />} onClick={() => onNavigate("advisor")}>
-              Ask the assistant
+              Ask for advice
             </Button>
             <Button icon={<PlusCircle size={16} />} onClick={() => setModalOpen(true)}>
-              Record activity
+              Add a record
             </Button>
           </>
         }
@@ -515,11 +515,11 @@ export default function HomeView({
 
         <div className="kf-grid kf-grid--main-side">
           <Panel
-            title="Population overview"
-            subtitle="Live survivor counts calculated from recorded population events."
+            title="Animals alive on the farm"
+            subtitle="Counts updated each time you record additions, deaths, or sales."
             actions={
               <Button variant="soft" icon={<ArrowRight size={15} />} onClick={() => onNavigate("survivors")}>
-                Open ledger
+                See all records
               </Button>
             }
           >
@@ -529,7 +529,7 @@ export default function HomeView({
                 image="/images/farm/chicken.webp"
                 imageAlt="Birds surviving"
                 layout="image-right"
-                label="Birds surviving"
+                label="Chickens alive"
                 value={formatNumber(totalPoultryBirds || totalBirds)}
                 hint="Alive after additions, sales and deaths"
                 onClick={() => onNavigate("survivors")}
@@ -539,7 +539,7 @@ export default function HomeView({
                 image="/images/farm/cow.webp"
                 imageAlt="Livestock active"
                 layout="image-right"
-                label="Livestock active"
+                label="Cattle alive"
                 value={formatNumber(totalLivestockActive || totalCattle)}
                 hint="Animals with survivors above zero"
                 onClick={() => onNavigate("survivors")}
@@ -580,7 +580,7 @@ export default function HomeView({
                 image="/images/farm/farm-income.webp"
                 imageAlt="Farm income"
                 layout="image-right"
-                label="Farm income"
+                label="Money earned"
                 value={formatCurrency(totalIncome)}
                 hint="Egg, milk, poultry and cattle sales"
                 onClick={() => onNavigate("expenses")}
@@ -590,7 +590,7 @@ export default function HomeView({
                 image="/images/farm/farm-expenses.webp"
                 imageAlt="Operating expenses"
                 layout="image-right"
-                label="Operating expenses"
+                label="Money spent"
                 value={formatCurrency(totalExpenses)}
                 hint="Feed, labour, vaccines and maintenance"
                 onClick={() => onNavigate("expenses")}
@@ -600,7 +600,7 @@ export default function HomeView({
                 image={isProfitable ? "/images/farm/farm-income.webp" : "/images/farm/operating-loss.webp"}
                 imageAlt={isProfitable ? "Operating profit" : "Operating loss"}
                 layout="image-right"
-                label={isProfitable ? "Operating profit" : "Operating loss"}
+                label={isProfitable ? "Profit this period" : "Loss this period"}
                 value={isProfitable ? formatCurrency(profitOrLoss) : `-${formatCurrency(Math.abs(profitOrLoss))}`}
                 hint={netMargin !== null ? `Net margin ${percent(netMargin)}` : "Income minus operating costs"}
                 onClick={() => onNavigate("performance")}
@@ -619,7 +619,7 @@ export default function HomeView({
             image="/images/farm/eggs.webp"
             imageAlt="Eggs produced"
             layout="image-right"
-            label="Eggs produced"
+            label="Eggs collected"
             value={formatNumber(eggsTotal)}
             hint={`${eggLines.reduce((sum, line) => sum + line.recordCount, 0)} collection records`}
             onClick={() => onNavigate("production")}
@@ -629,7 +629,7 @@ export default function HomeView({
             image="/images/farm/milk-can.webp"
             imageAlt="Milk produced"
             layout="image-right"
-            label="Milk produced"
+            label="Milk collected"
             value={`${formatNumber(milkTotal)} L`}
             hint={`${milkLines.reduce((sum, line) => sum + line.recordCount, 0)} milking records`}
             onClick={() => onNavigate("production")}
@@ -639,7 +639,7 @@ export default function HomeView({
             image="/images/farm/animal-feed.webp"
             imageAlt="Feed usage"
             layout="image-right"
-            label="Feed usage"
+            label="Feed given"
             value={feedDisplay}
             hint="Recorded across poultry and livestock"
             onClick={() => onNavigate("feeding")}
@@ -649,7 +649,7 @@ export default function HomeView({
             image="/images/farm/vaccination.webp"
             imageAlt="Vaccination status"
             layout="image-right"
-            label="Vaccination status"
+            label="Vaccine reminder"
             value={overdueVac > 0 ? `${overdueVac} overdue` : dueTodayVac > 0 ? `${dueTodayVac} due today` : `${upcomingVac} upcoming`}
             hint={overdueVac > 0 ? "Immediate attention recommended" : "No overdue doses recorded"}
             onClick={() => onNavigate("vaccinations")}
@@ -657,8 +657,8 @@ export default function HomeView({
         </section>
 
         <Panel
-          title="Farm sections"
-          subtitle="Jump straight into the records you need to update today."
+          title="Go to..."
+          subtitle="Pick what you want to do."
         >
           <div className="kf-record-list">
             {QUICK_ACTIONS.map((action) => {
@@ -695,16 +695,15 @@ export default function HomeView({
                 <span className="kf-stat-icon" style={{ background: "rgba(134,239,172,0.16)", color: "var(--kf-green-300)" }}>
                   <BrainCircuit size={19} />
                 </span>
-                <Badge tone="green">AI Farm Decision Advisor</Badge>
+                <Badge tone="green">Farm Assistant (AI)</Badge>
               </div>
-              <h2 className="kf-panel-title">Ask questions about your farm performance</h2>
+              <h2 className="kf-panel-title">Need advice about your farm?</h2>
               <p className="kf-panel-subtitle" style={{ marginTop: 6, maxWidth: 620 }}>
-                Get grounded reviews of profit, high expenses, mortality risks and upcoming vaccinations. Answers are
-                strictly based on the records you have entered.
+                Ask a question about your chickens, cattle, finances or health. Answers are based on your own records.
               </p>
             </div>
             <Button variant="soft" icon={<ChevronRight size={16} />} onClick={() => onNavigate("advisor")}>
-              Open assistant
+              Ask a question
             </Button>
           </div>
         </Panel>

@@ -35,32 +35,37 @@ const NAV_SECTIONS: NavSection[] = [
   {
     label: "Overview",
     items: [
-      { id: "home", label: "Dashboard", description: "Farm overview", icon: <LayoutDashboard size={19} strokeWidth={1.5} /> },
+      { id: "home", label: "Home", description: "Your farm at a glance", icon: <LayoutDashboard size={19} strokeWidth={1.5} /> },
     ],
   },
   {
-    label: "Farm records",
+    label: "My Animals",
     items: [
-      { id: "poultry", label: "Add Chickens", description: "Chicks & flocks", image: "/images/farm/chicken.webp" },
+      { id: "poultry", label: "My Chickens", description: "Chicks, broilers & layers", image: "/images/farm/chicken.webp" },
       { id: "livestock", label: "My Cattle", description: "Calves, heifers & cows", image: "/images/farm/cow.webp" },
-      { id: "production", label: "Production Summary", description: "Eggs & milk", image: "/images/farm/eggs.webp" },
-      { id: "feeding", label: "Feed & Feeding", description: "Feed usage & costs", image: "/images/farm/animal-feed.webp" },
-      { id: "expenses", label: "Record Income or Expense", description: "Daily farm cashflow", image: "/images/farm/farm-income.webp" },
-      { id: "vaccinations", label: "Vaccine Schedule", description: "Vaccinations & alerts", image: "/images/farm/vaccination.webp" },
+      { id: "survivors", label: "Animals Alive", description: "Population ledger", image: "/images/farm/chick.webp" },
+      { id: "mortality", label: "Death Tracking", description: "Losses & mortality rates", image: "/images/farm/operating-loss.webp" },
     ],
   },
   {
-    label: "Population tracking",
+    label: "Daily Records",
     items: [
-      { id: "survivors", label: "Survivor Tracking", description: "Population ledger", image: "/images/farm/chick.webp" },
-      { id: "mortality", label: "Mortality Monitor", description: "Death rate trends", image: "/images/farm/operating-loss.webp" },
+      { id: "production", label: "Eggs & Milk", description: "Daily production logs", image: "/images/farm/eggs.webp" },
+      { id: "feeding", label: "Feeding", description: "Feed usage & costs", image: "/images/farm/animal-feed.webp" },
+      { id: "expenses", label: "Money In & Out", description: "Income & expenses", image: "/images/farm/farm-income.webp" },
     ],
   },
   {
-    label: "Analytics & AI",
+    label: "Animal Health",
     items: [
-      { id: "performance", label: "Profit & Loss", description: "P&L reports", image: "/images/farm/farm-income.webp" },
-      { id: "advisor", label: "Farm Assistant", description: "AI daily advisor", icon: <BrainCircuit size={19} strokeWidth={1.5} /> },
+      { id: "vaccinations", label: "Vaccinations", description: "Schedules & reminders", image: "/images/farm/vaccination.webp" },
+    ],
+  },
+  {
+    label: "Reports & AI",
+    items: [
+      { id: "performance", label: "Money Made & Spent", description: "Profit & loss reports", image: "/images/farm/farm-income.webp" },
+      { id: "advisor", label: "Farm Assistant", description: "AI advice for your farm", icon: <BrainCircuit size={19} strokeWidth={1.5} /> },
     ],
   },
   {

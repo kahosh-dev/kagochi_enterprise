@@ -1,12 +1,13 @@
-import { LayoutDashboard, BrainCircuit, Menu } from "lucide-react";
+import { Bird, BrainCircuit, LayoutDashboard, Menu, Syringe } from "lucide-react";
 
 interface BottomNavProps {
   activeView: string;
   setActiveView: (view: string) => void;
   onMore: () => void;
+  overdueVacCount?: number;
 }
 
-function BottomNav({ activeView, setActiveView, onMore }: BottomNavProps) {
+function BottomNav({ activeView, setActiveView, onMore, overdueVacCount = 0 }: BottomNavProps) {
   return (
     <div className="kf-bottom-nav" role="navigation" aria-label="Primary">
       <button
@@ -22,28 +23,51 @@ function BottomNav({ activeView, setActiveView, onMore }: BottomNavProps) {
 
       <button
         type="button"
-        className={activeView === "poultry" ? "is-active" : ""}
+        className={activeView === "poultry" || activeView === "livestock" ? "is-active" : ""}
         onClick={() => setActiveView("poultry")}
-        aria-current={activeView === "poultry" ? "page" : undefined}
-        aria-label="Poultry"
+        aria-current={(activeView === "poultry" || activeView === "livestock") ? "page" : undefined}
+        aria-label="My Animals"
       >
-        <span className="kf-bottom-nav-media">
-          <img src="/images/farm/chicken.webp" alt="" className="kf-bottom-nav-img" />
-        </span>
-        <span>Poultry</span>
+        <Bird size={20} strokeWidth={1.5} />
+        <span>Animals</span>
       </button>
 
       <button
         type="button"
-        className={activeView === "performance" ? "is-active" : ""}
-        onClick={() => setActiveView("performance")}
-        aria-current={activeView === "performance" ? "page" : undefined}
-        aria-label="Analytics"
+        className={`kf-bottom-nav-vac-btn${activeView === "vaccinations" ? " is-active" : ""}`}
+        onClick={() => setActiveView("vaccinations")}
+        aria-current={activeView === "vaccinations" ? "page" : undefined}
+        aria-label={`Vaccinations${overdueVacCount > 0 ? `, ${overdueVacCount} overdue` : ""}`}
+        style={{ position: "relative" }}
       >
-        <span className="kf-bottom-nav-media">
-          <img src="/images/farm/farm-income.webp" alt="" className="kf-bottom-nav-img" />
+        <span style={{ position: "relative", display: "inline-flex" }}>
+          <Syringe size={20} strokeWidth={1.5} />
+          {overdueVacCount > 0 && (
+            <span
+              style={{
+                position: "absolute",
+                top: -6,
+                right: -8,
+                minWidth: 16,
+                height: 16,
+                borderRadius: 8,
+                background: "var(--kf-red)",
+                color: "#fff",
+                fontSize: 9,
+                fontWeight: 800,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                padding: "0 3px",
+                lineHeight: 1,
+              }}
+              aria-hidden="true"
+            >
+              {overdueVacCount > 9 ? "9+" : overdueVacCount}
+            </span>
+          )}
         </span>
-        <span>Analytics</span>
+        <span>Vaccines</span>
       </button>
 
       <button
@@ -51,7 +75,7 @@ function BottomNav({ activeView, setActiveView, onMore }: BottomNavProps) {
         className={activeView === "advisor" ? "is-active" : ""}
         onClick={() => setActiveView("advisor")}
         aria-current={activeView === "advisor" ? "page" : undefined}
-        aria-label="Advisor"
+        aria-label="Farm Advisor"
       >
         <BrainCircuit size={20} strokeWidth={1.5} />
         <span>Advisor</span>
