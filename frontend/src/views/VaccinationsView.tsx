@@ -20,6 +20,7 @@ import { Syringe, Trash2, CheckCircle2, Plus } from "lucide-react";
 import {
   PageHeader,
   Panel,
+  StatCard,
   Field,
   Button,
   IconButton,
@@ -343,6 +344,50 @@ export default function VaccinationsView() {
       {/* Feedback */}
       {errorMsg && <ErrorBanner message={errorMsg} onRetry={() => setErrorMsg("")} />}
       {successMsg && <Notice tone="success">{successMsg}</Notice>}
+
+      {/* KPI Summary Cards */}
+      <div className="kf-grid kf-grid--stats" style={{ marginBottom: 16 }}>
+        <StatCard
+          tone={overdue.length > 0 ? "red" : "slate"}
+          image="/images/farm/operating-loss.webp"
+          imageAlt="Overdue Vaccinations"
+          layout="image-right"
+          label="Overdue"
+          value={overdue.length}
+          hint={overdue.length > 0 ? "Immediate attention required" : "No overdue doses"}
+          onClick={() => setActiveTab("reminders")}
+        />
+        <StatCard
+          tone={dueToday.length > 0 ? "amber" : "slate"}
+          image="/images/farm/vaccination.webp"
+          imageAlt="Due Today"
+          layout="image-right"
+          label="Due Today"
+          value={dueToday.length}
+          hint="Scheduled for administration today"
+          onClick={() => setActiveTab("reminders")}
+        />
+        <StatCard
+          tone="blue"
+          image="/images/farm/vaccination.webp"
+          imageAlt="Upcoming 7 Days"
+          layout="image-right"
+          label="Upcoming 7 Days"
+          value={upcoming7.length}
+          hint="Vaccines due within a week"
+          onClick={() => setActiveTab("reminders")}
+        />
+        <StatCard
+          tone="forest"
+          image="/images/farm/vaccination.webp"
+          imageAlt="Completed"
+          layout="image-right"
+          label="Completed Records"
+          value={completed.length}
+          hint="Administered & confirmed"
+          onClick={() => setActiveTab("reminders")}
+        />
+      </div>
 
       {/* Tabs */}
       <Segmented

@@ -4004,3 +4004,27 @@ body {
   object-fit: contain;
   display: block;
 }
+
+
+/* Daily Record Modal farm tab images */
+.daily-tab-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.daily-tab-farm-media {
+  width: 18px;
+  height: 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.daily-tab-farm-img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+}

@@ -4,11 +4,6 @@ import {
   PlusCircle,
   CheckCircle2,
   AlertCircle,
-  Wallet,
-  TrendingDown,
-  Egg,
-  Wheat,
-  Syringe,
 } from "lucide-react";
 import {
   addIncome,
@@ -242,35 +237,50 @@ export default function DailyRecordModal({
             className={`daily-tab-btn ${activeTab === "income" ? "active" : ""}`}
             onClick={() => { setActiveTab("income"); setErrorMsg(""); }}
           >
-            <Wallet size={16} strokeWidth={1.5} /> Income
+            <span className="daily-tab-farm-media">
+              <img src="/images/farm/farm-income.webp" alt="" className="daily-tab-farm-img" />
+            </span>
+            <span>Income</span>
           </button>
           <button
             type="button"
             className={`daily-tab-btn ${activeTab === "expense" ? "active" : ""}`}
             onClick={() => { setActiveTab("expense"); setErrorMsg(""); }}
           >
-            <TrendingDown size={16} strokeWidth={1.5} /> Expense
+            <span className="daily-tab-farm-media">
+              <img src="/images/farm/farm-expenses.webp" alt="" className="daily-tab-farm-img" />
+            </span>
+            <span>Expense</span>
           </button>
           <button
             type="button"
             className={`daily-tab-btn ${activeTab === "production" ? "active" : ""}`}
             onClick={() => { setActiveTab("production"); setErrorMsg(""); }}
           >
-            <Egg size={16} strokeWidth={1.5} /> Production
+            <span className="daily-tab-farm-media">
+              <img src="/images/farm/eggs.webp" alt="" className="daily-tab-farm-img" />
+            </span>
+            <span>Production</span>
           </button>
           <button
             type="button"
             className={`daily-tab-btn ${activeTab === "feeding" ? "active" : ""}`}
             onClick={() => { setActiveTab("feeding"); setErrorMsg(""); }}
           >
-            <Wheat size={16} strokeWidth={1.5} /> Feeding
+            <span className="daily-tab-farm-media">
+              <img src="/images/farm/animal-feed.webp" alt="" className="daily-tab-farm-img" />
+            </span>
+            <span>Feeding</span>
           </button>
           <button
             type="button"
             className={`daily-tab-btn ${activeTab === "vaccination" ? "active" : ""}`}
             onClick={() => { setActiveTab("vaccination"); setErrorMsg(""); }}
           >
-            <Syringe size={16} strokeWidth={1.5} /> Vaccine
+            <span className="daily-tab-farm-media">
+              <img src="/images/farm/vaccination.webp" alt="" className="daily-tab-farm-img" />
+            </span>
+            <span>Vaccine</span>
           </button>
         </div>
 
