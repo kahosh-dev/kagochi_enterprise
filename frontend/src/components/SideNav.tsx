@@ -2,7 +2,6 @@ import type { ReactNode } from "react";
 import {
   LayoutDashboard,
   BrainCircuit,
-  Settings,
   LogOut,
   X,
   Leaf,
@@ -66,12 +65,6 @@ const NAV_SECTIONS: NavSection[] = [
     items: [
       { id: "performance", label: "Money Made & Spent", description: "Profit & loss reports", image: "/images/farm/farm-income.webp" },
       { id: "advisor", label: "Farm Assistant", description: "AI advice for your farm", icon: <BrainCircuit size={19} strokeWidth={1.5} /> },
-    ],
-  },
-  {
-    label: "Admin",
-    items: [
-      { id: "admin", label: "Settings", description: "Farm admin panel", icon: <Settings size={19} strokeWidth={1.5} /> },
     ],
   },
 ];

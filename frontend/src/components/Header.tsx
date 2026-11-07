@@ -16,7 +16,6 @@ const VIEW_LABELS: Record<string, string> = {
   expenses: "Income & Expenses",
   performance: "Performance Analytics",
   advisor: "AI Farm Advisor",
-  admin: "Admin & Settings",
   survivors: "Survivor Tracking",
   mortality: "Mortality Monitor",
   vaccinations: "Vaccination Schedules",

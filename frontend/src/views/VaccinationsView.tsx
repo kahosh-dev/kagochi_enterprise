@@ -324,7 +324,7 @@ export default function VaccinationsView() {
 
   function startEdit(v: VaccinationRecord) {
     setEditingId(v.id);
-    setSpecies(v.species);
+    setSpecies(v.species.toLowerCase() === "cattle" ? "cattle" : "poultry");
     setTargetName(v.targetName);
     setVaccineName(v.vaccineName);
     setDisease(v.disease || "");
@@ -333,7 +333,7 @@ export default function VaccinationsView() {
     setDose(v.dose || "");
     setCountVaccinated(v.countVaccinated ?? 0);
     setAdministeredBy(v.administeredBy || "");
-    setVacStatus(v.status || "scheduled");
+    setVacStatus((v.status as VaccinationRecord["status"]) || "scheduled");
     setNotes(v.notes || "");
     setErrorMsg("");
     setActiveTab("add");
@@ -727,7 +727,7 @@ export default function VaccinationsView() {
               </Field>
             </div>
             <div className="kf-form-actions">
-              <Button variant="primary" loading={saving} onClick={() => {}}>
+              <Button type="submit" variant="primary" loading={saving}>
                 <span>{saving ? "Saving…" : "Save timetable"}</span>
               </Button>
             </div>
@@ -737,7 +737,7 @@ export default function VaccinationsView() {
 
       {/* ── ADD TAB ── */}
       {activeTab === "add" && (
-        <Panel title="Record a vaccination event">
+        <Panel title={editingId ? "Edit vaccination record" : "Record a vaccination event"}>
           <form onSubmit={handleSaveVaccination} className="kf-form">
             <div className="kf-form-grid">
               <Field label="Species" required>
@@ -757,6 +757,7 @@ export default function VaccinationsView() {
                   placeholder={species === "poultry" ? "e.g. Broiler Batch A" : "e.g. Baraka, Dairy Herd"}
                   value={targetName}
                   onChange={(e) => setTargetName(e.target.value)}
+                  required
                 />
               </Field>
               <Field label="Vaccine Name" required>
@@ -846,8 +847,19 @@ export default function VaccinationsView() {
               </Field>
             </div>
             <div className="kf-form-actions">
-              <Button variant="primary" loading={saving} onClick={() => {}}>
-                <span>{saving ? "Saving…" : "Save vaccination"}</span>
+              {editingId && (
+                <Button variant="secondary" type="button" onClick={resetVaccinationForm}>
+                  Cancel Edit
+                </Button>
+              )}
+              <Button type="submit" variant="primary" loading={saving}>
+                <span>
+                  {saving
+                    ? "Saving…"
+                    : editingId
+                    ? "Update Vaccination"
+                    : "Save vaccination"}
+                </span>
               </Button>
             </div>
           </form>
