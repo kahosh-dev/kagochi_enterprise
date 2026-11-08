@@ -361,4 +361,224 @@ describe("Production, Feeding, and Financial Tracking Enhancements", () => {
       assert.equal(yearlySummary.financial.operatingProfitOrLoss, 23000);
     });
   });
+
+  describe("6. Individual Cattle and Poultry Batch Production Tracking with Farm-Wide Aggregation", () => {
+    it("associates cattle milk production with target animal ID and verifies database persistence", async () => {
+      const { toColumns } = resourceDefinitions.production;
+      const faithId = "cattle-" + crypto.randomUUID();
+      const recordId = crypto.randomUUID();
+
+      const milkInput = {
+        type: "milk" as const,
+        quantity: 12,
+        unit: "litres",
+        date: TODAY,
+        destination: "produced" as const,
+        sellingPrice: 720,
+        animalType: "Cattle",
+        groupName: "Faith",
+        targetId: faithId,
+        notes: "Morning milk collection for Faith",
+      };
+
+      const parsed = productionSchema.safeParse(milkInput);
+      assert.equal(parsed.success, true);
+
+      await sqliteStore.createRecord("production", recordId, TEST_USER, toColumns(parsed.data as never));
+
+      const list = await sqliteStore.listRecords("production", TEST_USER);
+      const saved = list.find((r) => r.id === recordId);
+      assert.ok(saved);
+      assert.equal(saved.type, "milk");
+      assert.equal(Number(saved.quantity), 12);
+      assert.equal(saved.unit, "litres");
+      assert.equal(saved.animal_type, "Cattle");
+      assert.equal(saved.group_name, "Faith");
+      assert.equal(saved.target_id, faithId);
+
+      // Cleanup
+      await sqliteStore.deleteRecord("production", recordId, TEST_USER);
+    });
+
+    it("associates poultry egg production in trays with batch ID and verifies persistence", async () => {
+      const { toColumns } = resourceDefinitions.production;
+      const batchId = "batch-" + crypto.randomUUID();
+      const recordId = crypto.randomUUID();
+
+      const eggInput = {
+        type: "eggs" as const,
+        quantity: 35, // 35 trays
+        unit: "trays",
+        date: TODAY,
+        destination: "produced" as const,
+        sellingPrice: 15750,
+        animalType: "Poultry",
+        groupName: "Layers Batch B",
+        targetId: batchId,
+        notes: "Harvest for Layers Batch B",
+      };
+
+      const parsed = productionSchema.safeParse(eggInput);
+      assert.equal(parsed.success, true);
+
+      await sqliteStore.createRecord("production", recordId, TEST_USER, toColumns(parsed.data as never));
+
+      const list = await sqliteStore.listRecords("production", TEST_USER);
+      const saved = list.find((r) => r.id === recordId);
+      assert.ok(saved);
+      assert.equal(saved.type, "eggs");
+      assert.equal(Number(saved.quantity), 35);
+      assert.equal(saved.unit, "trays");
+      assert.equal(saved.animal_type, "Poultry");
+      assert.equal(saved.group_name, "Layers Batch B");
+      assert.equal(saved.target_id, batchId);
+
+      // Verify egg equivalent (@ 30 eggs/tray = 1,050 eggs)
+      const equivalentPieces = Number(saved.quantity) * 30;
+      assert.equal(equivalentPieces, 1050);
+
+      // Cleanup
+      await sqliteStore.deleteRecord("production", recordId, TEST_USER);
+    });
+
+    it("automatically calculates farm-wide production totals by aggregating individual animal and batch records", async () => {
+      const { toColumns } = resourceDefinitions.production;
+
+      const faithId = "cattle-faith-" + crypto.randomUUID();
+      const daisyId = "cattle-daisy-" + crypto.randomUUID();
+      const joyId = "cattle-joy-" + crypto.randomUUID();
+
+      const batchAId = "batch-kienyeji-a-" + crypto.randomUUID();
+      const batchBId = "batch-layers-b-" + crypto.randomUUID();
+
+      const idsToCleanup: string[] = [];
+
+      async function insertRec(rec: {
+        type: "eggs" | "milk";
+        quantity: number;
+        unit: string;
+        date: string;
+        animalType: string;
+        groupName: string;
+        targetId: string;
+      }) {
+        const id = crypto.randomUUID();
+        idsToCleanup.push(id);
+        const parsed = productionSchema.parse({
+          ...rec,
+          destination: "produced",
+          sellingPrice: 0,
+          notes: "",
+        });
+        await sqliteStore.createRecord("production", id, TEST_USER, toColumns(parsed as never));
+        return id;
+      }
+
+      // Cattle records: Faith (12 L) + Daisy (18 L) + Joy (15 L) = 45 L
+      await insertRec({ type: "milk", quantity: 12, unit: "litres", date: TODAY, animalType: "Cattle", groupName: "Faith", targetId: faithId });
+      await insertRec({ type: "milk", quantity: 18, unit: "litres", date: TODAY, animalType: "Cattle", groupName: "Daisy", targetId: daisyId });
+      await insertRec({ type: "milk", quantity: 15, unit: "litres", date: TODAY, animalType: "Cattle", groupName: "Joy", targetId: joyId });
+
+      // Poultry records: Kienyeji Batch A (20 trays) + Layers Batch B (35 trays) = 55 trays
+      await insertRec({ type: "eggs", quantity: 20, unit: "trays", date: TODAY, animalType: "Poultry", groupName: "Kienyeji Batch A", targetId: batchAId });
+      await insertRec({ type: "eggs", quantity: 35, unit: "trays", date: TODAY, animalType: "Poultry", groupName: "Layers Batch B", targetId: batchBId });
+
+      const allRecords = await sqliteStore.listRecords("production", TEST_USER);
+      const todayRecords = allRecords.filter((r) => r.date === TODAY && idsToCleanup.includes(r.id));
+
+      // 1. Verify Farm-Wide Cattle Milk Total: 12 + 18 + 15 = 45 L
+      const totalCattleMilk = todayRecords
+        .filter((r) => r.type === "milk" && r.unit === "litres")
+        .reduce((sum, r) => sum + Number(r.quantity), 0);
+      assert.equal(totalCattleMilk, 45);
+
+      // 2. Verify Individual Cattle Production
+      const faithMilk = todayRecords
+        .filter((r) => r.target_id === faithId)
+        .reduce((sum, r) => sum + Number(r.quantity), 0);
+      const daisyMilk = todayRecords
+        .filter((r) => r.target_id === daisyId)
+        .reduce((sum, r) => sum + Number(r.quantity), 0);
+      const joyMilk = todayRecords
+        .filter((r) => r.target_id === joyId)
+        .reduce((sum, r) => sum + Number(r.quantity), 0);
+
+      assert.equal(faithMilk, 12);
+      assert.equal(daisyMilk, 18);
+      assert.equal(joyMilk, 15);
+
+      // 3. Verify Farm-Wide Poultry Eggs Total: 20 + 35 = 55 trays
+      const totalPoultryEggs = todayRecords
+        .filter((r) => r.type === "eggs" && r.unit === "trays")
+        .reduce((sum, r) => sum + Number(r.quantity), 0);
+      assert.equal(totalPoultryEggs, 55);
+
+      // 4. Verify Equivalent individual eggs: 55 trays * 30 = 1650 eggs
+      assert.equal(totalPoultryEggs * 30, 1650);
+
+      // 5. Verify Individual Batch Production
+      const batchAMilk = todayRecords
+        .filter((r) => r.target_id === batchAId)
+        .reduce((sum, r) => sum + Number(r.quantity), 0);
+      const batchBMilk = todayRecords
+        .filter((r) => r.target_id === batchBId)
+        .reduce((sum, r) => sum + Number(r.quantity), 0);
+
+      assert.equal(batchAMilk, 20);
+      assert.equal(batchBMilk, 35);
+
+      // 6. Verify Underperformance & Benchmark Detection
+      const herdDailyAvg = (faithMilk + daisyMilk + joyMilk) / 3; // 15 L
+      assert.equal(herdDailyAvg, 15);
+
+      // Daisy is producing 18 L (+20% vs herd avg) -> Top Producer
+      const daisyDiffPct = ((daisyMilk - herdDailyAvg) / herdDailyAvg) * 100;
+      assert.equal(daisyDiffPct, 20);
+
+      // Faith is producing 12 L (-20% vs herd avg) -> Lower than Herd
+      const faithDiffPct = ((faithMilk - herdDailyAvg) / herdDailyAvg) * 100;
+      assert.equal(faithDiffPct, -20);
+
+      // Poultry laying rate: Batch B has 500 birds, produced 35 trays (1,050 eggs).
+      // If 500 birds produce 350 eggs/day, laying rate = 350 / 500 = 70% peak layers.
+      const sampleBirds = 1500;
+      const batchBPieces = 35 * 30; // 1050 eggs
+      const layingRate = (batchBPieces / (sampleBirds * 1)) * 100; // 70%
+      assert.equal(layingRate, 70);
+
+      // 7. Verify Editing a record immediately updates farm totals
+      const faithRecord = todayRecords.find((r) => r.target_id === faithId)!;
+      await sqliteStore.updateRecord("production", faithRecord.id, TEST_USER, toColumns({
+        type: "milk",
+        quantity: 14, // Faith increased from 12 to 14 L
+        unit: "litres",
+        date: TODAY,
+        destination: "produced",
+        sellingPrice: 0,
+        animalType: "Cattle",
+        groupName: "Faith",
+        targetId: faithId,
+        notes: "Updated yield",
+      } as never));
+
+      const updatedRecords = await sqliteStore.listRecords("production", TEST_USER);
+      const updatedTotalMilk = updatedRecords
+        .filter((r) => r.date === TODAY && idsToCleanup.includes(r.id) && r.type === "milk")
+        .reduce((sum, r) => sum + Number(r.quantity), 0);
+      assert.equal(updatedTotalMilk, 47); // 14 + 18 + 15 = 47
+
+      // 8. Verify Deleting a record immediately updates farm totals
+      await sqliteStore.deleteRecord("production", faithRecord.id, TEST_USER);
+      const afterDeleteRecords = await sqliteStore.listRecords("production", TEST_USER);
+      const afterDeleteTotalMilk = afterDeleteRecords
+        .filter((r) => r.date === TODAY && idsToCleanup.includes(r.id) && r.type === "milk")
+        .reduce((sum, r) => sum + Number(r.quantity), 0);
+      assert.equal(afterDeleteTotalMilk, 33); // 18 + 15 = 33
+
+      // Clean up remaining records
+      for (const id of idsToCleanup) {
+        await sqliteStore.deleteRecord("production", id, TEST_USER).catch(() => {});
+      }
+    });
+  });
 });

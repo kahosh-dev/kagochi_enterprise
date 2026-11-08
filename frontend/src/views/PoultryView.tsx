@@ -1,17 +1,20 @@
 import { useEffect, useMemo, useState } from "react";
-import type { PoultryBatch } from "../types/farm";
+import type { PoultryBatch, ProductionRecord } from "../types/farm";
 import {
   loadPoultry,
   addPoultry,
   updatePoultry,
   deletePoultry,
+  loadProduction,
 } from "../services/storage";
 import {
   Bird,
+  Egg,
   Pencil,
   Plus,
   Trash2,
 } from "lucide-react";
+import AnimalProductionModal from "../components/AnimalProductionModal";
 import {
   Badge,
   Button,
@@ -61,6 +64,8 @@ function stageLabel(stage: string | undefined): string {
 
 export default function PoultryView() {
   const [poultry, setPoultry] = useState<PoultryBatch[]>([]);
+  const [productionRecords, setProductionRecords] = useState<ProductionRecord[]>([]);
+  const [productionBatch, setProductionBatch] = useState<PoultryBatch | null>(null);
   const [_loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [filterStage, setFilterStage] = useState<string>("all");
@@ -86,8 +91,12 @@ export default function PoultryView() {
   async function refreshPoultry() {
     try {
       setLoading(true);
-      const records = await loadPoultry();
+      const [records, prod] = await Promise.all([
+        loadPoultry(),
+        loadProduction().catch(() => []),
+      ]);
       setPoultry(records);
+      setProductionRecords(prod);
     } catch (error) {
       console.error(error);
       setErrorMsg(error instanceof Error ? error.message : "Failed to load poultry records.");
@@ -531,6 +540,14 @@ export default function PoultryView() {
                         <td>{b.dateAdded ? b.dateAdded.slice(0, 10) : "—"}</td>
                         <td>
                           <div className="kf-actions-cell">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              icon={<Egg size={13} />}
+                              onClick={() => setProductionBatch(b)}
+                            >
+                              Egg Production
+                            </Button>
                             <IconButton
                               label="Edit"
                               icon={<Pencil size={16} />}
@@ -581,6 +598,15 @@ export default function PoultryView() {
       >
         <p>Are you sure you want to delete '{deleteConfirm?.name}'? This cannot be undone.</p>
       </Modal>
+      {/* Individual Poultry Batch Production Modal */}
+      <AnimalProductionModal
+        open={!!productionBatch}
+        onClose={() => setProductionBatch(null)}
+        target={productionBatch ? { type: "poultry", batch: productionBatch } : null}
+        records={productionRecords}
+        onRecordSaved={refreshPoultry}
+        allPoultry={poultry}
+      />
     </main>
   );
 }

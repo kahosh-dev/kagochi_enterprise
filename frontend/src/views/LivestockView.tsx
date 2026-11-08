@@ -4,15 +4,18 @@ import {
   addLivestock,
   updateLivestock,
   deleteLivestock,
+  loadProduction,
 } from "../services/storage";
-import type { LivestockAnimal } from "../types/farm";
+import type { LivestockAnimal, ProductionRecord } from "../types/farm";
 import {
   ArrowRight,
   Beef,
+  Milk,
   Pencil,
   Plus,
   Trash2,
 } from "lucide-react";
+import AnimalProductionModal from "../components/AnimalProductionModal";
 import {
   Badge,
   Button,
@@ -60,6 +63,8 @@ function categoryLabel(cat: string): string {
 
 export default function LivestockView() {
   const [animals, setAnimals] = useState<LivestockAnimal[]>([]);
+  const [productionRecords, setProductionRecords] = useState<ProductionRecord[]>([]);
+  const [productionAnimal, setProductionAnimal] = useState<LivestockAnimal | null>(null);
   const [_loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
@@ -84,8 +89,12 @@ export default function LivestockView() {
   async function refreshAnimals() {
     try {
       setLoading(true);
-      const data = await loadLivestock();
+      const [data, prod] = await Promise.all([
+        loadLivestock(),
+        loadProduction().catch(() => []),
+      ]);
       setAnimals(data);
+      setProductionRecords(prod);
     } catch (error) {
       console.error("Failed to load livestock:", error);
       setErrorMsg(error instanceof Error ? error.message : "Failed to load cattle records.");
@@ -547,6 +556,14 @@ export default function LivestockView() {
                                 To Cow
                               </Button>
                             )}
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              icon={<Milk size={13} />}
+                              onClick={() => setProductionAnimal(a)}
+                            >
+                              Milk Production
+                            </Button>
                             <IconButton
                               label="Edit"
                               icon={<Pencil size={16} />}
@@ -597,6 +614,15 @@ export default function LivestockView() {
       >
         <p>Are you sure you want to delete '{deleteConfirm?.name}'? This cannot be undone.</p>
       </Modal>
+      {/* Individual Cattle Production Modal */}
+      <AnimalProductionModal
+        open={!!productionAnimal}
+        onClose={() => setProductionAnimal(null)}
+        target={productionAnimal ? { type: "cattle", animal: productionAnimal } : null}
+        records={productionRecords}
+        onRecordSaved={refreshAnimals}
+        allLivestock={animals}
+      />
     </main>
   );
 }

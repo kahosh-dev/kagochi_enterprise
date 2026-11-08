@@ -250,6 +250,7 @@ export async function addProduction(
       sellingPrice: production.sellingPrice || 0,
       animalType: production.animalType || (production.type === "eggs" ? "Poultry" : "Cattle"),
       groupName: production.groupName || "",
+      targetId: production.targetId || "",
       notes: production.notes || "",
     }),
   });
@@ -274,6 +275,7 @@ export async function updateProduction(
       sellingPrice: production.sellingPrice || 0,
       animalType: production.animalType || (production.type === "eggs" ? "Poultry" : "Cattle"),
       groupName: production.groupName || "",
+      targetId: production.targetId || "",
       notes: production.notes || "",
     }),
   });
@@ -299,6 +301,7 @@ function mapFeeding(row: any): FeedingRecord {
     cost: Number(row.cost || 0),
     supplier: row.supplier || "",
     groupName: row.group_name || "",
+    targetId: row.target_id || "",
     notes: row.notes || "",
   };
 }

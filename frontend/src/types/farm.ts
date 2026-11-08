@@ -44,6 +44,7 @@ export interface ProductionRecord {
   sellingPrice?: number;
   animalType?: string;
   groupName?: string;
+  targetId?: string;
   notes?: string;
 }
 
@@ -57,6 +58,7 @@ export interface FeedingRecord {
   cost?: number;
   supplier?: string;
   groupName?: string;
+  targetId?: string;
   notes?: string;
 }
 

@@ -81,6 +81,7 @@ export const productionSchema = z
     sellingPrice: z.number().min(0).max(1_000_000_000).default(0),
     animalType: z.string().trim().max(100).default(""),
     groupName: z.string().trim().max(100).default(""),
+    targetId: z.string().trim().max(100).default(""),
     notes: z.string().trim().max(500).default(""),
   })
   .refine((data) => (PRODUCTION_UNITS[data.type] as readonly string[]).includes(data.unit), {
@@ -220,6 +221,7 @@ export const resourceDefinitions: Record<ResourceName, ResourceDefinition> = {
       notes: d.notes ?? "",
       animal_type: d.animalType ?? "",
       group_name: d.groupName ?? "",
+      target_id: d.targetId ?? "",
     }),
   },
   feeding: {

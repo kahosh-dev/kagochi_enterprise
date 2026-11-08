@@ -29,7 +29,7 @@ export const resourceTables = {
   },
   production: {
     table: "production",
-    columns: ["type", "quantity", "unit", "date", "destination", "selling_price", "notes", "animal_type", "group_name"],
+    columns: ["type", "quantity", "unit", "date", "destination", "selling_price", "notes", "animal_type", "group_name", "target_id"],
     dateColumn: "date",
   },
   feeding: {

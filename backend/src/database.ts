@@ -77,6 +77,7 @@ function initSqlite(database: Database.Database): void {
       notes TEXT NOT NULL DEFAULT '',
       animal_type TEXT NOT NULL DEFAULT '',
       group_name TEXT NOT NULL DEFAULT '',
+      target_id TEXT NOT NULL DEFAULT '',
       FOREIGN KEY (owner_id) REFERENCES users(id) ON DELETE CASCADE
     );
 
@@ -210,6 +211,7 @@ function initSqlite(database: Database.Database): void {
   ensureColumn("production", "notes", "TEXT NOT NULL DEFAULT ''");
   ensureColumn("production", "animal_type", "TEXT NOT NULL DEFAULT ''");
   ensureColumn("production", "group_name", "TEXT NOT NULL DEFAULT ''");
+  ensureColumn("production", "target_id", "TEXT NOT NULL DEFAULT ''");
 
   // Feeding migrations
   ensureColumn("feeding", "cost", "REAL NOT NULL DEFAULT 0");
