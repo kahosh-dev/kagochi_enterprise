@@ -225,6 +225,8 @@ function mapProduction(row: any): ProductionRecord {
     date: row.date,
     destination: row.destination || "produced",
     sellingPrice: Number(row.selling_price || 0),
+    animalType: row.animal_type || "",
+    groupName: row.group_name || "",
     notes: row.notes || "",
   };
 }
@@ -246,6 +248,8 @@ export async function addProduction(
       date: production.date,
       destination: production.destination || "produced",
       sellingPrice: production.sellingPrice || 0,
+      animalType: production.animalType || (production.type === "eggs" ? "Poultry" : "Cattle"),
+      groupName: production.groupName || "",
       notes: production.notes || "",
     }),
   });
@@ -268,6 +272,8 @@ export async function updateProduction(
       date: production.date,
       destination: production.destination || "produced",
       sellingPrice: production.sellingPrice || 0,
+      animalType: production.animalType || (production.type === "eggs" ? "Poultry" : "Cattle"),
+      groupName: production.groupName || "",
       notes: production.notes || "",
     }),
   });
@@ -292,6 +298,7 @@ function mapFeeding(row: any): FeedingRecord {
     date: row.date,
     cost: Number(row.cost || 0),
     supplier: row.supplier || "",
+    groupName: row.group_name || "",
     notes: row.notes || "",
   };
 }
@@ -314,6 +321,7 @@ export async function addFeeding(
       date: feeding.date,
       cost: feeding.cost || 0,
       supplier: feeding.supplier || "",
+      groupName: feeding.groupName || "",
       notes: feeding.notes || "",
     }),
   });
@@ -337,6 +345,7 @@ export async function updateFeeding(
       date: feeding.date,
       cost: feeding.cost || 0,
       supplier: feeding.supplier || "",
+      groupName: feeding.groupName || "",
       notes: feeding.notes || "",
     }),
   });

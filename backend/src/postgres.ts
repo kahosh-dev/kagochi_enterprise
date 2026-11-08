@@ -103,12 +103,16 @@ export const schemaStatements = [
     date TEXT NOT NULL,
     destination TEXT NOT NULL DEFAULT 'produced',
     selling_price REAL NOT NULL DEFAULT 0,
-    notes TEXT NOT NULL DEFAULT ''
+    notes TEXT NOT NULL DEFAULT '',
+    animal_type TEXT NOT NULL DEFAULT '',
+    group_name TEXT NOT NULL DEFAULT ''
   )`,
 
   `ALTER TABLE production ADD COLUMN IF NOT EXISTS destination TEXT NOT NULL DEFAULT 'produced'`,
   `ALTER TABLE production ADD COLUMN IF NOT EXISTS selling_price REAL NOT NULL DEFAULT 0`,
   `ALTER TABLE production ADD COLUMN IF NOT EXISTS notes TEXT NOT NULL DEFAULT ''`,
+  `ALTER TABLE production ADD COLUMN IF NOT EXISTS animal_type TEXT NOT NULL DEFAULT ''`,
+  `ALTER TABLE production ADD COLUMN IF NOT EXISTS group_name TEXT NOT NULL DEFAULT ''`,
 
   `CREATE TABLE IF NOT EXISTS feeding (
     id TEXT PRIMARY KEY,
@@ -120,12 +124,14 @@ export const schemaStatements = [
     date TEXT NOT NULL,
     cost REAL NOT NULL DEFAULT 0,
     supplier TEXT NOT NULL DEFAULT '',
-    notes TEXT NOT NULL DEFAULT ''
+    notes TEXT NOT NULL DEFAULT '',
+    group_name TEXT NOT NULL DEFAULT ''
   )`,
 
   `ALTER TABLE feeding ADD COLUMN IF NOT EXISTS cost REAL NOT NULL DEFAULT 0`,
   `ALTER TABLE feeding ADD COLUMN IF NOT EXISTS supplier TEXT NOT NULL DEFAULT ''`,
   `ALTER TABLE feeding ADD COLUMN IF NOT EXISTS notes TEXT NOT NULL DEFAULT ''`,
+  `ALTER TABLE feeding ADD COLUMN IF NOT EXISTS group_name TEXT NOT NULL DEFAULT ''`,
 
   `CREATE TABLE IF NOT EXISTS expenses (
     id TEXT PRIMARY KEY,

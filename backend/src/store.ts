@@ -29,12 +29,12 @@ export const resourceTables = {
   },
   production: {
     table: "production",
-    columns: ["type", "quantity", "unit", "date", "destination", "selling_price", "notes"],
+    columns: ["type", "quantity", "unit", "date", "destination", "selling_price", "notes", "animal_type", "group_name"],
     dateColumn: "date",
   },
   feeding: {
     table: "feeding",
-    columns: ["animal_type", "feed_type", "quantity", "unit", "date", "cost", "supplier", "notes"],
+    columns: ["animal_type", "feed_type", "quantity", "unit", "date", "cost", "supplier", "notes", "group_name"],
     dateColumn: "date",
   },
   expenses: {

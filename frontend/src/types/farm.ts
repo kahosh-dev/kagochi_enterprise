@@ -36,12 +36,14 @@ export interface LivestockAnimal {
 
 export interface ProductionRecord {
   id: string;
-  type: "eggs" | "milk";
+  type: "eggs" | "milk" | string;
   quantity: number;
   unit: string;
   date: string;
   destination?: "produced" | "sold" | "home_use" | "damaged" | string;
   sellingPrice?: number;
+  animalType?: string;
+  groupName?: string;
   notes?: string;
 }
 
@@ -54,6 +56,7 @@ export interface FeedingRecord {
   date: string;
   cost?: number;
   supplier?: string;
+  groupName?: string;
   notes?: string;
 }
 

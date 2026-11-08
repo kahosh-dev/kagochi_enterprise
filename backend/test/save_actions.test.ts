@@ -35,7 +35,7 @@ describe("Save Actions Persistence & Validation", () => {
       assert.equal(parsed.success, true);
 
       const recordId = crypto.randomUUID();
-      const columns = toColumns(parsed.data);
+      const columns = toColumns(parsed.data as never);
 
       await sqliteStore.createRecord("feeding", recordId, TEST_USER_ID, columns);
 
@@ -61,7 +61,7 @@ describe("Save Actions Persistence & Validation", () => {
       };
       const updatedParsed = schema.safeParse(updatedInput);
       assert.equal(updatedParsed.success, true);
-      await sqliteStore.updateRecord("feeding", recordId, TEST_USER_ID, toColumns(updatedParsed.data));
+      await sqliteStore.updateRecord("feeding", recordId, TEST_USER_ID, toColumns(updatedParsed.data as never));
 
       // Verify update persists
       const listAfterUpdate = await sqliteStore.listRecords("feeding", TEST_USER_ID);
@@ -101,7 +101,7 @@ describe("Save Actions Persistence & Validation", () => {
       assert.equal(parsed.success, true);
 
       const recordId = crypto.randomUUID();
-      const columns = toColumns(parsed.data);
+      const columns = toColumns(parsed.data as never);
 
       await sqliteStore.createRecord("income", recordId, TEST_USER_ID, columns);
 
@@ -129,7 +129,7 @@ describe("Save Actions Persistence & Validation", () => {
       };
       const updatedParsed = schema.safeParse(updatedInput);
       assert.equal(updatedParsed.success, true);
-      await sqliteStore.updateRecord("income", recordId, TEST_USER_ID, toColumns(updatedParsed.data));
+      await sqliteStore.updateRecord("income", recordId, TEST_USER_ID, toColumns(updatedParsed.data as never));
 
       const listAfterUpdate = await sqliteStore.listRecords("income", TEST_USER_ID);
       const updated = listAfterUpdate.find((r) => r.id === recordId);
@@ -164,7 +164,7 @@ describe("Save Actions Persistence & Validation", () => {
       assert.equal(parsed.success, true);
 
       const recordId = crypto.randomUUID();
-      const columns = toColumns(parsed.data);
+      const columns = toColumns(parsed.data as never);
 
       await sqliteStore.createRecord("expenses", recordId, TEST_USER_ID, columns);
 
@@ -189,7 +189,7 @@ describe("Save Actions Persistence & Validation", () => {
       };
       const updatedParsed = schema.safeParse(updatedInput);
       assert.equal(updatedParsed.success, true);
-      await sqliteStore.updateRecord("expenses", recordId, TEST_USER_ID, toColumns(updatedParsed.data));
+      await sqliteStore.updateRecord("expenses", recordId, TEST_USER_ID, toColumns(updatedParsed.data as never));
 
       const listAfterUpdate = await sqliteStore.listRecords("expenses", TEST_USER_ID);
       const updated = listAfterUpdate.find((r) => r.id === recordId);
@@ -232,7 +232,7 @@ describe("Save Actions Persistence & Validation", () => {
       assert.equal(parsed.success, true);
 
       const recordId = crypto.randomUUID();
-      const columns = toColumns(parsed.data);
+      const columns = toColumns(parsed.data as never);
 
       await sqliteStore.createRecord("vaccinations", recordId, TEST_USER_ID, columns);
 
@@ -266,7 +266,7 @@ describe("Save Actions Persistence & Validation", () => {
       };
       const updatedParsed = schema.safeParse(updatedInput);
       assert.equal(updatedParsed.success, true);
-      await sqliteStore.updateRecord("vaccinations", recordId, TEST_USER_ID, toColumns(updatedParsed.data));
+      await sqliteStore.updateRecord("vaccinations", recordId, TEST_USER_ID, toColumns(updatedParsed.data as never));
 
       const listAfterUpdate = await sqliteStore.listRecords("vaccinations", TEST_USER_ID);
       const updated = listAfterUpdate.find((r) => r.id === recordId);
@@ -301,7 +301,7 @@ describe("Save Actions Persistence & Validation", () => {
       assert.equal(parsed.success, true);
 
       const recordId = crypto.randomUUID();
-      await sqliteStore.createRecord("vaccinations", recordId, TEST_USER_ID, toColumns(parsed.data));
+      await sqliteStore.createRecord("vaccinations", recordId, TEST_USER_ID, toColumns(parsed.data as never));
 
       const list = await sqliteStore.listRecords("vaccinations", TEST_USER_ID);
       const saved = list.find((r) => r.id === recordId);

@@ -79,6 +79,8 @@ export const productionSchema = z
     date: isoDate,
     destination: z.enum(["produced", "sold", "home_use", "damaged"]).default("produced"),
     sellingPrice: z.number().min(0).max(1_000_000_000).default(0),
+    animalType: z.string().trim().max(100).default(""),
+    groupName: z.string().trim().max(100).default(""),
     notes: z.string().trim().max(500).default(""),
   })
   .refine((data) => (PRODUCTION_UNITS[data.type] as readonly string[]).includes(data.unit), {
@@ -94,6 +96,7 @@ export const feedingSchema = z.object({
   date: isoDate,
   cost: z.number().min(0).max(100_000_000).default(0),
   supplier: z.string().trim().max(100).default(""),
+  groupName: z.string().trim().max(100).default(""),
   notes: z.string().trim().max(500).default(""),
 });
 
@@ -215,6 +218,8 @@ export const resourceDefinitions: Record<ResourceName, ResourceDefinition> = {
       destination: d.destination ?? "produced",
       selling_price: d.sellingPrice ?? 0,
       notes: d.notes ?? "",
+      animal_type: d.animalType ?? "",
+      group_name: d.groupName ?? "",
     }),
   },
   feeding: {
@@ -229,6 +234,7 @@ export const resourceDefinitions: Record<ResourceName, ResourceDefinition> = {
       cost: d.cost ?? 0,
       supplier: d.supplier ?? "",
       notes: d.notes ?? "",
+      group_name: d.groupName ?? "",
     }),
   },
   expenses: {

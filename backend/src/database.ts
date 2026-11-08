@@ -75,6 +75,8 @@ function initSqlite(database: Database.Database): void {
       destination TEXT NOT NULL DEFAULT 'produced',
       selling_price REAL NOT NULL DEFAULT 0,
       notes TEXT NOT NULL DEFAULT '',
+      animal_type TEXT NOT NULL DEFAULT '',
+      group_name TEXT NOT NULL DEFAULT '',
       FOREIGN KEY (owner_id) REFERENCES users(id) ON DELETE CASCADE
     );
 
@@ -89,6 +91,7 @@ function initSqlite(database: Database.Database): void {
       cost REAL NOT NULL DEFAULT 0,
       supplier TEXT NOT NULL DEFAULT '',
       notes TEXT NOT NULL DEFAULT '',
+      group_name TEXT NOT NULL DEFAULT '',
       FOREIGN KEY (owner_id) REFERENCES users(id) ON DELETE CASCADE
     );
 
@@ -205,11 +208,14 @@ function initSqlite(database: Database.Database): void {
   ensureColumn("production", "destination", "TEXT NOT NULL DEFAULT 'produced'");
   ensureColumn("production", "selling_price", "REAL NOT NULL DEFAULT 0");
   ensureColumn("production", "notes", "TEXT NOT NULL DEFAULT ''");
+  ensureColumn("production", "animal_type", "TEXT NOT NULL DEFAULT ''");
+  ensureColumn("production", "group_name", "TEXT NOT NULL DEFAULT ''");
 
   // Feeding migrations
   ensureColumn("feeding", "cost", "REAL NOT NULL DEFAULT 0");
   ensureColumn("feeding", "supplier", "TEXT NOT NULL DEFAULT ''");
   ensureColumn("feeding", "notes", "TEXT NOT NULL DEFAULT ''");
+  ensureColumn("feeding", "group_name", "TEXT NOT NULL DEFAULT ''");
 
   // Vaccinations migrations (ensure both old and new schemas are handled)
   ensureColumn("vaccinations", "target_type", "TEXT NOT NULL DEFAULT ''");
