@@ -10,7 +10,14 @@ import {
   deleteIncome,
 } from "../services/storage";
 import type { ExpenseRecord, IncomeRecord } from "../types/farm";
-import { Wallet, TrendingDown, TrendingUp, Pencil, Trash2, Plus } from "lucide-react";
+import {
+  Wallet,
+  TrendingDown,
+  TrendingUp,
+  Pencil,
+  Trash2,
+  Plus,
+} from "lucide-react";
 import {
   PageHeader,
   StatCard,
@@ -24,10 +31,50 @@ import {
   Segmented,
   Modal,
   CssBar,
+  Badge,
 } from "../components/ui";
+import { BarChart, type ChartPoint } from "../components/Chart";
+import DatePeriodFilter from "../components/DatePeriodFilter";
+import {
+  calculatePeriod,
+  calculateComparison,
+  formatDisplayDate,
+  getLocalDateString,
+  isRecordInDateRange,
+  type PeriodMode,
+} from "../utils/datePeriod";
 import { formatCurrency } from "../utils/format";
 
+type ViewSection = "summary" | "income" | "expense";
+
+const INCOME_CATEGORIES = [
+  "Egg Sales",
+  "Broiler Sales",
+  "Culled Birds",
+  "Milk Sales",
+  "Cattle Sales",
+  "Manure / Fertilizer",
+  "Crop Sales",
+  "Consulting / Other",
+];
+
+const EXPENSE_CATEGORIES = [
+  "Poultry Feed",
+  "Cattle Feed",
+  "Chicks & Livestock Purchase",
+  "Vaccines & Medication",
+  "Veterinary Services",
+  "Bedding & Litter",
+  "Farm Equipment & Maintenance",
+  "Labor & Wages",
+  "Utilities (Water / Power)",
+  "Transport & Logistics",
+  "Packaging & Trays",
+  "General Operations",
+];
+
 export default function ExpensesView() {
+  const [activeSection, setActiveSection] = useState<ViewSection>("summary");
   const [activeTab, setActiveTab] = useState<"income" | "expense">("expense");
   const [expenses, setExpenses] = useState<ExpenseRecord[]>([]);
   const [incomes, setIncomes] = useState<IncomeRecord[]>([]);
@@ -36,13 +83,20 @@ export default function ExpensesView() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; desc: string; type: "income" | "expense" } | null>(null);
 
+  // Period filter state
+  const [periodMode, setPeriodMode] = useState<PeriodMode>("month");
+  const [periodOffset, setPeriodOffset] = useState<number>(0);
+  const [customFrom, setCustomFrom] = useState<string>("");
+  const [customTo, setCustomTo] = useState<string>("");
+
   // Form fields
+  const todayStr = getLocalDateString();
   const [category, setCategory] = useState("Poultry Feed");
   const [description, setDescription] = useState("");
   const [amount, setAmount] = useState("");
   const [quantity, setQuantity] = useState("");
   const [unit, setUnit] = useState("");
-  const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
+  const [date, setDate] = useState(todayStr);
 
   const [errorMsg, setErrorMsg] = useState("");
   const [successMsg, setSuccessMsg] = useState("");
@@ -64,39 +118,86 @@ export default function ExpensesView() {
     refreshData();
   }, []);
 
-  const totalIncome = useMemo(
-    () => incomes.reduce((sum, item) => sum + Number(item.amount || 0), 0),
-    [incomes]
-  );
-  const totalExpense = useMemo(
-    () => expenses.reduce((sum, item) => sum + Number(item.amount || 0), 0),
-    [expenses]
-  );
-  const netProfitOrLoss = totalIncome - totalExpense;
-  const isProfitable = netProfitOrLoss >= 0;
+  // Compute active period
+  const periodInfo = useMemo(() => {
+    return calculatePeriod(periodMode, periodOffset, customFrom, customTo);
+  }, [periodMode, periodOffset, customFrom, customTo]);
 
-  // Category breakdowns (top 8)
+  // Filter records within current period
+  const currentPeriodIncomes = useMemo(() => {
+    return incomes.filter((i) => isRecordInDateRange(i.date, periodInfo.from, periodInfo.to));
+  }, [incomes, periodInfo.from, periodInfo.to]);
+
+  const currentPeriodExpenses = useMemo(() => {
+    return expenses.filter((e) => isRecordInDateRange(e.date, periodInfo.from, periodInfo.to));
+  }, [expenses, periodInfo.from, periodInfo.to]);
+
+  // Filter records within previous period for trend comparisons
+  const previousPeriodIncomes = useMemo(() => {
+    return incomes.filter((i) => isRecordInDateRange(i.date, periodInfo.previousFrom, periodInfo.previousTo));
+  }, [incomes, periodInfo.previousFrom, periodInfo.previousTo]);
+
+  const previousPeriodExpenses = useMemo(() => {
+    return expenses.filter((e) => isRecordInDateRange(e.date, periodInfo.previousFrom, periodInfo.previousTo));
+  }, [expenses, periodInfo.previousFrom, periodInfo.previousTo]);
+
+  // Financial calculations for the selected period
+  const periodIncome = useMemo(() => {
+    return currentPeriodIncomes.reduce((sum, item) => sum + Number(item.amount || 0), 0);
+  }, [currentPeriodIncomes]);
+
+  const periodExpense = useMemo(() => {
+    return currentPeriodExpenses.reduce((sum, item) => sum + Number(item.amount || 0), 0);
+  }, [currentPeriodExpenses]);
+
+  // Net Farm Income = Total Income - Total Expenses
+  const periodNetIncome = periodIncome - periodExpense;
+  const isProfitable = periodNetIncome >= 0;
+
+  // Previous period financial totals
+  const prevPeriodIncome = useMemo(() => {
+    return previousPeriodIncomes.reduce((sum, item) => sum + Number(item.amount || 0), 0);
+  }, [previousPeriodIncomes]);
+
+  const prevPeriodExpense = useMemo(() => {
+    return previousPeriodExpenses.reduce((sum, item) => sum + Number(item.amount || 0), 0);
+  }, [previousPeriodExpenses]);
+
+  const prevPeriodNetIncome = prevPeriodIncome - prevPeriodExpense;
+
+  // Comparisons
+  const incomeComparison = useMemo(() => {
+    return calculateComparison(periodIncome, prevPeriodIncome);
+  }, [periodIncome, prevPeriodIncome]);
+
+  const expenseComparison = useMemo(() => {
+    return calculateComparison(periodExpense, prevPeriodExpense);
+  }, [periodExpense, prevPeriodExpense]);
+
+  const netComparison = useMemo(() => {
+    return calculateComparison(periodNetIncome, prevPeriodNetIncome);
+  }, [periodNetIncome, prevPeriodNetIncome]);
+
+  // Category breakdowns for selected period
   const expenseByCategory = useMemo(() => {
-    const map = expenses.reduce<Record<string, number>>((acc, e) => {
+    const map = currentPeriodExpenses.reduce<Record<string, number>>((acc, e) => {
       acc[e.category] = (acc[e.category] ?? 0) + Number(e.amount);
       return acc;
     }, {});
     return Object.entries(map)
-      .map(([category, total]) => ({ category, total }))
-      .sort((a, b) => b.total - a.total)
-      .slice(0, 8);
-  }, [expenses]);
+      .map(([cat, total]) => ({ category: cat, total }))
+      .sort((a, b) => b.total - a.total);
+  }, [currentPeriodExpenses]);
 
   const incomeByCategory = useMemo(() => {
-    const map = incomes.reduce<Record<string, number>>((acc, i) => {
+    const map = currentPeriodIncomes.reduce<Record<string, number>>((acc, i) => {
       acc[i.category] = (acc[i.category] ?? 0) + Number(i.amount);
       return acc;
     }, {});
     return Object.entries(map)
-      .map(([category, total]) => ({ category, total }))
-      .sort((a, b) => b.total - a.total)
-      .slice(0, 8);
-  }, [incomes]);
+      .map(([cat, total]) => ({ category: cat, total }))
+      .sort((a, b) => b.total - a.total);
+  }, [currentPeriodIncomes]);
 
   const maxExpense = useMemo(
     () => Math.max(...expenseByCategory.map((c) => c.total), 1),
@@ -107,28 +208,82 @@ export default function ExpensesView() {
     [incomeByCategory]
   );
 
+  // Income by product (from unit and category)
+  const incomeByProduct = useMemo(() => {
+    const map = new Map<string, { product: string; totalAmount: number; totalQuantity: number; unit: string; count: number }>();
+    currentPeriodIncomes.forEach((i) => {
+      const prod = i.category;
+      const key = `${prod}|${i.unit || ""}`;
+      const entry = map.get(key) || { product: prod, totalAmount: 0, totalQuantity: 0, unit: i.unit || "", count: 0 };
+      entry.totalAmount += Number(i.amount || 0);
+      entry.totalQuantity += Number(i.quantity || 0);
+      entry.count++;
+      map.set(key, entry);
+    });
+    return Array.from(map.values()).sort((a, b) => b.totalAmount - a.totalAmount);
+  }, [currentPeriodIncomes]);
+
+  // Chart data: Net income / cashflow over time for period
+  const chartData = useMemo<ChartPoint[]>(() => {
+    if (currentPeriodIncomes.length === 0 && currentPeriodExpenses.length === 0) return [];
+
+    if (periodMode === "year") {
+      const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+      const year = periodInfo.from.slice(0, 4);
+      return months.map((m, idx) => {
+        const prefix = `${year}-${String(idx + 1).padStart(2, "0")}`;
+        const inc = currentPeriodIncomes.filter((i) => i.date.startsWith(prefix)).reduce((s, i) => s + Number(i.amount), 0);
+        const exp = currentPeriodExpenses.filter((e) => e.date.startsWith(prefix)).reduce((s, e) => s + Number(e.amount), 0);
+        return {
+          label: m,
+          value: inc - exp,
+          tone: inc - exp >= 0 ? "green" : "red",
+        };
+      });
+    }
+
+    const dateSet = new Set<string>();
+    currentPeriodIncomes.forEach((i) => dateSet.add(i.date ? i.date.slice(0, 10) : ""));
+    currentPeriodExpenses.forEach((e) => dateSet.add(e.date ? e.date.slice(0, 10) : ""));
+    dateSet.delete("");
+
+    return Array.from(dateSet)
+      .sort((a, b) => a.localeCompare(b))
+      .map((d) => {
+        const inc = currentPeriodIncomes.filter((i) => (i.date || "").slice(0, 10) === d).reduce((s, i) => s + Number(i.amount), 0);
+        const exp = currentPeriodExpenses.filter((e) => (e.date || "").slice(0, 10) === d).reduce((s, e) => s + Number(e.amount), 0);
+        const net = inc - exp;
+        return {
+          label: d.slice(5),
+          value: net,
+          tone: net >= 0 ? "green" : "red",
+        };
+      });
+  }, [currentPeriodIncomes, currentPeriodExpenses, periodMode, periodInfo.from]);
+
   function resetForm() {
     setEditingId(null);
     setDescription("");
     setAmount("");
     setQuantity("");
     setUnit("");
-    setDate(new Date().toISOString().slice(0, 10));
+    setDate(getLocalDateString());
     setCategory(activeTab === "income" ? "Egg Sales" : "Poultry Feed");
     setErrorMsg("");
   }
 
   function startEdit(item: ExpenseRecord | IncomeRecord, type: "income" | "expense") {
     setActiveTab(type);
+    setActiveSection(type);
     setEditingId(item.id);
     setCategory(item.category);
     setDescription(item.description);
     setAmount(String(item.amount));
-    setDate(item.date ? item.date.slice(0, 10) : new Date().toISOString().slice(0, 10));
+    setDate(item.date ? item.date.slice(0, 10) : getLocalDateString());
     const inc = item as IncomeRecord;
     setQuantity(inc.quantity ? String(inc.quantity) : "");
     setUnit(inc.unit || "");
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    window.scrollTo({ top: 480, behavior: "smooth" });
   }
 
   async function handleSubmit(event: React.FormEvent) {
@@ -210,161 +365,365 @@ export default function ExpensesView() {
     <main className="kf-page">
       <PageHeader
         title="Income & Expenses"
-        description="Track daily sales, operating expenses, and cashflow in Kenyan Shillings (KES)."
+        description="Daily, weekly, monthly and yearly tracking of farm sales, operating costs, and net farm income."
         actions={
-          <Button icon={<Plus size={16} />} onClick={() => { resetForm(); window.scrollTo({ top: 380, behavior: "smooth" }); }}>
-            Add entry
-          </Button>
+          <div style={{ display: "flex", gap: "8px" }}>
+            <Button
+              icon={<Plus size={16} />}
+              onClick={() => {
+                setActiveTab("income");
+                setCategory("Egg Sales");
+                resetForm();
+                window.scrollTo({ top: 480, behavior: "smooth" });
+              }}
+            >
+              Record Income
+            </Button>
+            <Button
+              variant="secondary"
+              icon={<Plus size={16} />}
+              onClick={() => {
+                setActiveTab("expense");
+                setCategory("Poultry Feed");
+                resetForm();
+                window.scrollTo({ top: 480, behavior: "smooth" });
+              }}
+            >
+              Record Expense
+            </Button>
+          </div>
         }
       />
 
-      {/* Stats */}
-      <div className="kf-stat-grid">
-        <StatCard
-          label="Total Farm Income"
-          value={formatCurrency(totalIncome)}
-          hint="All recorded sales"
-          image="/images/farm/farm-income.webp"
-          imageAlt="Farm Income"
-          layout="image-right"
-          tone="green"
+      <div className="kf-stack">
+        {/* Date Period Filter */}
+        <DatePeriodFilter
+          mode={periodMode}
+          offset={periodOffset}
+          customFrom={customFrom}
+          customTo={customTo}
+          periodInfo={periodInfo}
+          onModeChange={(m) => {
+            setPeriodMode(m);
+            setPeriodOffset(0);
+          }}
+          onOffsetChange={setPeriodOffset}
+          onCustomRangeChange={(f, t) => {
+            setCustomFrom(f);
+            setCustomTo(t);
+          }}
+          onReset={() => {
+            setPeriodOffset(0);
+          }}
+          title="Financial Period"
         />
-        <StatCard
-          label="Total Expenses"
-          value={formatCurrency(totalExpense)}
-          hint="All recorded costs"
-          image="/images/farm/farm-expenses.webp"
-          imageAlt="Farm Expenses"
-          layout="image-right"
-          tone="red"
+
+        {/* Financial KPI Stats Grid */}
+        <div className="kf-grid kf-grid--stats">
+          <StatCard
+            label="Money Received"
+            value={formatCurrency(periodIncome)}
+            hint={
+              incomeComparison.percentChange !== null
+                ? `${incomeComparison.text} (${formatCurrency(prevPeriodIncome)})`
+                : `${currentPeriodIncomes.length} sales entries in period`
+            }
+            image="/images/farm/farm-income.webp"
+            imageAlt="Money Received"
+            layout="image-right"
+            tone="green"
+            onClick={() => setActiveSection("income")}
+          />
+
+          <StatCard
+            label="Money Spent"
+            value={formatCurrency(periodExpense)}
+            hint={
+              expenseComparison.percentChange !== null
+                ? `${expenseComparison.text} (${formatCurrency(prevPeriodExpense)})`
+                : `${currentPeriodExpenses.length} expense entries in period`
+            }
+            image="/images/farm/farm-expenses.webp"
+            imageAlt="Money Spent"
+            layout="image-right"
+            tone="red"
+            onClick={() => setActiveSection("expense")}
+          />
+
+          <StatCard
+            label="Money Remaining"
+            value={`${isProfitable ? "+" : ""}${formatCurrency(periodNetIncome)}`}
+            hint={
+              isProfitable
+                ? "Net Farm Profit (Income − Expenses)"
+                : "Operating Deficit (Expenses exceed income)"
+            }
+            image={isProfitable ? "/images/farm/farm-income.webp" : "/images/farm/operating-loss.webp"}
+            imageAlt={isProfitable ? "Operating Profit" : "Operating Loss"}
+            layout="image-right"
+            tone={isProfitable ? "green" : "red"}
+            onClick={() => setActiveSection("summary")}
+          />
+
+          <StatCard
+            label="Net Comparison"
+            value={netComparison.percentChange !== null ? netComparison.text : (isProfitable ? "Profitable" : "Loss")}
+            hint={`Previous period net: ${formatCurrency(prevPeriodNetIncome)}`}
+            icon={isProfitable ? <TrendingUp size={20} strokeWidth={1.5} /> : <TrendingDown size={20} strokeWidth={1.5} />}
+            tone={isProfitable ? "forest" : "amber"}
+          />
+        </div>
+
+        {/* Section View Tabs */}
+        <Segmented
+          label="View financial section"
+          options={[
+            { value: "summary", label: "Financial Summary & Trends" },
+            { value: "income", label: `Money In / Income (${currentPeriodIncomes.length})` },
+            { value: "expense", label: `Money Out / Expenses (${currentPeriodExpenses.length})` },
+          ]}
+          value={activeSection}
+          onChange={(v) => setActiveSection(v as ViewSection)}
         />
-        <StatCard
-          label={isProfitable ? "Operating Profit" : "Operating Loss"}
-          value={`${isProfitable ? "+" : ""}${formatCurrency(netProfitOrLoss)}`}
-          hint={isProfitable ? "Surplus" : "Deficit"}
-          image={isProfitable ? "/images/farm/farm-income.webp" : "/images/farm/operating-loss.webp"}
-          imageAlt={isProfitable ? "Operating Profit" : "Operating Loss"}
-          layout="image-right"
-          tone={isProfitable ? "green" : "red"}
-        />
-      </div>
 
-      {/* Feedback */}
-      {errorMsg && <ErrorBanner message={errorMsg} onRetry={() => setErrorMsg("")} />}
-      {successMsg && <Notice tone="success">{successMsg}</Notice>}
+        {/* Section 1: Financial Summary & Trend Chart */}
+        {activeSection === "summary" && (
+          <>
+            {chartData.length > 0 && (
+              <Panel
+                title={`Net Income Trend (${periodInfo.label})`}
+                subtitle="Daily or monthly net farm income (Money In minus Money Out) in KES."
+              >
+                <div style={{ padding: "8px 0" }}>
+                  <BarChart
+                    data={chartData}
+                    height={210}
+                    valueSuffix=" KES"
+                    emptyLabel="No financial transactions recorded for this period."
+                  />
+                </div>
+              </Panel>
+            )}
 
-      {/* Tab selector */}
-      <Segmented
-        label="Record type"
-        options={[
-          { value: "expense", label: "Expenses", icon: <TrendingDown size={15} /> },
-          { value: "income", label: "Income", icon: <TrendingUp size={15} /> },
-        ]}
-        value={activeTab}
-        onChange={(v) => {
-          setActiveTab(v as "income" | "expense");
-          setCategory(v === "income" ? "Egg Sales" : "Poultry Feed");
-          setEditingId(null);
-        }}
-      />
+            <div style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))",
+              gap: "20px",
+            }}>
+              {/* Income breakdown */}
+              <Panel
+                title="Income by Category"
+                subtitle={`${formatCurrency(periodIncome)} total sales for period`}
+                actions={
+                  <Button
+                    variant="ghost"
+                    onClick={() => {
+                      setActiveTab("income");
+                      setActiveSection("income");
+                    }}
+                  >
+                    View All Income
+                  </Button>
+                }
+              >
+                {incomeByCategory.length === 0 ? (
+                  <EmptyState title="No income recorded" description="No sales entries recorded in this period." />
+                ) : (
+                  <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+                    {incomeByCategory.slice(0, 7).map((item) => (
+                      <CssBar
+                        key={item.category}
+                        label={item.category}
+                        value={item.total}
+                        max={maxIncome}
+                        formatted={`+${formatCurrency(item.total)}`}
+                        tone="green"
+                      />
+                    ))}
+                  </div>
+                )}
+              </Panel>
 
-      {/* Category breakdown */}
-      <Panel
-        title={activeTab === "income" ? "Income by category" : "Expenses by category"}
-        subtitle="Top 8 categories"
-      >
-        {(activeTab === "expense" ? expenseByCategory : incomeByCategory).length === 0 ? (
-          <EmptyState compact title="No records yet" description="Add records below to see the breakdown." />
-        ) : (
-          <div className="kf-bar-chart">
-            {(activeTab === "expense" ? expenseByCategory : incomeByCategory).map((c) => (
-              <CssBar
-                key={c.category}
-                label={c.category}
-                value={c.total}
-                max={activeTab === "expense" ? maxExpense : maxIncome}
-                formatted={formatCurrency(c.total)}
-                tone={activeTab === "expense" ? "red" : "green"}
-              />
-            ))}
-          </div>
+              {/* Expense breakdown */}
+              <Panel
+                title="Expenses by Category"
+                subtitle={`${formatCurrency(periodExpense)} total operating costs`}
+                actions={
+                  <Button
+                    variant="ghost"
+                    onClick={() => {
+                      setActiveTab("expense");
+                      setActiveSection("expense");
+                    }}
+                  >
+                    View All Expenses
+                  </Button>
+                }
+              >
+                {expenseByCategory.length === 0 ? (
+                  <EmptyState title="No expenses recorded" description="No expense entries recorded in this period." />
+                ) : (
+                  <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+                    {expenseByCategory.slice(0, 7).map((item) => (
+                      <CssBar
+                        key={item.category}
+                        label={item.category}
+                        value={item.total}
+                        max={maxExpense}
+                        formatted={`-${formatCurrency(item.total)}`}
+                        tone="red"
+                      />
+                    ))}
+                  </div>
+                )}
+              </Panel>
+            </div>
+
+            {/* Income by Product / Volume */}
+            {incomeByProduct.length > 0 && (
+              <Panel title="Sales Volume & Products" subtitle="Breakdown of physical sales units and revenue.">
+                <div style={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+                  gap: "12px",
+                }}>
+                  {incomeByProduct.map((p, idx) => (
+                    <div key={idx} style={{
+                      padding: "12px 14px",
+                      background: "var(--kf-cream, #f8fafc)",
+                      borderRadius: "10px",
+                      border: "1px solid var(--kf-border, #e2e8f0)",
+                    }}>
+                      <div style={{ fontSize: "13px", fontWeight: 600, color: "var(--kf-text)" }}>
+                        {p.product}
+                      </div>
+                      <div style={{ fontSize: "15px", fontWeight: 700, color: "var(--kf-green-600, #16a34a)", marginTop: "4px" }}>
+                        +{formatCurrency(p.totalAmount)}
+                      </div>
+                      {p.totalQuantity > 0 && (
+                        <div style={{ fontSize: "12px", color: "var(--kf-text-muted)", marginTop: "2px" }}>
+                          Volume: {p.totalQuantity.toLocaleString()} {p.unit}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </Panel>
+            )}
+          </>
         )}
-      </Panel>
 
-      {/* Form */}
-      <Panel title={editingId ? `Edit ${activeTab} record` : `Add ${activeTab} record`}>
-        <form onSubmit={handleSubmit} className="kf-form">
-          <div className="kf-form-grid">
-            <Field label={activeTab === "income" ? "Income Category" : "Expense Category"} required>
-              {activeTab === "income" ? (
-                <select
-                  className="kf-input"
-                  value={category}
-                  onChange={(e) => {
-                    setCategory(e.target.value);
-                    if (e.target.value === "Egg Sales") setUnit("trays");
-                    else if (e.target.value === "Milk Sales") setUnit("litres");
-                    else if (e.target.value === "Poultry Sales") setUnit("birds");
-                  }}
-                >
-                  <option value="Egg Sales">Egg Sales</option>
-                  <option value="Milk Sales">Milk Sales</option>
-                  <option value="Poultry Sales">Poultry Sales</option>
-                  <option value="Cattle Sales">Cattle / Calf Sales</option>
-                  <option value="Manure Sales">Manure Sales</option>
-                  <option value="Other Farm Income">Other Farm Income</option>
-                </select>
-              ) : (
+        {/* Add / Edit Form Panel */}
+        <Panel
+          title={
+            editingId
+              ? `Edit ${activeTab === "income" ? "Income" : "Expense"} Entry`
+              : activeTab === "income"
+              ? "Record Farm Income (Money In)"
+              : "Record Farm Expense (Money Out)"
+          }
+          subtitle={
+            activeTab === "income"
+              ? "Log product sales, egg collections, milk deliveries, or animal sales in KES."
+              : "Log feed purchases, veterinary medication, labor wages, or farm maintenance in KES."
+          }
+          actions={
+            <div style={{ display: "flex", gap: "6px" }}>
+              <Button
+                variant={activeTab === "income" ? "primary" : "secondary"}
+                onClick={() => {
+                  setActiveTab("income");
+                  setCategory("Egg Sales");
+                }}
+              >
+                Money In
+              </Button>
+              <Button
+                variant={activeTab === "expense" ? "primary" : "secondary"}
+                onClick={() => {
+                  setActiveTab("expense");
+                  setCategory("Poultry Feed");
+                }}
+              >
+                Money Out
+              </Button>
+            </div>
+          }
+        >
+          {errorMsg && <ErrorBanner message={errorMsg} />}
+          {successMsg && <Notice tone="success">{successMsg}</Notice>}
+
+          <form onSubmit={handleSubmit} className="kf-form">
+            <div className="kf-form-grid">
+              <Field label="Category" required>
                 <select
                   className="kf-input"
                   value={category}
                   onChange={(e) => setCategory(e.target.value)}
                 >
-                  <option value="Poultry Feed">Poultry Feed</option>
-                  <option value="Cattle Feed">Cattle Feed</option>
-                  <option value="Chicks Purchased">Chicks Purchased</option>
-                  <option value="Cattle Purchased">Cattle / Calf Purchased</option>
-                  <option value="Vaccines & Medication">Vaccines & Medication</option>
-                  <option value="Veterinary Services">Veterinary Services</option>
-                  <option value="Farm Labor">Farm Labor</option>
-                  <option value="Transport">Transport & Logistics</option>
-                  <option value="Water & Electricity">Water & Electricity</option>
-                  <option value="Equipment & Repairs">Equipment & Housing Repairs</option>
-                  <option value="Packaging">Packaging</option>
-                  <option value="Other Operating Expense">Other Operating Expense</option>
+                  {(activeTab === "income" ? INCOME_CATEGORIES : EXPENSE_CATEGORIES).map((cat) => (
+                    <option key={cat} value={cat}>
+                      {cat}
+                    </option>
+                  ))}
                 </select>
+              </Field>
+
+              <Field label="Amount in KES" required>
+                <input
+                  type="number"
+                  className="kf-input"
+                  min="0"
+                  step="0.01"
+                  placeholder="e.g. 4500"
+                  value={amount}
+                  onChange={(e) => setAmount(e.target.value)}
+                  required
+                />
+              </Field>
+
+              <Field label="Transaction Date" required>
+                <input
+                  type="date"
+                  className="kf-input"
+                  value={date}
+                  onChange={(e) => setDate(e.target.value)}
+                  required
+                />
+              </Field>
+
+              {activeTab === "income" && (
+                <>
+                  <Field label="Quantity (Optional)" hint="e.g. trays, litres, birds">
+                    <input
+                      type="number"
+                      className="kf-input"
+                      placeholder="e.g. 25"
+                      value={quantity}
+                      onChange={(e) => setQuantity(e.target.value)}
+                    />
+                  </Field>
+                  <Field label="Unit (Optional)">
+                    <input
+                      type="text"
+                      className="kf-input"
+                      placeholder="e.g. trays, litres, pcs"
+                      value={unit}
+                      onChange={(e) => setUnit(e.target.value)}
+                    />
+                  </Field>
+                </>
               )}
-            </Field>
+            </div>
 
-            <Field label="Amount (KES)" required>
-              <input
-                type="number"
-                className="kf-input"
-                placeholder="e.g. 5000"
-                value={amount}
-                onChange={(e) => setAmount(e.target.value)}
-                required
-              />
-            </Field>
-
-            <Field label="Transaction Date" required>
-              <input
-                type="date"
-                className="kf-input"
-                value={date}
-                onChange={(e) => setDate(e.target.value)}
-                required
-              />
-            </Field>
-
-            <Field label="Description / Notes" required className="kf-field--span2">
+            <Field label="Description / Notes" required className="kf-field--full">
               <input
                 type="text"
                 className="kf-input"
                 placeholder={
                   activeTab === "income"
-                    ? "e.g. Sold 15 trays of eggs to local bakery"
-                    : "e.g. Bought 2 bags of layers mash from Agrovet"
+                    ? "e.g. Sold 25 trays of Grade A eggs to local bakery"
+                    : "e.g. Bought 2 bags of layers mash from Unga Farm Care"
                 }
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
@@ -372,171 +731,165 @@ export default function ExpensesView() {
               />
             </Field>
 
-            {activeTab === "income" && (
-              <>
-                <Field label="Quantity (optional)">
-                  <input
-                    type="number"
-                    className="kf-input"
-                    placeholder="e.g. 15"
-                    value={quantity}
-                    onChange={(e) => setQuantity(e.target.value)}
-                  />
-                </Field>
-                <Field label="Unit (optional)">
-                  <input
-                    type="text"
-                    className="kf-input"
-                    placeholder="e.g. trays"
-                    value={unit}
-                    onChange={(e) => setUnit(e.target.value)}
-                  />
-                </Field>
-              </>
-            )}
-          </div>
-
-          <div className="kf-form-actions">
-            {editingId && (
-              <Button variant="secondary" type="button" onClick={resetForm}>
-                Cancel Edit
+            <div className="kf-form-actions">
+              {editingId && (
+                <Button variant="secondary" type="button" onClick={resetForm}>
+                  Cancel Edit
+                </Button>
+              )}
+              <Button type="submit" variant="primary" loading={saving}>
+                <span>
+                  {saving
+                    ? "Saving…"
+                    : editingId
+                    ? "Update Record"
+                    : activeTab === "income"
+                    ? "Save Income"
+                    : "Save Expense"}
+                </span>
               </Button>
-            )}
-            <Button type="submit" variant="primary" loading={saving}>
-              <span>
-                {saving
-                  ? "Saving…"
-                  : editingId
-                  ? "Update Record"
-                  : activeTab === "income"
-                  ? "Save Income"
-                  : "Save Expense"}
-              </span>
-            </Button>
-          </div>
-        </form>
-      </Panel>
-
-      {/* Records table */}
-      <Panel
-        title={
-          activeTab === "income"
-            ? `Recorded Farm Income (${incomes.length})`
-            : `Recorded Farm Expenses (${expenses.length})`
-        }
-      >
-        {loading ? (
-          <EmptyState title="Loading…" description="Fetching financial records." />
-        ) : activeTab === "income" ? (
-          incomes.length === 0 ? (
-            <EmptyState
-              icon={<Wallet size={40} />}
-              title="No income records yet"
-              description="Record your egg, milk, or chicken sales above to track farm profits."
-            />
-          ) : (
-            <div className="kf-table-wrap">
-              <table className="kf-table">
-                <thead>
-                  <tr>
-                    <th>Date</th>
-                    <th>Category</th>
-                    <th>Description</th>
-                    <th>Qty / Unit</th>
-                    <th>Amount KES</th>
-                    <th>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {incomes.map((inc) => (
-                    <tr key={inc.id}>
-                      <td>{inc.date ? inc.date.slice(0, 10) : "—"}</td>
-                      <td>{inc.category}</td>
-                      <td>{inc.description}</td>
-                      <td>{inc.quantity ? `${inc.quantity} ${inc.unit || ""}` : "—"}</td>
-                      <td>
-                        <strong style={{ color: "var(--kf-green-600, #16a34a)" }}>
-                          +{formatCurrency(inc.amount)}
-                        </strong>
-                      </td>
-                      <td>
-                        <div className="kf-row-actions">
-                          <IconButton
-                            label="Edit"
-                            icon={<Pencil size={15} />}
-                            onClick={() => startEdit(inc, "income")}
-                          />
-                          <IconButton
-                            label="Delete"
-                            icon={<Trash2 size={15} />}
-                            onClick={() =>
-                              setDeleteTarget({ id: inc.id, desc: inc.description, type: "income" })
-                            }
-                            tone="danger"
-                          />
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
             </div>
-          )
-        ) : expenses.length === 0 ? (
-          <EmptyState
-            icon={<TrendingDown size={40} />}
-            title="No expense records yet"
-            description="Record your feed, vet, and operating costs above."
-          />
-        ) : (
-          <div className="kf-table-wrap">
-            <table className="kf-table">
-              <thead>
-                <tr>
-                  <th>Date</th>
-                  <th>Category</th>
-                  <th>Description</th>
-                  <th>Amount KES</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {expenses.map((exp) => (
-                  <tr key={exp.id}>
-                    <td>{exp.date ? exp.date.slice(0, 10) : "—"}</td>
-                    <td>{exp.category}</td>
-                    <td>{exp.description}</td>
-                    <td>
-                      <strong style={{ color: "var(--kf-red)" }}>
-                        -{formatCurrency(exp.amount)}
-                      </strong>
-                    </td>
-                    <td>
-                      <div className="kf-row-actions">
-                        <IconButton
-                          label="Edit"
-                          icon={<Pencil size={15} />}
-                          onClick={() => startEdit(exp, "expense")}
-                        />
-                        <IconButton
-                          label="Delete"
-                          icon={<Trash2 size={15} />}
-                          onClick={() =>
-                            setDeleteTarget({ id: exp.id, desc: exp.description, type: "expense" })
-                          }
-                          tone="danger"
-                        />
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </Panel>
+          </form>
+        </Panel>
 
-      {/* Delete confirm modal */}
+        {/* Section 2: Individual Income Records Table */}
+        {(activeSection === "income" || activeSection === "summary") && (
+          <Panel
+            title={`Money In / Income Records (${currentPeriodIncomes.length})`}
+            subtitle={`Recorded income for ${periodInfo.label}.`}
+          >
+            {loading ? (
+              <EmptyState title="Loading income records…" />
+            ) : currentPeriodIncomes.length === 0 ? (
+              <EmptyState
+                icon={<Wallet size={36} />}
+                title="No income recorded for this period"
+                description={`No income entries found between ${periodInfo.from} and ${periodInfo.to}. Add a sales entry above.`}
+              />
+            ) : (
+              <div className="kf-table-wrap">
+                <table className="kf-table">
+                  <thead>
+                    <tr>
+                      <th>Date</th>
+                      <th>Category</th>
+                      <th>Description</th>
+                      <th>Qty / Unit</th>
+                      <th>Amount KES</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {currentPeriodIncomes.map((inc) => (
+                      <tr key={inc.id}>
+                        <td>
+                          <strong>{formatDisplayDate(inc.date, false)}</strong>
+                        </td>
+                        <td>
+                          <Badge tone="green">{inc.category}</Badge>
+                        </td>
+                        <td>{inc.description}</td>
+                        <td>{inc.quantity ? `${inc.quantity} ${inc.unit || ""}` : "—"}</td>
+                        <td>
+                          <strong style={{ color: "var(--kf-green-600, #16a34a)", fontSize: "14px" }}>
+                            +{formatCurrency(inc.amount)}
+                          </strong>
+                        </td>
+                        <td>
+                          <div className="kf-row-actions">
+                            <IconButton
+                              label="Edit"
+                              icon={<Pencil size={15} />}
+                              onClick={() => startEdit(inc, "income")}
+                            />
+                            <IconButton
+                              label="Delete"
+                              icon={<Trash2 size={15} />}
+                              onClick={() =>
+                                setDeleteTarget({ id: inc.id, desc: inc.description, type: "income" })
+                              }
+                              tone="danger"
+                            />
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </Panel>
+        )}
+
+        {/* Section 3: Individual Expense Records Table */}
+        {(activeSection === "expense" || activeSection === "summary") && (
+          <Panel
+            title={`Money Out / Expense Records (${currentPeriodExpenses.length})`}
+            subtitle={`Recorded expenses for ${periodInfo.label}.`}
+          >
+            {loading ? (
+              <EmptyState title="Loading expense records…" />
+            ) : currentPeriodExpenses.length === 0 ? (
+              <EmptyState
+                icon={<TrendingDown size={36} />}
+                title="No expenses recorded for this period"
+                description={`No expense entries found between ${periodInfo.from} and ${periodInfo.to}. Add an expense above.`}
+              />
+            ) : (
+              <div className="kf-table-wrap">
+                <table className="kf-table">
+                  <thead>
+                    <tr>
+                      <th>Date</th>
+                      <th>Category</th>
+                      <th>Description</th>
+                      <th>Amount KES</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {currentPeriodExpenses.map((exp) => (
+                      <tr key={exp.id}>
+                        <td>
+                          <strong>{formatDisplayDate(exp.date, false)}</strong>
+                        </td>
+                        <td>
+                          <Badge tone="slate">{exp.category}</Badge>
+                        </td>
+                        <td>{exp.description}</td>
+                        <td>
+                          <strong style={{ color: "var(--kf-red, #dc2626)", fontSize: "14px" }}>
+                            -{formatCurrency(exp.amount)}
+                          </strong>
+                        </td>
+                        <td>
+                          <div className="kf-row-actions">
+                            <IconButton
+                              label="Edit"
+                              icon={<Pencil size={15} />}
+                              onClick={() => startEdit(exp, "expense")}
+                            />
+                            <IconButton
+                              label="Delete"
+                              icon={<Trash2 size={15} />}
+                              onClick={() =>
+                                setDeleteTarget({ id: exp.id, desc: exp.description, type: "expense" })
+                              }
+                              tone="danger"
+                            />
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </Panel>
+        )}
+      </div>
+
+      {/* Delete Confirmation Modal */}
       <Modal
         open={!!deleteTarget}
         onClose={() => setDeleteTarget(null)}

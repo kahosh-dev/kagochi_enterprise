@@ -45,7 +45,7 @@ export default function DailyRecordModal({
   // Production state
   const [productionType, setProductionType] = useState<"eggs" | "milk">("eggs");
   const [productionQuantity, setProductionQuantity] = useState("");
-  const [productionUnit, setProductionUnit] = useState("pieces");
+  const [productionUnit, setProductionUnit] = useState("trays");
 
   // Feeding state
   const [feedingAnimalType, setFeedingAnimalType] = useState("Chickens");
@@ -135,6 +135,7 @@ export default function DailyRecordModal({
           date: activityDate,
           destination: "produced",
           sellingPrice: 0,
+          animalType: productionType === "eggs" ? "Poultry" : "Cattle",
           notes: "",
         });
         setSuccessMsg(`✓ Recorded production: ${qty} ${productionUnit} of ${productionType}`);
@@ -428,7 +429,7 @@ export default function DailyRecordModal({
                     onChange={(e) => {
                       const t = e.target.value as "eggs" | "milk";
                       setProductionType(t);
-                      setProductionUnit(t === "eggs" ? "pieces" : "litres");
+                      setProductionUnit(t === "eggs" ? "trays" : "litres");
                     }}
                   >
                     <option value="eggs">Eggs Collected</option>
@@ -439,11 +440,16 @@ export default function DailyRecordModal({
                   <label>Quantity *</label>
                   <input
                     type="number"
-                    placeholder="e.g. 180"
+                    placeholder={productionType === "eggs" ? "e.g. 5 or 2.5 trays" : "e.g. 15 litres"}
                     value={productionQuantity}
                     onChange={(e) => setProductionQuantity(e.target.value)}
                     required
                   />
+                  {productionType === "eggs" && productionUnit === "trays" && parseFloat(productionQuantity) > 0 && (
+                    <small style={{ color: "var(--kf-primary)", display: "block", marginTop: "4px" }}>
+                      = {Math.round(parseFloat(productionQuantity) * 30)} individual eggs (@ 30 eggs/tray)
+                    </small>
+                  )}
                 </div>
                 <div className="form-field">
                   <label>Unit</label>
@@ -452,8 +458,8 @@ export default function DailyRecordModal({
                       value={productionUnit}
                       onChange={(e) => setProductionUnit(e.target.value)}
                     >
+                      <option value="trays">Trays (default: 30 eggs/tray)</option>
                       <option value="pieces">Pieces (individual eggs)</option>
-                      <option value="trays">Trays (30 eggs/tray)</option>
                     </select>
                   ) : (
                     <input type="text" value="litres" disabled />
@@ -461,7 +467,7 @@ export default function DailyRecordModal({
                 </div>
               </div>
               <p className="field-hint">
-                Note: Record daily collection here. When eggs or milk are sold, also record them under the Income tab.
+                Note: Record daily yield in trays for eggs and litres for milk. When sold, record revenue under Income.
               </p>
             </div>
           )}
