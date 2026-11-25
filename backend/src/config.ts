@@ -64,7 +64,7 @@ export const config = {
   databaseType,
   databasePath: resolveDatabasePath(process.env.DATABASE_PATH),
   databaseUrl,
-  corsOrigins: (process.env.CORS_ORIGINS ?? "http://localhost:5173")
+  corsOrigins: (process.env.CORS_ORIGINS ?? "http://localhost:5173,https://*.vercel.app")
     .split(",")
     .map((origin) => origin.trim())
     .filter(Boolean),

@@ -10,3 +10,5 @@ dist/
 *.sqbpro
 *.tsbuildinfo
 *.backup
+
+.agents/

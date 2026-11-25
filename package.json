@@ -1,0 +1,11 @@
+{
+  "name": "kagochi-enterprise",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "build": "cd frontend && npm install && npm run build",
+    "dev": "cd frontend && npm run dev",
+    "start": "cd backend && npm start"
+  }
+}

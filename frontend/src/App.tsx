@@ -100,7 +100,7 @@ function App() {
   const [publicView, setPublicView] = useState<'home' | 'about' | 'features' | 'how-it-works' | 'founder' | 'login'>('home');
 
   const googleButtonRef = useRef<HTMLDivElement>(null);
-  const authApiUrl = (import.meta.env.VITE_API_URL ?? "http://localhost:3001").replace(/\/+$/, "");
+  const authApiUrl = (import.meta.env.VITE_API_URL || (import.meta.env.PROD ? "https://kagochi-enterprise.onrender.com" : "http://localhost:3001")).replace(/\/+$/, "");
 
   useEffect(() => {
     let active = true;

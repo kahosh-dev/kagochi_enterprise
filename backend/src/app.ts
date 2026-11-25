@@ -78,6 +78,32 @@ function isUniqueViolation(error: unknown): boolean {
   return code === "SQLITE_CONSTRAINT_UNIQUE" || code === "23505";
 }
 
+export function isAllowedOrigin(origin: string | undefined, allowedOrigins: string[]): boolean {
+  if (!origin) return false;
+  return allowedOrigins.some((allowed) => {
+    if (allowed === origin || allowed === "*") return true;
+    if (allowed.startsWith("*.")) {
+      const suffix = allowed.slice(1);
+      try {
+        const url = new URL(origin);
+        return url.hostname.endsWith(suffix);
+      } catch {
+        return false;
+      }
+    }
+    if (allowed.startsWith("https://*.")) {
+      const suffix = allowed.slice("https://*.".length);
+      try {
+        const url = new URL(origin);
+        return url.protocol === "https:" && (url.hostname === suffix || url.hostname.endsWith("." + suffix));
+      } catch {
+        return false;
+      }
+    }
+    return false;
+  });
+}
+
 export function createApp(options: AppOptions = {}) {
   const store = options.store ?? (config.databaseType === "postgres" ? postgresStore : sqliteStore);
   const ai = options.ai === undefined ? createGeminiClient() : options.ai;
@@ -87,7 +113,13 @@ export function createApp(options: AppOptions = {}) {
   app.use(helmet());
   app.use(
     cors({
-      origin: config.corsOrigins,
+      origin: (requestOrigin, callback) => {
+        if (!requestOrigin || isAllowedOrigin(requestOrigin, config.corsOrigins)) {
+          callback(null, true);
+        } else {
+          callback(null, false);
+        }
+      },
       credentials: true,
       methods: ["GET", "POST", "PUT", "DELETE"],
       allowedHeaders: ["Content-Type"],
@@ -104,7 +136,7 @@ export function createApp(options: AppOptions = {}) {
     const origin = req.get("origin");
     if (!origin) return next();
     const sameHost = origin === `${req.protocol}://${req.get("host")}`;
-    if (sameHost || config.corsOrigins.includes(origin)) return next();
+    if (sameHost || isAllowedOrigin(origin, config.corsOrigins)) return next();
     res.status(403).json({ error: "Request origin is not allowed." });
   });
 
