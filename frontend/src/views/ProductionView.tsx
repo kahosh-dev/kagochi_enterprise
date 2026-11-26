@@ -34,7 +34,8 @@ import {
   Segmented,
   StatCard,
 } from "../components/ui";
-import { BarChart, LineChart, type ChartPoint } from "../components/Chart";
+import { SmoothAreaChart, RoundedBarChart, ChartCard, palette } from "../components/charts";
+import type { ChartPoint } from "../components/Chart"; // keep type if needed
 import DatePeriodFilter from "../components/DatePeriodFilter";
 import AnimalProductionModal, { type ProductionTarget } from "../components/AnimalProductionModal";
 import { formatAnimalAge } from "../utils/age";
@@ -722,10 +723,9 @@ export default function ProductionView() {
                       <div style={{ fontSize: "13px", fontWeight: 600, color: "var(--kf-text, #1e293b)", marginBottom: "8px" }}>
                         Recent 7-Day Production Context (Milk L + Egg Equiv)
                       </div>
-                      <LineChart
-                        data={last7DaysProdPoints}
-                        height={180}
-                      />
+                <ChartCard title="7‑Day Production Trend" subtitle={period.label}>
+                  <SmoothAreaChart data={last7DaysProdPoints} />
+                </ChartCard>
                     </div>
                   </div>
                 ) : (
@@ -769,10 +769,9 @@ export default function ProductionView() {
                       <div style={{ fontSize: "13px", fontWeight: 600, color: "var(--kf-text, #1e293b)", marginBottom: "8px" }}>
                         Recent 7-Day Production Context (Milk L + Egg Equiv)
                       </div>
-                      <LineChart
-                        data={last7DaysProdPoints}
-                        height={180}
-                      />
+                <ChartCard title="7‑Day Production Trend" subtitle={period.label}>
+                  <SmoothAreaChart data={last7DaysProdPoints} />
+                </ChartCard>
                     </div>
                   </div>
                 )
