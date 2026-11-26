@@ -12,6 +12,7 @@ import {
   addFeeding,
   addVaccination,
 } from "../services/storage";
+import { getNairobiDateString } from "../utils/datePeriod";
 
 interface DailyRecordModalProps {
   isOpen: boolean;
@@ -26,7 +27,7 @@ export default function DailyRecordModal({
   onClose,
   onRecordSaved,
 }: DailyRecordModalProps) {
-  const todayStr = new Date().toISOString().slice(0, 10);
+  const todayStr = getNairobiDateString();
   const [activityDate, setActivityDate] = useState(todayStr);
   const [activeTab, setActiveTab] = useState<ActivityCategory>("income");
 

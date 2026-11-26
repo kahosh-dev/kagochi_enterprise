@@ -4,11 +4,9 @@ import {
   Beef,
   Bird,
   BrainCircuit,
-  CalendarDays,
   ChartNoAxesCombined,
   ChevronRight,
   Egg,
-  Filter,
   PlusCircle,
   Syringe,
   TrendingDown,
@@ -27,10 +25,9 @@ import {
   Notice,
   PageHeader,
   Panel,
-  Segmented,
   StatCard,
 } from "../components/ui";
-import { formatCurrency, formatDate, formatNumber, percent } from "../utils/format";
+import { formatCurrency, formatNumber, percent } from "../utils/format";
 import DatePeriodFilter from "../components/DatePeriodFilter";
 import { usePeriod } from "../context/PeriodContext";
 
@@ -178,8 +175,6 @@ export default function HomeView({
 
   const hasAnyPopulation = totalBirds > 0 || totalCattle > 0 || totalPoultryBirds > 0 || totalLivestockActive > 0;
   const hasAnyFinance = totalIncome > 0 || totalExpenses > 0;
-
-  const periodLabel = periodInfo.label;
 
   const feedDisplay =
     feedKg > 0

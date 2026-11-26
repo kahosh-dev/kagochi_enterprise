@@ -423,18 +423,10 @@ export default function ExpensesView() {
           customFrom={customFrom}
           customTo={customTo}
           periodInfo={periodInfo}
-          onModeChange={(m) => {
-            setPeriodMode(m);
-            setPeriodOffset(0);
-          }}
+          onModeChange={setPeriodMode}
           onOffsetChange={setPeriodOffset}
-          onCustomRangeChange={(f, t) => {
-            setCustomFrom(f);
-            setCustomTo(t);
-          }}
-          onReset={() => {
-            setPeriodOffset(0);
-          }}
+          onCustomRangeChange={setCustomRange}
+          onReset={resetPeriod}
           title="Financial Period"
         />
 
@@ -576,12 +568,12 @@ export default function ExpensesView() {
                           <div style={{
                             fontSize: "18px",
                             fontWeight: 700,
-                            color: periodNet >= 0 ? "var(--kf-primary, #15803d)" : "#dc2626",
+                            color: periodNetIncome >= 0 ? "var(--kf-primary, #15803d)" : "#dc2626",
                           }}>
-                            {formatCurrency(periodNet)}
+                            {formatCurrency(periodNetIncome)}
                           </div>
                           <div style={{ fontSize: "11px", color: "var(--kf-text-muted)" }}>
-                            {periodNet >= 0 ? "Profitable day" : "Net operating deficit"}
+                            {periodNetIncome >= 0 ? "Profitable day" : "Net operating deficit"}
                           </div>
                         </div>
                       </div>

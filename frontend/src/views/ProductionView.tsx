@@ -651,16 +651,8 @@ export default function ProductionView() {
           periodInfo={period}
           onModeChange={setPeriodMode}
           onOffsetChange={setPeriodOffset}
-          onCustomRangeChange={(from, to) => {
-            setCustomFrom(from);
-            setCustomTo(to);
-          }}
-          onReset={() => {
-            setPeriodMode("month");
-            setPeriodOffset(0);
-            setCustomFrom("");
-            setCustomTo("");
-          }}
+          onCustomRangeChange={setCustomRange}
+          onReset={resetPeriod}
         />
 
         {/* View Switcher Segmented Control */}

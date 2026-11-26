@@ -64,7 +64,7 @@ export default function AnimalProductionModal({
   target,
   records,
   onRecordSaved,
-  initialPeriodMode = "month",
+  initialPeriodMode = "today",
   initialPeriodOffset = 0,
   allLivestock = [],
 }: AnimalProductionModalProps) {

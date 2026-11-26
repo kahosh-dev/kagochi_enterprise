@@ -47,7 +47,7 @@ import {
   Badge,
 } from "../components/ui";
 import { SearchableSelect } from "../components/SearchableSelect";
-import { getNairobiToday } from "../utils/age";
+import { usePeriod } from "../context/PeriodContext";
 
 // Map status → Badge tone
 type BadgeTone = "green" | "amber" | "red" | "blue" | "slate";
@@ -251,7 +251,7 @@ export default function VaccinationsView() {
   const [_loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
-  const todayStr = getNairobiToday();
+  const { todayStr, periodInfo } = usePeriod();
 
   // Vaccination form state
   const [species, setSpecies] = useState<"poultry" | "cattle">("poultry");
@@ -828,7 +828,7 @@ export default function VaccinationsView() {
 
       {/* ── REMINDERS TAB ── */}
       {activeTab === "reminders" && (
-        <Panel title="Vaccination reminders" subtitle="Grouped by status">
+        <Panel title="Vaccination reminders" subtitle={`Grouped by status · ${periodInfo.label}`}>
           <VaccGroup
             title="Overdue"
             tone="red"

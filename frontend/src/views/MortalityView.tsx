@@ -110,14 +110,12 @@ function SvgBarChart({ points, maxVal }: { points: MortalityPoint[]; maxVal: num
   );
 }
 
+import { getNairobiDateString } from "../utils/datePeriod";
+
 function MortalityView() {
-  const today = formatDate(new Date());
-  const [preset, setPreset] = useState("month");
-  const [customFrom, setCustomFrom] = useState(() => {
-    const d = new Date();
-    const m = String(d.getUTCMonth() + 1).padStart(2, "0");
-    return `${d.getUTCFullYear()}-${m}-01`;
-  });
+  const today = getNairobiDateString();
+  const [preset, setPreset] = useState("today");
+  const [customFrom, setCustomFrom] = useState(today);
   const [customTo, setCustomTo] = useState(today);
   const [isCustom, setIsCustom] = useState(false);
   const [granularity, setGranularity] = useState<Granularity>("daily");

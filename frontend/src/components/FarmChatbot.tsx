@@ -11,22 +11,25 @@ import {
   RefreshCw,
   UserRound,
 } from "lucide-react";
+import { usePeriod } from "../context/PeriodContext";
+import { getNairobiDateString, addDaysToDateStr } from "../utils/datePeriod";
 
 type ChatPeriod = "today" | "yesterday" | "7d" | "30d" | "month";
 
 export default function FarmChatbot() {
+  const { periodInfo } = usePeriod();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [question, setQuestion] = useState("");
   const [period, setPeriod] = useState<ChatPeriod>("today");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  const todayStr = new Date().toISOString().slice(0, 10);
+  const todayStr = periodInfo.to || getNairobiDateString();
 
   function getPeriodOptions(p: ChatPeriod) {
     if (p === "today") return { periodDays: 1, to: todayStr, from: todayStr };
     if (p === "yesterday") {
-      const y = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+      const y = addDaysToDateStr(todayStr, -1);
       return { periodDays: 1, to: y, from: y };
     }
     if (p === "7d") return { periodDays: 7, to: todayStr };

@@ -66,17 +66,24 @@ export default function AdvisorView() {
       <div className="kf-grid kf-grid--main-side" style={{ alignItems: "start" }}>
         {/* ── Left / main column ── */}
         <div className="kf-grid-main">
-          {/* Period selector */}
-          <Segmented
-            label="Analysis period"
-            options={[
-              { value: "1", label: "Today" },
-              { value: "7", label: "7 days" },
-              { value: "30", label: "30 days" },
-            ]}
-            value={String(periodDays)}
-            onChange={(v) => setPeriodDays(Number(v))}
-          />
+          {/* Active Period Indicator */}
+          <div style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            background: "var(--kf-surface, #ffffff)",
+            border: "1px solid var(--kf-border, #e2e8f0)",
+            borderRadius: "10px",
+            padding: "10px 16px",
+            marginBottom: "16px",
+          }}>
+            <span style={{ fontSize: "13px", fontWeight: 600, color: "var(--kf-text, #1e293b)" }}>
+              Analysis Context Period
+            </span>
+            <span style={{ fontSize: "13px", color: "var(--kf-primary, #15803d)", fontWeight: 600 }}>
+              {periodInfo.label}
+            </span>
+          </div>
 
           {/* Rule-based warnings */}
           <Panel
@@ -139,7 +146,7 @@ export default function AdvisorView() {
 
         {/* ── Right / side column: Context stats ── */}
         <div className="kf-grid-side">
-          <Panel title="Period figures" subtitle={`Based on ${periodDays}-day window`}>
+          <Panel title="Period figures" subtitle={`Based on ${periodInfo.daysCount}-day window`}>
             {summary ? (
               <div className="kf-stack kf-stack--sm">
                 <StatCard

@@ -330,7 +330,6 @@ export function calculatePeriod(
     daysCount: daysDiff,
   };
 }
-}
 
 /**
  * Checks whether a record's date falls inclusively in the date range.

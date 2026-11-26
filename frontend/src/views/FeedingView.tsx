@@ -678,21 +678,10 @@ export default function FeedingView() {
           customFrom={customFrom}
           customTo={customTo}
           periodInfo={periodInfo}
-          onModeChange={(m) => {
-            setPeriodMode(m);
-            setPeriodOffset(0);
-          }}
+          onModeChange={setPeriodMode}
           onOffsetChange={setPeriodOffset}
-          onCustomRangeChange={(from, to) => {
-            setCustomFrom(from);
-            setCustomTo(to);
-          }}
-          onReset={() => {
-            setPeriodMode("month");
-            setPeriodOffset(0);
-            setCustomFrom("");
-            setCustomTo("");
-          }}
+          onCustomRangeChange={setCustomRange}
+          onReset={resetPeriod}
         />
       </PageHeader>
 
@@ -778,7 +767,7 @@ export default function FeedingView() {
                   gap: "12px",
                   marginBottom: "16px",
                 }}>
-                  {feedSummary.map((item) => (
+                  {feedTypeBreakdown.map((item) => (
                     <div
                       key={item.feedType}
                       style={{
@@ -792,11 +781,10 @@ export default function FeedingView() {
                         {item.feedType}
                       </div>
                       <div style={{ fontSize: "18px", fontWeight: 700, color: "var(--kf-primary, #15803d)", marginTop: "4px" }}>
-                        {item.totalQty} {item.unit}
+                        {item.totalKg > 0 ? `${item.totalKg} kg` : item.totalBags > 0 ? `${item.totalBags} bags` : `${item.totalBales} bales`}
                       </div>
                       <div style={{ fontSize: "11px", color: "var(--kf-text-muted)", marginTop: "2px" }}>
                         {item.count} feeding event{item.count > 1 ? "s" : ""}
-                        {item.totalCost > 0 ? ` · KES ${item.totalCost.toLocaleString()}` : ""}
                       </div>
                     </div>
                   ))}
