@@ -1,10 +1,33 @@
 import React from 'react';
-import type { TooltipProps } from 'recharts';
 import { formatNumber, formatUnit, formatDate } from './formatters';
 import { palette, semantic, tooltip as tooltipStyle } from './chartTheme';
 
-export const GlassTooltip: React.FC<TooltipProps<any, any>> = ({ active, payload, label }) => {
-  if (!active || !payload || payload.length === 0) return null;
+interface TooltipEntry {
+  color?: string;
+  name?: string | number;
+  value?: number | string;
+  unit?: string;
+  payload?: {
+    prev?: number | string | null;
+  };
+}
+
+interface GlassTooltipProps {
+  active?: boolean;
+  payload?: TooltipEntry[];
+  label?: string | number;
+  defaultUnit?: string;
+}
+
+export const GlassTooltip: React.FC<GlassTooltipProps> = ({
+  active,
+  payload,
+  label,
+  defaultUnit,
+}) => {
+  if (!active || !payload || payload.length === 0) {
+    return null;
+  }
 
   return (
     <div
@@ -18,24 +41,64 @@ export const GlassTooltip: React.FC<TooltipProps<any, any>> = ({ active, payload
         fontSize: '0.875rem',
       }}
     >
-      <div className="font-medium mb-1">{formatDate(label)}</div>
-      {payload.map((p, i) => (
-        <div key={i} className="flex items-center space-x-2">
-          <span
-            className="inline-block w-2 h-2 rounded-full"
-            style={{ backgroundColor: p.color || palette.slate }}
-          ></span>
-          <span className="text-sm">{p.name}:</span>
-          <span className="font-medium">{formatNumber(p.value)}</span>
-          {p.value && p.unit && <span className="text-xs">{formatUnit(p.unit)}</span>}
-          {/* placeholder for previous‑period delta – assumes payload includes `prev` */}
-          {p.payload && p.payload.prev != null && (
-            <span className="ml-2 text-xs" style={{ color: p.value >= p.payload.prev ? semantic.income : semantic.expense }}>
-              {(p.value - p.payload.prev >= 0 ? '+' : '') + ((p.value - p.payload.prev) / p.payload.prev * 100).toFixed(1)}%
-            </span>
-          )}
+      {label != null && (
+        <div className="font-medium mb-1">
+          {formatDate(String(label))}
         </div>
-      ))}
+      )}
+
+      {payload.map((p, i) => {
+        const currentValue = Number(p.value);
+        const previousValue = Number(p.payload?.prev);
+
+        const hasPrevious =
+          p.payload?.prev != null &&
+          Number.isFinite(currentValue) &&
+          Number.isFinite(previousValue) &&
+          previousValue !== 0;
+
+        const percentageChange = hasPrevious
+          ? ((currentValue - previousValue) / previousValue) * 100
+          : null;
+
+        const unit = p.unit || defaultUnit;
+
+        return (
+          <div key={i} className="flex items-center space-x-2">
+            <span
+              className="inline-block w-2 h-2 rounded-full"
+              style={{
+                backgroundColor: p.color || palette.slate,
+              }}
+            />
+
+            <span className="text-sm">{p.name}:</span>
+
+            <span className="font-medium">
+              {formatNumber(p.value ?? '-')}
+            </span>
+
+            {unit && (
+              <span className="text-xs">{formatUnit(unit)}</span>
+            )}
+
+            {percentageChange !== null && (
+              <span
+                className="ml-2 text-xs"
+                style={{
+                  color:
+                    percentageChange >= 0
+                      ? semantic.income
+                      : semantic.expense,
+                }}
+              >
+                {percentageChange >= 0 ? '+' : ''}
+                {percentageChange.toFixed(1)}%
+              </span>
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 };

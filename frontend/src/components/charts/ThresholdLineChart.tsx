@@ -10,8 +10,7 @@ import {
   Tooltip,
   Legend,
   ReferenceLine,
-  Cell,
-} from 'recharts';
+  } from 'recharts';
 import { GlassTooltip } from './GlassTooltip';
 import { palette, grid, axis, animation, semantic } from './chartTheme';
 

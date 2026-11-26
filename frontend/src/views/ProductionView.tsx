@@ -34,7 +34,7 @@ import {
   Segmented,
   StatCard,
 } from "../components/ui";
-import { SmoothAreaChart, RoundedBarChart, ChartCard, palette } from "../components/charts";
+import { SmoothAreaChart, RoundedBarChart, ChartCard } from "../components/charts";
 import type { ChartPoint } from "../components/Chart"; // keep type if needed
 import DatePeriodFilter from "../components/DatePeriodFilter";
 import AnimalProductionModal, { type ProductionTarget } from "../components/AnimalProductionModal";
@@ -776,7 +776,15 @@ export default function ProductionView() {
                   </div>
                 )
               ) : overallChartPoints.length > 0 && farmTotals.totalRecordsCount > 0 ? (
-                <BarChart data={overallChartPoints} />
+                <RoundedBarChart
+  data={overallChartPoints}
+  series={[
+    {
+      dataKey: "value",
+      name: "Combined Production",
+    },
+  ]}
+/>
               ) : (
                 <EmptyState
                   title={`No production recorded for ${period.label}`}

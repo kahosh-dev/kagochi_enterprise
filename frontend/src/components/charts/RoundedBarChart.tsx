@@ -14,7 +14,6 @@ import {
 } from 'recharts';
 import { GlassTooltip } from './GlassTooltip';
 import { palette, grid, axis, semantic, animation } from './chartTheme';
-import { formatNumber } from './formatters';
 
 interface Series {
   dataKey: string;
@@ -72,7 +71,7 @@ export const RoundedBarChart: React.FC<RoundedBarChartProps> = ({
             animationDuration={animation.duration}
             animationEasing={animation.easing}
           >
-            {data.map((entry, i) => (
+            {data.map((_, i) => (
               <Cell key={i} fill={s.color || palette.slate} />
             ))}
           </Bar>

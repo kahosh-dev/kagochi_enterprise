@@ -10,7 +10,7 @@ import {
   Legend,
 } from 'recharts';
 import { GlassTooltip } from './GlassTooltip';
-import { palette, grid, axis, animation } from './chartTheme';
+import { palette, grid, axis} from './chartTheme';
 
 interface SmoothAreaChartProps {
   data: any[];
@@ -44,10 +44,11 @@ export const SmoothAreaChart: React.FC<SmoothAreaChartProps> = ({
         <CartesianGrid vertical={false} stroke={grid.stroke} strokeWidth={grid.strokeWidth} />
         <XAxis dataKey={xKey} tick={{ fontSize: 12, fill: axis.tickColor }} axisLine={false} tickLine={false} />
         <YAxis tick={false} axisLine={false} tickLine={false} />
-        <Tooltip content={<GlassTooltip />} />
+       <Tooltip content={<GlassTooltip defaultUnit={unit} />} />
         {name && <Legend verticalAlign="top" height={36} />}
         <Area
           type="monotone"
+          name={name || undefined}
           dataKey={yKey}
           stroke={lineColor}
           fillOpacity={1}
