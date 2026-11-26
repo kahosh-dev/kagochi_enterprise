@@ -5,7 +5,8 @@ import {
   ClipboardList, BarChart3, Bird, Beef, Egg, Wheat,
   DollarSign, UserCheck, PieChart, TrendingUp,
   Lightbulb, AlertCircle, CheckCircle2, Users,
-  Award, Globe, Star
+  Award, Globe, Star,
+  HeartPulse, Syringe, AlertTriangle
 } from 'lucide-react';
 import './PublicWebsite.css';
 
@@ -108,6 +109,9 @@ export default function PublicWebsite({ onLogin, onNavigate }: PublicWebsiteProp
             ))}
           </div>
           <div className="pub-nav-actions">
+            <button className="pub-nav-get-started" onClick={onLogin}>
+              Get Started
+            </button>
             <button className="pub-nav-login" onClick={onLogin}>
               <LogIn size={16} />
               Login
@@ -289,15 +293,18 @@ export default function PublicWebsite({ onLogin, onNavigate }: PublicWebsiteProp
           <div className="pub-features-header-content">
             <div className="pub-eyebrow-light"><Zap size={14} /> PLATFORM FEATURES</div>
             <h2 className="pub-features-h2">Everything Your Farm Needs</h2>
-            <p className="pub-features-sub">8 powerful modules covering every aspect of modern farm management.</p>
+            <p className="pub-features-sub">11 powerful modules covering every aspect of modern farm management.</p>
           </div>
         </div>
         <div className="pub-features-grid-wrap">
           {[
             { Icon: Bird, color: '#d97706', bg: '#fff7ed', name: 'Poultry Management', desc: 'Track batches, mortality, vaccinations, and flock performance with detailed analytics.', img: 'https://images.unsplash.com/photo-1548550023-2bdb3c5beed7?w=400&q=80' },
             { Icon: Beef, color: '#2563eb', bg: '#eff6ff', name: 'Livestock Management', desc: 'Manage cattle, goats, and other livestock with individual health and growth records.', img: 'https://images.unsplash.com/photo-1570042225831-d98fa7577f1e?w=400&q=80' },
+            { Icon: HeartPulse, color: '#0d9488', bg: '#f0fdfa', name: 'Survivor Tracking', desc: 'Keep a live population ledger for every flock and herd, with survival rates and full history.', img: 'https://images.unsplash.com/photo-1500595046743-cd271d694d30?w=400&q=80' },
+            { Icon: AlertTriangle, color: '#d97706', bg: '#fffbeb', name: 'Mortality Monitor', desc: 'Record losses, track causes and spot rising mortality rates early to protect your stock.', img: 'https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?w=400&q=80' },
             { Icon: Egg, color: '#dc2626', bg: '#fef2f2', name: 'Production Records', desc: 'Log daily egg production, milk yield, and other outputs with trend visualisation.', img: 'https://images.unsplash.com/photo-1506976785307-8732e854ad03?w=400&q=80' },
             { Icon: Wheat, color: '#16a34a', bg: '#f0fdf4', name: 'Feeding Management', desc: 'Record feed types, quantities, and schedules to optimise nutrition and costs.', img: 'https://images.unsplash.com/photo-1625246333195-78d9c38ad449?w=400&q=80' },
+            { Icon: Syringe, color: '#e11d48', bg: '#fff1f2', name: 'Vaccinations', desc: 'Schedule vaccinations, get timely reminders and keep complete health records for all your animals.', img: 'https://images.unsplash.com/photo-1612277795421-9bc7706a4a34?w=400&q=80' },
             { Icon: DollarSign, color: '#7c3aed', bg: '#f5f3ff', name: 'Expenses Tracking', desc: 'Monitor all farm expenses by category and generate cost summaries instantly.', img: 'https://images.unsplash.com/photo-1554224155-6726b3ff858f?w=400&q=80' },
             { Icon: BarChart3, color: '#0284c7', bg: '#f0f9ff', name: 'Performance Analytics', desc: 'Visual dashboards and charts to track productivity trends and key farm metrics.', img: 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=400&q=80' },
             { Icon: Brain, color: '#15803d', bg: '#f0fdf4', name: 'AI Farm Advisor', desc: 'Chat with an AI assistant trained on farming knowledge for instant expert advice.', img: 'https://images.unsplash.com/photo-1677442135703-1787eea5ce01?w=400&q=80' },
@@ -311,7 +318,7 @@ export default function PublicWebsite({ onLogin, onNavigate }: PublicWebsiteProp
                 <div className="pub-feature-icon-circle" style={{background: bg, color}}><Icon size={22} /></div>
                 <h4 className="pub-feature-name">{name}</h4>
                 <p className="pub-feature-desc">{desc}</p>
-                <span className="pub-feature-badge">âœ“ Available</span>
+                <span className="pub-feature-badge"><CheckCircle2 size={13} /> Available</span>
               </div>
             </div>
           ))}
@@ -332,7 +339,7 @@ export default function PublicWebsite({ onLogin, onNavigate }: PublicWebsiteProp
           <div className="pub-section-header">
             <div className="pub-eyebrow-light"><Zap size={14} /> HOW IT WORKS</div>
             <h2 style={{color:'white'}}>From Sign-Up to Smart Farming in 5 Steps</h2>
-            <p className="pub-section-sub" style={{color:'rgba(255,255,255,0.82)'}}>Getting started is simple Ã¢â‚¬â€ your farm data starts working for you immediately.</p>
+            <p className="pub-section-sub" style={{color:'rgba(255,255,255,0.82)'}}>Getting started is simple — your farm data starts working for you immediately.</p>
           </div>
           <div className="pub-steps-container">
             <div className="pub-steps-line" />
@@ -377,7 +384,7 @@ export default function PublicWebsite({ onLogin, onNavigate }: PublicWebsiteProp
             <div className="founder-photo-wrapper">
               <img
                 src="/founder.jpg"
-                alt="Kagochi Brian Kahora Ã¢â‚¬â€ Founder and CEO of Kagochi Farm Enterprise"
+                alt="Kagochi Brian Kahora — Founder and CEO of Kagochi Farm Enterprise"
                 className="founder-photo"
               />
             </div>
@@ -390,7 +397,7 @@ export default function PublicWebsite({ onLogin, onNavigate }: PublicWebsiteProp
            
             <div className="pub-founder-contact">
     <Globe size={13} />
-    Contact: 0797 183 251 â€” Brian Kagochi
+    Contact: 0797 183 251 – Brian Kagochi
   </div>
             
 <div className="pub-founder-info">

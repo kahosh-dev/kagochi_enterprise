@@ -105,8 +105,28 @@ section[id] {
 .pub-nav-actions {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   flex-shrink: 0;
+}
+.pub-nav-get-started {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  background: transparent;
+  color: #a7f3a0;
+  border: 1.5px solid rgba(76, 175, 80, 0.5);
+  padding: 8px 18px;
+  border-radius: 8px;
+  font-weight: 700;
+  font-size: 0.84rem;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.2s;
+}
+.pub-nav-get-started:hover {
+  background: rgba(76, 175, 80, 0.15);
+  border-color: #4caf50;
+  color: white;
 }
 .pub-nav-login {
   display: flex;
@@ -115,10 +135,10 @@ section[id] {
   background: #4caf50;
   color: white;
   border: none;
-  padding: 10px 22px;
+  padding: 8px 18px;
   border-radius: 8px;
   font-weight: 700;
-  font-size: 0.88rem;
+  font-size: 0.84rem;
   cursor: pointer;
   white-space: nowrap;
   box-shadow: 0 4px 15px rgba(76, 175, 80, 0.4);
@@ -139,7 +159,7 @@ section[id] {
   flex-shrink: 0;
 }
 
-/* ── MOBILE: hide center links, show hamburger ── */
+/* ── MOBILE: hide center links, show hamburger + both action buttons ── */
 @media (max-width: 900px) {
   .pub-root > .pub-nav .pub-nav-links {
     display: none;
@@ -152,6 +172,14 @@ section[id] {
   }
   .pub-nav-title {
     font-size: 0.85rem;
+  }
+  .pub-nav-get-started {
+    padding: 7px 12px;
+    font-size: 0.78rem;
+  }
+  .pub-nav-login {
+    padding: 7px 12px;
+    font-size: 0.78rem;
   }
 }
 
@@ -804,7 +832,9 @@ section[id] {
   flex: 1;
 }
 .pub-feature-badge {
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   margin-top: 12px;
   background: #f0fdf4;
   color: #16a34a;
@@ -813,6 +843,11 @@ section[id] {
   padding: 3px 10px;
   border-radius: 20px;
   border: 1px solid #bbf7d0;
+  width: fit-content;
+}
+/* Centre the last (incomplete) row on desktop — 11 cards = 4+4+3 */
+.pub-feature-card:nth-last-child(3):nth-child(4n + 1) {
+  grid-column-start: 2;
 }
 @media (max-width: 1024px) {
   .pub-features-grid-wrap {
