@@ -1,9 +1,9 @@
 import React from 'react';
-import { TooltipProps, Tooltip as ReTooltip } from 'recharts';
-import { formatKES, formatNumber, formatUnit, formatDate } from './formatters';
+import type { TooltipProps } from 'recharts';
+import { formatNumber, formatUnit, formatDate } from './formatters';
 import { palette, semantic, tooltip as tooltipStyle } from './chartTheme';
 
-export const GlassTooltip: React.FC<TooltipProps<any, any>> = ({ active, payload, label, formatter }) => {
+export const GlassTooltip: React.FC<TooltipProps<any, any>> = ({ active, payload, label }) => {
   if (!active || !payload || payload.length === 0) return null;
 
   return (

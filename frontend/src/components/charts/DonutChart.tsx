@@ -27,7 +27,7 @@ export const DonutChart: React.FC<DonutChartProps> = ({
   const total = segments.reduce((sum, s) => sum + Math.max(0, s.value), 0);
   if (total <= 0) return <div className="kf-chart-empty">{emptyLabel}</div>;
 
-  const colors = segments.map((s, i) => s.color || palette.slate);
+  // const colors = segments.map((s, i) => s.color || palette.slate);
   const radius = 80;
   const innerRadius = 50;
 

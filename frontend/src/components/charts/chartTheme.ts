@@ -51,7 +51,7 @@ export const axis = {
 
 export const animation = {
   duration: 700,
-  easing: 'ease-out',
+  easing: 'ease-out' as const,
 };
 
 export const tooltip = {
