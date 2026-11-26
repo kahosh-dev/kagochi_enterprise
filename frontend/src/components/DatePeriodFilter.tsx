@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   CalendarDays,
   ChevronLeft,
@@ -7,7 +7,7 @@ import {
   Calendar,
 } from "lucide-react";
 import type { PeriodMode, PeriodInfo } from "../utils/datePeriod";
-import { getLocalDateString } from "../utils/datePeriod";
+import { getLocalDateString, canStepNext } from "../utils/datePeriod";
 
 export interface DatePeriodFilterProps {
   mode: PeriodMode;
@@ -23,8 +23,9 @@ export interface DatePeriodFilterProps {
   className?: string;
 }
 
-const PERIOD_TABS: { value: PeriodMode; label: string }[] = [
+export const PERIOD_TABS: { value: PeriodMode; label: string }[] = [
   { value: "today", label: "Today" },
+  { value: "yesterday", label: "Yesterday" },
   { value: "week", label: "This week" },
   { value: "month", label: "This month" },
   { value: "year", label: "This year" },
@@ -48,6 +49,11 @@ export default function DatePeriodFilter({
   const [localTo, setLocalTo] = useState(customTo || periodInfo.to);
   const todayStr = getLocalDateString();
 
+  useEffect(() => {
+    setLocalFrom(customFrom || periodInfo.from);
+    setLocalTo(customTo || periodInfo.to);
+  }, [customFrom, customTo, periodInfo.from, periodInfo.to]);
+
   function handleModeClick(newMode: PeriodMode) {
     onModeChange(newMode);
   }
@@ -57,7 +63,9 @@ export default function DatePeriodFilter({
   }
 
   function handleNext() {
-    onOffsetChange((prev) => prev + 1);
+    if (canStepNext(mode, offset)) {
+      onOffsetChange((prev) => prev + 1);
+    }
   }
 
   function handleApplyCustom() {
@@ -70,8 +78,8 @@ export default function DatePeriodFilter({
     }
   }
 
-  // Determine if next button should be disabled (e.g. today or current week/month/year shouldn't go to future)
-  const isFuture = offset >= 0;
+  // Next is disabled when stepping would go past today
+  const isNextDisabled = !canStepNext(mode, offset);
 
   return (
     <div className={`kf-date-filter-card ${className}`} style={{
@@ -301,7 +309,7 @@ export default function DatePeriodFilter({
             <button
               type="button"
               onClick={handleNext}
-              disabled={isFuture}
+              disabled={isNextDisabled}
               style={{
                 display: "inline-flex",
                 alignItems: "center",
@@ -309,14 +317,14 @@ export default function DatePeriodFilter({
                 padding: "6px 12px",
                 borderRadius: "7px",
                 border: "1px solid var(--kf-border, #cbd5e1)",
-                background: isFuture ? "transparent" : "#ffffff",
+                background: isNextDisabled ? "transparent" : "#ffffff",
                 fontSize: "13px",
                 fontWeight: 500,
-                color: isFuture ? "var(--kf-text-muted, #94a3b8)" : "var(--kf-text, #1e293b)",
-                cursor: isFuture ? "not-allowed" : "pointer",
-                opacity: isFuture ? 0.5 : 1,
+                color: isNextDisabled ? "var(--kf-text-muted, #94a3b8)" : "var(--kf-text, #1e293b)",
+                cursor: isNextDisabled ? "not-allowed" : "pointer",
+                opacity: isNextDisabled ? 0.4 : 1,
               }}
-              title={isFuture ? "Cannot navigate to future" : "Move to next period"}
+              title={isNextDisabled ? "Cannot navigate to future past today" : "Move to next period"}
             >
               <span>Next</span>
               <ChevronRight size={16} />

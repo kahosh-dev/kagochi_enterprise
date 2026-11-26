@@ -5,11 +5,14 @@ import {
   updateLivestock,
   deleteLivestock,
   loadProduction,
+  loadPopulationEvents,
 } from "../services/storage";
-import type { LivestockAnimal, ProductionRecord } from "../types/farm";
+import type { LivestockAnimal, ProductionRecord, PopulationEvent } from "../types/farm";
 import {
   ArrowRight,
   Beef,
+  Calendar,
+  Clock,
   Milk,
   Pencil,
   Plus,
@@ -30,6 +33,14 @@ import {
   Segmented,
   StatCard,
 } from "../components/ui";
+import {
+  formatAnimalAge,
+  getCattleLifeStage,
+  estimateBirthDateFromAge,
+  compareAgeByDate,
+  getNairobiToday,
+  getCalendarMonthsBetween,
+} from "../utils/age";
 
 const CATEGORY_OPTIONS = [
   { value: "all", label: "All Herd" },
@@ -38,18 +49,6 @@ const CATEGORY_OPTIONS = [
   { value: "cow", label: "Cows" },
   { value: "bull", label: "Bulls" },
 ];
-
-type CategoryTone = "amber" | "green" | "forest" | "blue" | "slate";
-
-function categoryBadgeTone(cat: string): CategoryTone {
-  switch (cat) {
-    case "calf": return "amber";
-    case "heifer": return "green";
-    case "cow": return "forest";
-    case "bull": return "blue";
-    default: return "slate";
-  }
-}
 
 function categoryLabel(cat: string): string {
   switch (cat) {
@@ -64,10 +63,12 @@ function categoryLabel(cat: string): string {
 export default function LivestockView() {
   const [animals, setAnimals] = useState<LivestockAnimal[]>([]);
   const [productionRecords, setProductionRecords] = useState<ProductionRecord[]>([]);
+  const [popEvents, setPopEvents] = useState<PopulationEvent[]>([]);
   const [productionAnimal, setProductionAnimal] = useState<LivestockAnimal | null>(null);
   const [_loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
+  const [ageSortOrder, setAgeSortOrder] = useState<"asc" | "desc">("desc"); // desc = oldest first
   const [deleteConfirm, setDeleteConfirm] = useState<{ id: string; name: string } | null>(null);
 
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -78,10 +79,16 @@ export default function LivestockView() {
   const [breed, setBreed] = useState("Friesian");
   const [category, setCategory] = useState<"calf" | "heifer" | "cow" | "bull">("cow");
   const [sex, setSex] = useState<"female" | "male">("female");
-  const [ageYears, setAgeYears] = useState("2.5");
   const [damId, setDamId] = useState("");
   const [notes, setNotes] = useState("");
-  const [dateAdded, setDateAdded] = useState(new Date().toISOString().slice(0, 10));
+  const [dateAdded, setDateAdded] = useState(getNairobiToday());
+
+  // Automatic Age fields
+  const [ageEntryMode, setAgeEntryMode] = useState<"date" | "age">("date");
+  const [dateOfBirth, setDateOfBirth] = useState<string>(getNairobiToday());
+  const [ageVal, setAgeVal] = useState<string>("2");
+  const [ageUnit, setAgeUnit] = useState<"days" | "weeks" | "months" | "years">("years");
+  const [isBirthDateEstimated, setIsBirthDateEstimated] = useState<boolean>(false);
 
   const [errorMsg, setErrorMsg] = useState("");
   const [successMsg, setSuccessMsg] = useState("");
@@ -89,12 +96,14 @@ export default function LivestockView() {
   async function refreshAnimals() {
     try {
       setLoading(true);
-      const [data, prod] = await Promise.all([
+      const [data, prod, events] = await Promise.all([
         loadLivestock(),
         loadProduction().catch(() => []),
+        loadPopulationEvents({ species: "cattle" }).catch(() => []),
       ]);
       setAnimals(data);
       setProductionRecords(prod);
+      setPopEvents(events);
     } catch (error) {
       console.error("Failed to load livestock:", error);
       setErrorMsg(error instanceof Error ? error.message : "Failed to load cattle records.");
@@ -107,23 +116,100 @@ export default function LivestockView() {
     refreshAnimals();
   }, []);
 
-  // Category counts
+  // Recalculate estimated DOB when entering age
+  useEffect(() => {
+    if (ageEntryMode === "age") {
+      const parsed = parseFloat(ageVal);
+      if (!isNaN(parsed) && parsed >= 0) {
+        const est = estimateBirthDateFromAge(parsed, ageUnit, dateAdded || getNairobiToday());
+        setDateOfBirth(est);
+        setIsBirthDateEstimated(true);
+      }
+    }
+  }, [ageVal, ageUnit, dateAdded, ageEntryMode]);
+
+  // Dynamic age helper for an animal
+  function getAnimalAgeInfo(animal: LivestockAnimal) {
+    const deathOrSale = popEvents.find(
+      (e) => e.targetId === animal.id && (e.eventType === "death" || e.eventType === "sale")
+    );
+    const asOfDate = deathOrSale
+      ? deathOrSale.date
+      : animal.status === "sold" || animal.status === "deceased"
+      ? animal.dateAdded
+      : undefined;
+    const eventType = deathOrSale
+      ? deathOrSale.eventType
+      : animal.status === "sold"
+      ? "sale"
+      : animal.status === "deceased"
+      ? "death"
+      : undefined;
+
+    const ageInfo = formatAnimalAge(animal.dateOfBirth, "cattle", {
+      asOfDate,
+      isEstimated: animal.isBirthDateEstimated,
+      legacyAgeYears: animal.ageYears,
+      eventType,
+    });
+    const lifeStage = getCattleLifeStage(animal.dateOfBirth || animal.ageYears * 12, animal.sex, asOfDate);
+
+    return { ageInfo, lifeStage, deathOrSale };
+  }
+
+  // Category counts using dynamic calendar months from date_of_birth
   const countCalves = useMemo(
-    () => animals.filter((a) => a.category === "calf" || a.ageYears < 1).length,
+    () =>
+      animals.filter((a) => {
+        if (a.category === "calf") return true;
+        if (!a.category) {
+          const months = getCalendarMonthsBetween(a.dateOfBirth || a.dateAdded, getNairobiToday());
+          return months < 6;
+        }
+        return false;
+      }).length,
     [animals]
   );
+
   const countHeifers = useMemo(
-    () => animals.filter((a) => a.category === "heifer" || (a.category !== "calf" && a.category !== "cow" && a.category !== "bull" && a.ageYears >= 1 && a.ageYears < 2.5 && a.sex !== "male")).length,
+    () =>
+      animals.filter((a) => {
+        if (a.category === "heifer") return true;
+        if (!a.category && a.sex !== "male") {
+          const months = getCalendarMonthsBetween(a.dateOfBirth || a.dateAdded, getNairobiToday());
+          return months >= 6 && months < 24;
+        }
+        return false;
+      }).length,
     [animals]
   );
+
   const countCows = useMemo(
-    () => animals.filter((a) => a.category === "cow" || (!a.category && a.ageYears >= 2.5 && a.sex !== "male")).length,
+    () =>
+      animals.filter((a) => {
+        if (a.category === "cow") return true;
+        if (!a.category && a.sex !== "male") {
+          const months = getCalendarMonthsBetween(a.dateOfBirth || a.dateAdded, getNairobiToday());
+          return months >= 24;
+        }
+        return false;
+      }).length,
     [animals]
   );
+
   const countBulls = useMemo(
     () => animals.filter((a) => a.category === "bull" || a.sex === "male").length,
     [animals]
   );
+
+  // Transition alerts: calves now old enough (>= 6 months) to move to heifers/young bulls
+  const calvesOldEnough = useMemo(() => {
+    return animals.filter((a) => {
+      if (a.category !== "calf" && a.category) return false;
+      const months = getCalendarMonthsBetween(a.dateOfBirth || a.dateAdded, getNairobiToday());
+      return months >= 6;
+    });
+  }, [animals]);
 
   function resetForm() {
     setEditingId(null);
@@ -132,10 +218,14 @@ export default function LivestockView() {
     setBreed("Friesian");
     setCategory("cow");
     setSex("female");
-    setAgeYears("2.5");
     setDamId("");
     setNotes("");
-    setDateAdded(new Date().toISOString().slice(0, 10));
+    setDateAdded(getNairobiToday());
+    setDateOfBirth(getNairobiToday());
+    setAgeVal("2");
+    setAgeUnit("years");
+    setAgeEntryMode("date");
+    setIsBirthDateEstimated(false);
     setErrorMsg("");
   }
 
@@ -144,12 +234,33 @@ export default function LivestockView() {
     setName(animal.name);
     setTagNumber(animal.tagNumber || "");
     setBreed(animal.breed);
-    setCategory((animal.category as any) || (animal.ageYears < 1 ? "calf" : animal.ageYears < 2.5 ? "heifer" : animal.sex === "male" ? "bull" : "cow"));
+    setCategory(
+      (animal.category as any) ||
+        (animal.ageYears < 0.5 ? "calf" : animal.ageYears < 2 ? "heifer" : animal.sex === "male" ? "bull" : "cow")
+    );
     setSex((animal.sex as any) || "female");
-    setAgeYears(String(animal.ageYears));
     setDamId(animal.damId || "");
     setNotes(animal.notes || "");
-    setDateAdded(animal.dateAdded ? animal.dateAdded.slice(0, 10) : new Date().toISOString().slice(0, 10));
+    setDateAdded(animal.dateAdded ? animal.dateAdded.slice(0, 10) : getNairobiToday());
+
+    if (animal.dateOfBirth) {
+      setDateOfBirth(animal.dateOfBirth.slice(0, 10));
+      setIsBirthDateEstimated(Boolean(animal.isBirthDateEstimated));
+      setAgeEntryMode(animal.isBirthDateEstimated ? "age" : "date");
+      if (animal.isBirthDateEstimated) {
+        const months = getCalendarMonthsBetween(animal.dateOfBirth, animal.dateAdded || getNairobiToday());
+        setAgeVal(String(months));
+        setAgeUnit("months");
+      }
+    } else {
+      const est = estimateBirthDateFromAge(animal.ageYears || 1, "years", animal.dateAdded);
+      setDateOfBirth(est);
+      setIsBirthDateEstimated(true);
+      setAgeEntryMode("age");
+      setAgeVal(String(animal.ageYears || 1));
+      setAgeUnit("years");
+    }
+
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
@@ -157,8 +268,6 @@ export default function LivestockView() {
     event.preventDefault();
     setErrorMsg("");
     setSuccessMsg("");
-
-    const age = parseFloat(ageYears);
 
     if (!name.trim()) {
       setErrorMsg("Please enter the animal name or identifier.");
@@ -168,10 +277,11 @@ export default function LivestockView() {
       setErrorMsg("Please enter the cattle breed.");
       return;
     }
-    if (isNaN(age) || age < 0) {
-      setErrorMsg("Please enter a valid age in years.");
-      return;
-    }
+
+    const finalDob = dateOfBirth.trim() || getNairobiToday();
+    // Calculate ageYears for backward compatibility
+    const calcMonths = getCalendarMonthsBetween(finalDob, getNairobiToday());
+    const calcAgeYears = Math.round((calcMonths / 12) * 10) / 10;
 
     try {
       setSaving(true);
@@ -179,7 +289,7 @@ export default function LivestockView() {
         name: name.trim(),
         type: "Cattle",
         breed: breed.trim(),
-        ageYears: age,
+        ageYears: calcAgeYears,
         dateAdded,
         category,
         tagNumber: tagNumber.trim(),
@@ -187,6 +297,8 @@ export default function LivestockView() {
         damId: damId.trim(),
         status: "active",
         notes: notes.trim(),
+        dateOfBirth: finalDob,
+        isBirthDateEstimated,
       };
 
       if (editingId) {
@@ -207,7 +319,7 @@ export default function LivestockView() {
     }
   }
 
-  async function handlePromoteCategory(animal: LivestockAnimal, nextCategory: "heifer" | "cow") {
+  async function handlePromoteCategory(animal: LivestockAnimal, nextCategory: "heifer" | "cow" | "young_bull" | "bull") {
     try {
       setSaving(true);
       await updateLivestock(animal.id, {
@@ -216,12 +328,14 @@ export default function LivestockView() {
         breed: animal.breed,
         ageYears: animal.ageYears,
         dateAdded: animal.dateAdded,
-        category: nextCategory,
+        category: nextCategory === "young_bull" ? "bull" : nextCategory,
         tagNumber: animal.tagNumber || "",
         sex: animal.sex || "female",
         damId: animal.damId || "",
         status: animal.status || "active",
-        notes: `${animal.notes ? animal.notes + " | " : ""}Promoted to ${nextCategory} on ${new Date().toISOString().slice(0, 10)}`,
+        notes: `${animal.notes ? animal.notes + " | " : ""}Promoted to ${nextCategory.toUpperCase()} on ${getNairobiToday()}`,
+        dateOfBirth: animal.dateOfBirth,
+        isBirthDateEstimated: animal.isBirthDateEstimated,
       });
       setSuccessMsg(`${animal.name} has been transitioned to ${nextCategory.toUpperCase()}.`);
       await refreshAnimals();
@@ -243,14 +357,24 @@ export default function LivestockView() {
     setDeleteConfirm({ id, name: animalName });
   }
 
-  const filteredAnimals = animals.filter((a) => {
-    if (categoryFilter === "all") return true;
-    if (categoryFilter === "calf") return a.category === "calf" || a.ageYears < 1;
-    if (categoryFilter === "heifer") return a.category === "heifer" || (a.category !== "calf" && a.category !== "cow" && a.category !== "bull" && a.ageYears >= 1 && a.ageYears < 2.5 && a.sex !== "male");
-    if (categoryFilter === "cow") return a.category === "cow" || (!a.category && a.ageYears >= 2.5 && a.sex !== "male");
-    if (categoryFilter === "bull") return a.category === "bull" || a.sex === "male";
-    return true;
-  });
+  // Filter and sort animals
+  const filteredAnimals = useMemo(() => {
+    const list = animals.filter((a) => {
+      if (categoryFilter === "all") return true;
+      const { ageInfo } = getAnimalAgeInfo(a);
+      const months = ageInfo.months;
+      if (categoryFilter === "calf") return a.category === "calf" || (!a.category && months < 6);
+      if (categoryFilter === "heifer") return a.category === "heifer" || (!a.category && months >= 6 && months < 24 && a.sex !== "male");
+      if (categoryFilter === "cow") return a.category === "cow" || (!a.category && months >= 24 && a.sex !== "male");
+      if (categoryFilter === "bull") return a.category === "bull" || a.sex === "male";
+      return true;
+    });
+
+    // Sorting by date, NOT formatted string
+    return list.sort((a, b) =>
+      compareAgeByDate(a.dateOfBirth || a.dateAdded, b.dateOfBirth || b.dateAdded, ageSortOrder)
+    );
+  }, [animals, categoryFilter, ageSortOrder, popEvents]);
 
   return (
     <main className="kf-page">
@@ -258,7 +382,13 @@ export default function LivestockView() {
         title="Livestock Management"
         description="Manage your cattle herd through each growth stage from birth to milking."
         actions={
-          <Button icon={<Plus size={16} />} onClick={() => { resetForm(); window.scrollTo({ top: 400, behavior: "smooth" }); }}>
+          <Button
+            icon={<Plus size={16} />}
+            onClick={() => {
+              resetForm();
+              window.scrollTo({ top: 400, behavior: "smooth" });
+            }}
+          >
             Add animal
           </Button>
         }
@@ -276,14 +406,23 @@ export default function LivestockView() {
               Cattle Herd Management & Pedigree
             </h2>
             <p className="kf-page-hero-desc">
-              Track dairy cows, growing heifers, calves and bulls. Monitor ear tag numbers, dam lineages, and health notes.
+              Track dairy cows, growing heifers, calves and bulls. Monitor ear tag numbers, dam lineages, and automatic daily age.
             </p>
           </div>
           <div className="kf-page-hero-stats">
             <Badge tone="forest">{animals.length} Registered Cattle</Badge>
-            <Badge tone="blue">{animals.filter(a => a.category === 'cow').length} Milking Cows</Badge>
+            <Badge tone="blue">{countCows} Milking Cows</Badge>
           </div>
         </div>
+
+        {/* Life stage transition alert if calves are old enough */}
+        {calvesOldEnough.length > 0 && (
+          <Notice tone="info">
+            <strong>Growth stage alert:</strong> {calvesOldEnough.length}{" "}
+            {calvesOldEnough.length === 1 ? "calf is" : "calves are"} now 6+ months old and ready to move to{" "}
+            {calvesOldEnough.some((c) => c.sex === "male") ? "heifers or young bulls" : "heifers"}.
+          </Notice>
+        )}
 
         {/* KPI Cards */}
         <div className="kf-grid kf-grid--stats">
@@ -304,7 +443,7 @@ export default function LivestockView() {
             layout="image-right"
             label="Adult Cows"
             value={countCows}
-            hint="Milking & breeding cows"
+            hint="24+ mos · Milking & dry"
             onClick={() => setCategoryFilter("cow")}
           />
           <StatCard
@@ -314,7 +453,7 @@ export default function LivestockView() {
             layout="image-right"
             label="Calves & Heifers"
             value={countCalves + countHeifers}
-            hint={`${countCalves} calves · ${countHeifers} heifers`}
+            hint={`${countCalves} calves (0-6m) · ${countHeifers} heifers (6-24m)`}
             onClick={() => setCategoryFilter("heifer")}
           />
           <StatCard
@@ -332,7 +471,7 @@ export default function LivestockView() {
         {/* Add / Edit Form */}
         <Panel
           title={editingId ? "Edit Cattle Record" : "Add Cattle / Calf / Heifer"}
-          subtitle="Keep accurate individual identification, age, and breeding stages."
+          subtitle="Age is automatically calculated from birth date and updates daily."
         >
           {errorMsg && <ErrorBanner message={errorMsg} />}
           {successMsg && <Notice tone="success">{successMsg}</Notice>}
@@ -367,23 +506,17 @@ export default function LivestockView() {
                   onChange={(e) => {
                     const cat = e.target.value as "calf" | "heifer" | "cow" | "bull";
                     setCategory(cat);
-                    if (cat === "calf") {
-                      setAgeYears("0.5");
-                    } else if (cat === "heifer") {
-                      setAgeYears("1.5");
-                      setSex("female");
-                    } else if (cat === "cow") {
-                      setAgeYears("3.0");
+                    if (cat === "heifer" || cat === "cow") {
                       setSex("female");
                     } else if (cat === "bull") {
                       setSex("male");
                     }
                   }}
                 >
-                  <option value="calf">Calf (Under 1 year)</option>
-                  <option value="heifer">Heifer (Young female 1 – 2.5 yrs)</option>
-                  <option value="cow">Adult Cow (Milking / Dry)</option>
-                  <option value="bull">Bull</option>
+                  <option value="calf">Calf (0 – 6 months)</option>
+                  <option value="heifer">Heifer (6 – 24 months)</option>
+                  <option value="cow">Adult Cow (24+ months)</option>
+                  <option value="bull">Bull / Young Bull</option>
                 </select>
               </Field>
 
@@ -415,19 +548,94 @@ export default function LivestockView() {
                 </select>
               </Field>
 
-              <Field label="Age in Years" htmlFor="ageYears" required>
-                <input
-                  id="ageYears"
-                  type="number"
-                  step="0.1"
-                  placeholder="e.g. 2.5"
-                  value={ageYears}
-                  onChange={(e) => setAgeYears(e.target.value)}
-                  required
-                />
-              </Field>
+              {/* Automatic Age Entry Section */}
+              <div style={{ gridColumn: "span 2", background: "rgba(255, 255, 255, 0.04)", padding: "12px", borderRadius: 8, border: "1px solid rgba(255, 255, 255, 0.08)" }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+                  <label style={{ fontSize: 13, fontWeight: 600 }}>Age Registration Method</label>
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <button
+                      type="button"
+                      className={`kf-btn kf-btn--sm ${ageEntryMode === "date" ? "kf-btn--primary" : "kf-btn--ghost"}`}
+                      onClick={() => {
+                        setAgeEntryMode("date");
+                        setIsBirthDateEstimated(false);
+                      }}
+                    >
+                      <Calendar size={13} style={{ marginRight: 4 }} />
+                      Exact Date of Birth
+                    </button>
+                    <button
+                      type="button"
+                      className={`kf-btn kf-btn--sm ${ageEntryMode === "age" ? "kf-btn--primary" : "kf-btn--ghost"}`}
+                      onClick={() => {
+                        setAgeEntryMode("age");
+                        setIsBirthDateEstimated(true);
+                        const est = estimateBirthDateFromAge(parseFloat(ageVal) || 0, ageUnit, dateAdded || getNairobiToday());
+                        setDateOfBirth(est);
+                      }}
+                    >
+                      <Clock size={13} style={{ marginRight: 4 }} />
+                      Age When Registered
+                    </button>
+                  </div>
+                </div>
 
-              <Field label="Date Added / Birth Date" htmlFor="livestockDateAdded">
+                {ageEntryMode === "date" ? (
+                  <Field label="Date of Birth" htmlFor="dateOfBirth" required>
+                    <input
+                      id="dateOfBirth"
+                      type="date"
+                      value={dateOfBirth}
+                      onChange={(e) => {
+                        setDateOfBirth(e.target.value);
+                        setIsBirthDateEstimated(false);
+                      }}
+                      required
+                    />
+                  </Field>
+                ) : (
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                    <Field label="Age Value" htmlFor="ageVal" required>
+                      <input
+                        id="ageVal"
+                        type="number"
+                        step="0.5"
+                        min="0"
+                        placeholder="e.g. 3"
+                        value={ageVal}
+                        onChange={(e) => setAgeVal(e.target.value)}
+                        required
+                      />
+                    </Field>
+                    <Field label="Unit" htmlFor="ageUnit" required>
+                      <select
+                        id="ageUnit"
+                        value={ageUnit}
+                        onChange={(e) => setAgeUnit(e.target.value as "days" | "weeks" | "months" | "years")}
+                      >
+                        <option value="days">Days</option>
+                        <option value="weeks">Weeks</option>
+                        <option value="months">Months (e.g. 3 months)</option>
+                        <option value="years">Years (e.g. 2.5 years)</option>
+                      </select>
+                    </Field>
+                  </div>
+                )}
+
+                <div style={{ fontSize: 12, marginTop: 6, color: "var(--kf-text-muted)" }}>
+                  {isBirthDateEstimated ? (
+                    <span style={{ color: "var(--kf-warning, #d97706)" }}>
+                      Estimated birth date: <strong>{dateOfBirth || "—"}</strong> (Marked estimated · Age will update automatically every day)
+                    </span>
+                  ) : (
+                    <span>
+                      Birth date: <strong>{dateOfBirth || "—"}</strong> (Age will update automatically every day)
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              <Field label="Date Added to Herd" htmlFor="livestockDateAdded">
                 <input
                   id="livestockDateAdded"
                   type="date"
@@ -473,7 +681,7 @@ export default function LivestockView() {
         {/* Herd Table */}
         <Panel
           title={`Cattle Herd Inventory (${animals.length})`}
-          subtitle="Track individual cattle and transition growth stages."
+          subtitle="Age updates automatically every day. Click header to sort by age."
           actions={
             <Segmented
               label="Filter by category"
@@ -499,7 +707,13 @@ export default function LivestockView() {
                     <th>Breed</th>
                     <th>Category</th>
                     <th>Sex</th>
-                    <th>Age (Yrs)</th>
+                    <th
+                      style={{ cursor: "pointer", userSelect: "none" }}
+                      onClick={() => setAgeSortOrder(ageSortOrder === "asc" ? "desc" : "asc")}
+                      title="Sort by age"
+                    >
+                      Age & Stage {ageSortOrder === "asc" ? "▲" : "▼"}
+                    </th>
                     <th>Date Added</th>
                     <th>Notes</th>
                     <th>Actions</th>
@@ -507,7 +721,8 @@ export default function LivestockView() {
                 </thead>
                 <tbody>
                   {filteredAnimals.map((a) => {
-                    const cat = a.category || (a.ageYears < 1 ? "calf" : a.ageYears < 2.5 ? "heifer" : a.sex === "male" ? "bull" : "cow");
+                    const { ageInfo, lifeStage } = getAnimalAgeInfo(a);
+                    const cat = a.category || lifeStage.id;
 
                     return (
                       <tr key={a.id}>
@@ -521,22 +736,44 @@ export default function LivestockView() {
                         </td>
                         <td>{a.breed}</td>
                         <td>
-                          <Badge tone={categoryBadgeTone(cat)}>
-                            {categoryLabel(cat)}
+                          <Badge tone={lifeStage.tone}>
+                            {a.category ? categoryLabel(a.category) : lifeStage.name}
                           </Badge>
                         </td>
                         <td>{a.sex === "male" ? "Male" : "Female"}</td>
-                        <td>{a.ageYears} yrs</td>
+                        <td>
+                          <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+                              <strong>{ageInfo.formatted}</strong>
+                              <Badge tone={lifeStage.tone}>{lifeStage.name}</Badge>
+                            </div>
+                            {a.isBirthDateEstimated && (
+                              <span
+                                style={{
+                                  fontSize: 10,
+                                  color: "var(--kf-warning, #d97706)",
+                                  background: "rgba(245, 158, 11, 0.12)",
+                                  padding: "1px 5px",
+                                  borderRadius: 4,
+                                  width: "fit-content",
+                                }}
+                              >
+                                Estimated · Please confirm birth date
+                              </span>
+                            )}
+                          </div>
+                        </td>
                         <td>{a.dateAdded ? a.dateAdded.slice(0, 10) : "—"}</td>
                         <td>
-                          {a.notes
-                            ? <span style={{ fontSize: 12, color: "var(--kf-text-muted)" }}>{a.notes}</span>
-                            : "—"
-                          }
+                          {a.notes ? (
+                            <span style={{ fontSize: 12, color: "var(--kf-text-muted)" }}>{a.notes}</span>
+                          ) : (
+                            "—"
+                          )}
                         </td>
                         <td>
                           <div className="kf-actions-cell">
-                            {cat === "calf" && a.sex !== "male" && (
+                            {cat === "calf" && a.sex !== "male" && ageInfo.months >= 6 && (
                               <Button
                                 variant="ghost"
                                 size="sm"
@@ -546,7 +783,7 @@ export default function LivestockView() {
                                 To Heifer
                               </Button>
                             )}
-                            {cat === "heifer" && (
+                            {cat === "heifer" && ageInfo.months >= 24 && (
                               <Button
                                 variant="ghost"
                                 size="sm"
@@ -614,15 +851,18 @@ export default function LivestockView() {
       >
         <p>Are you sure you want to delete '{deleteConfirm?.name}'? This cannot be undone.</p>
       </Modal>
-      {/* Individual Cattle Production Modal */}
-      <AnimalProductionModal
-        open={!!productionAnimal}
-        onClose={() => setProductionAnimal(null)}
-        target={productionAnimal ? { type: "cattle", animal: productionAnimal } : null}
-        records={productionRecords}
-        onRecordSaved={refreshAnimals}
-        allLivestock={animals}
-      />
+
+      {/* Individual Animal Production Modal */}
+      {productionAnimal && (
+        <AnimalProductionModal
+          open={!!productionAnimal}
+          onClose={() => setProductionAnimal(null)}
+          target={{ type: "cattle", animal: productionAnimal }}
+          records={productionRecords}
+          onRecordSaved={refreshAnimals}
+          allLivestock={animals}
+        />
+      )}
     </main>
   );
 }

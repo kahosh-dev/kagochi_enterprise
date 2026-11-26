@@ -1,3 +1,4 @@
+import crypto from "node:crypto";
 import { postgresPool } from "./postgres.js";
 import { resourceTables } from "./store.js";
 import type {
@@ -10,6 +11,8 @@ import type {
   StoreResult,
   UserRow,
 } from "./store.js";
+import { DEFAULT_VACCINES } from "./vaccineDefaults.js";
+import { DEFAULT_FEED_TYPES } from "./feedTypeDefaults.js";
 
 function getPool() {
   if (!postgresPool) {
@@ -42,6 +45,8 @@ export function orderedValues(
     if (column === "sex") return "female";
     if (column === "status") return resource === "livestock" ? "active" : "upcoming";
     if (column === "destination") return "produced";
+    if (column === "default_unit") return "kg";
+    if (column === "is_active") return 1;
     if (
       column === "purchase_price" ||
       column === "selling_price" ||
@@ -49,7 +54,9 @@ export function orderedValues(
       column === "booster_interval_days" ||
       column === "age_days_due" ||
       column === "quantity" ||
-      column === "count_vaccinated"
+      column === "count_vaccinated" ||
+      column === "is_hatch_date_estimated" ||
+      column === "is_birth_date_estimated"
     ) {
       return 0;
     }
@@ -193,6 +200,46 @@ export const postgresStore: FarmStore = {
     resource,
     ownerId,
   ): Promise<RecordRow[]> {
+    if (resource === "vaccines") {
+      try {
+        const countCheck = await getPool().query<{ count: string }>(
+          `SELECT COUNT(*) as count FROM vaccines WHERE owner_id = $1`,
+          [ownerId]
+        );
+        if (parseInt(countCheck.rows[0]?.count || "0") === 0) {
+          for (const v of DEFAULT_VACCINES) {
+            await getPool().query(
+              `INSERT INTO vaccines (id, owner_id, species, name, disease, default_method, notes, is_active)
+               VALUES ($1, $2, $3, $4, $5, $6, $7, 1)`,
+              [crypto.randomUUID(), ownerId, v.species, v.name, v.disease, v.default_method, v.notes]
+            );
+          }
+        }
+      } catch {
+        // ignore if table not initialized
+      }
+    }
+
+    if (resource === "feed_types") {
+      try {
+        const countCheck = await getPool().query<{ count: string }>(
+          `SELECT COUNT(*) as count FROM feed_types WHERE owner_id = $1`,
+          [ownerId]
+        );
+        if (parseInt(countCheck.rows[0]?.count || "0") === 0) {
+          for (const ft of DEFAULT_FEED_TYPES) {
+            await getPool().query(
+              `INSERT INTO feed_types (id, owner_id, animal_type, category, name, default_unit, is_active)
+               VALUES ($1, $2, $3, $4, $5, $6, 1)`,
+              [crypto.randomUUID(), ownerId, ft.animal_type, ft.category, ft.name, ft.default_unit]
+            );
+          }
+        }
+      } catch {
+        // ignore if table not initialized
+      }
+    }
+
     const { table, columns, dateColumn } = resourceTables[resource];
 
     const query = await getPool().query<RecordRow>(

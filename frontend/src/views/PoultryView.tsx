@@ -1,14 +1,17 @@
 import { useEffect, useMemo, useState } from "react";
-import type { PoultryBatch, ProductionRecord } from "../types/farm";
+import type { PoultryBatch, ProductionRecord, PopulationEvent } from "../types/farm";
 import {
   loadPoultry,
   addPoultry,
   updatePoultry,
   deletePoultry,
   loadProduction,
+  loadPopulationEvents,
 } from "../services/storage";
 import {
   Bird,
+  Calendar,
+  Clock,
   Egg,
   Pencil,
   Plus,
@@ -29,6 +32,14 @@ import {
   Segmented,
   StatCard,
 } from "../components/ui";
+import {
+  formatAnimalAge,
+  getPoultryLifeStage,
+  estimateBirthDateFromAge,
+  compareAgeByDate,
+  getNairobiToday,
+  getWeeksBetween,
+} from "../utils/age";
 
 const STAGE_OPTIONS = [
   { value: "all", label: "All" },
@@ -38,37 +49,15 @@ const STAGE_OPTIONS = [
   { value: "kienyeji", label: "Kienyeji" },
 ];
 
-const STAGE_BADGE_TONE: Record<string, "amber" | "green" | "blue" | "forest" | "slate"> = {
-  chicks: "amber",
-  layers: "green",
-  broilers: "blue",
-  kienyeji: "forest",
-  growers: "slate",
-  adult: "slate",
-};
-
-function stageTone(stage: string | undefined): "amber" | "green" | "blue" | "forest" | "slate" {
-  return STAGE_BADGE_TONE[stage ?? "adult"] ?? "slate";
-}
-
-function stageLabel(stage: string | undefined): string {
-  switch (stage) {
-    case "chicks": return "Chicks";
-    case "layers": return "Layers";
-    case "broilers": return "Broilers";
-    case "kienyeji": return "Kienyeji";
-    case "growers": return "Growers";
-    default: return "Adult";
-  }
-}
-
 export default function PoultryView() {
   const [poultry, setPoultry] = useState<PoultryBatch[]>([]);
   const [productionRecords, setProductionRecords] = useState<ProductionRecord[]>([]);
+  const [popEvents, setPopEvents] = useState<PopulationEvent[]>([]);
   const [productionBatch, setProductionBatch] = useState<PoultryBatch | null>(null);
   const [_loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [filterStage, setFilterStage] = useState<string>("all");
+  const [ageSortOrder, setAgeSortOrder] = useState<"asc" | "desc">("desc"); // desc = oldest first
   const [deleteConfirm, setDeleteConfirm] = useState<{ id: string; name: string } | null>(null);
 
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -79,11 +68,17 @@ export default function PoultryView() {
   const [stage, setStage] = useState("chicks");
   const [initialCount, setInitialCount] = useState("");
   const [currentCount, setCurrentCount] = useState("");
-  const [ageWeeks, setAgeWeeks] = useState("1");
   const [source, setSource] = useState("");
   const [purchasePrice, setPurchasePrice] = useState("");
   const [notes, setNotes] = useState("");
-  const [dateAdded, setDateAdded] = useState(new Date().toISOString().slice(0, 10));
+  const [dateAdded, setDateAdded] = useState(getNairobiToday());
+
+  // Automatic Age fields
+  const [ageEntryMode, setAgeEntryMode] = useState<"date" | "age">("date");
+  const [hatchDate, setHatchDate] = useState<string>(getNairobiToday());
+  const [ageVal, setAgeVal] = useState<string>("1");
+  const [ageUnit, setAgeUnit] = useState<"days" | "weeks" | "months">("weeks");
+  const [isHatchDateEstimated, setIsHatchDateEstimated] = useState<boolean>(false);
 
   const [errorMsg, setErrorMsg] = useState("");
   const [successMsg, setSuccessMsg] = useState("");
@@ -91,12 +86,14 @@ export default function PoultryView() {
   async function refreshPoultry() {
     try {
       setLoading(true);
-      const [records, prod] = await Promise.all([
+      const [records, prod, events] = await Promise.all([
         loadPoultry(),
         loadProduction().catch(() => []),
+        loadPopulationEvents({ species: "poultry" }).catch(() => []),
       ]);
       setPoultry(records);
       setProductionRecords(prod);
+      setPopEvents(events);
     } catch (error) {
       console.error(error);
       setErrorMsg(error instanceof Error ? error.message : "Failed to load poultry records.");
@@ -108,6 +105,37 @@ export default function PoultryView() {
   useEffect(() => {
     refreshPoultry();
   }, []);
+
+  // Recalculate estimated hatch date when entering age
+  useEffect(() => {
+    if (ageEntryMode === "age") {
+      const parsed = parseFloat(ageVal);
+      if (!isNaN(parsed) && parsed >= 0) {
+        const est = estimateBirthDateFromAge(parsed, ageUnit, dateAdded || getNairobiToday());
+        setHatchDate(est);
+        setIsHatchDateEstimated(true);
+      }
+    }
+  }, [ageVal, ageUnit, dateAdded, ageEntryMode]);
+
+  // Dynamic age helper for a batch
+  function getBatchAgeInfo(batch: PoultryBatch) {
+    const deathOrSale = popEvents.find(
+      (e) => e.targetId === batch.id && (e.eventType === "death" || e.eventType === "sale")
+    );
+    const asOfDate = deathOrSale ? deathOrSale.date : undefined;
+    const eventType = deathOrSale ? deathOrSale.eventType : undefined;
+
+    const ageInfo = formatAnimalAge(batch.hatchDate, "poultry", {
+      asOfDate,
+      isEstimated: batch.isHatchDateEstimated,
+      legacyAgeWeeks: batch.ageWeeks,
+      eventType,
+    });
+    const lifeStage = getPoultryLifeStage(batch.hatchDate || ageInfo.weeks, batch.purpose, asOfDate);
+
+    return { ageInfo, lifeStage, deathOrSale };
+  }
 
   const totalInitial = useMemo(
     () => poultry.reduce((total, batch) => total + batch.initialCount, 0),
@@ -123,19 +151,53 @@ export default function PoultryView() {
   const overallLossRate = totalInitial > 0 ? ((totalLoss / totalInitial) * 100).toFixed(1) : "0.0";
 
   const totalChicks = useMemo(
-    () => poultry.filter((b) => b.stage === "chicks" || b.ageWeeks <= 4).reduce((s, b) => s + b.currentCount, 0),
+    () =>
+      poultry
+        .filter((b) => {
+          if (b.stage === "chicks") return true;
+          if (!b.stage) {
+            const weeks = getWeeksBetween(b.hatchDate || b.dateAdded, getNairobiToday());
+            return weeks < 8;
+          }
+          return false;
+        })
+        .reduce((s, b) => s + b.currentCount, 0),
     [poultry]
   );
 
   const totalLayers = useMemo(
-    () => poultry.filter((b) => b.stage === "layers" || /layer/i.test(b.purpose)).reduce((s, b) => s + b.currentCount, 0),
+    () =>
+      poultry
+        .filter((b) => b.stage === "layers" || /layer/i.test(b.purpose))
+        .reduce((s, b) => s + b.currentCount, 0),
     [poultry]
   );
 
   const totalBroilers = useMemo(
-    () => poultry.filter((b) => b.stage === "broilers" || /broiler/i.test(b.purpose)).reduce((s, b) => s + b.currentCount, 0),
+    () =>
+      poultry
+        .filter((b) => b.stage === "broilers" || /broiler/i.test(b.purpose))
+        .reduce((s, b) => s + b.currentCount, 0),
     [poultry]
   );
+
+  // Transition alerts for poultry
+  const chicksOldEnough = useMemo(() => {
+    return poultry.filter((b) => {
+      if (b.stage !== "chicks" && b.stage) return false;
+      const weeks = getWeeksBetween(b.hatchDate || b.dateAdded, getNairobiToday());
+      return weeks >= 8;
+    });
+  }, [poultry]);
+
+  const broilersReady = useMemo(() => {
+    return poultry.filter((b) => {
+      const isBroiler = b.stage === "broilers" || /broiler/i.test(b.purpose);
+      if (!isBroiler) return false;
+      const weeks = getWeeksBetween(b.hatchDate || b.dateAdded, getNairobiToday());
+      return weeks >= 6;
+    });
+  }, [poultry]);
 
   function clearForm() {
     setBreed("Kienyeji");
@@ -143,11 +205,15 @@ export default function PoultryView() {
     setStage("chicks");
     setInitialCount("");
     setCurrentCount("");
-    setAgeWeeks("1");
     setSource("");
     setPurchasePrice("");
     setNotes("");
-    setDateAdded(new Date().toISOString().slice(0, 10));
+    setDateAdded(getNairobiToday());
+    setHatchDate(getNairobiToday());
+    setAgeVal("1");
+    setAgeUnit("weeks");
+    setAgeEntryMode("date");
+    setIsHatchDateEstimated(false);
     setEditingId(null);
     setErrorMsg("");
   }
@@ -156,47 +222,63 @@ export default function PoultryView() {
     setEditingId(batch.id);
     setBreed(batch.breed);
     setPurpose(batch.purpose);
-    setStage(batch.stage || (batch.ageWeeks <= 4 ? "chicks" : "adult"));
+    setStage(batch.stage || "chicks");
     setInitialCount(String(batch.initialCount));
     setCurrentCount(String(batch.currentCount));
-    setAgeWeeks(String(batch.ageWeeks));
     setSource(batch.source || "");
     setPurchasePrice(batch.purchasePrice ? String(batch.purchasePrice) : "");
     setNotes(batch.notes || "");
-    setDateAdded(batch.dateAdded ? batch.dateAdded.slice(0, 10) : new Date().toISOString().slice(0, 10));
+    setDateAdded(batch.dateAdded ? batch.dateAdded.slice(0, 10) : getNairobiToday());
+
+    if (batch.hatchDate) {
+      setHatchDate(batch.hatchDate.slice(0, 10));
+      setIsHatchDateEstimated(Boolean(batch.isHatchDateEstimated));
+      setAgeEntryMode(batch.isHatchDateEstimated ? "age" : "date");
+      if (batch.isHatchDateEstimated) {
+        const weeks = getWeeksBetween(batch.hatchDate, batch.dateAdded || getNairobiToday());
+        setAgeVal(String(weeks));
+        setAgeUnit("weeks");
+      }
+    } else {
+      const est = estimateBirthDateFromAge(batch.ageWeeks || 1, "weeks", batch.dateAdded);
+      setHatchDate(est);
+      setIsHatchDateEstimated(true);
+      setAgeEntryMode("age");
+      setAgeVal(String(batch.ageWeeks || 1));
+      setAgeUnit("weeks");
+    }
+
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
+  async function handleSubmit(event: React.FormEvent) {
+    event.preventDefault();
     setErrorMsg("");
     setSuccessMsg("");
 
     const init = parseInt(initialCount);
     const curr = parseInt(currentCount);
-    const age = parseInt(ageWeeks);
-    const price = parseFloat(purchasePrice) || 0;
 
     if (!breed.trim()) {
-      setErrorMsg("Please select or enter the breed.");
+      setErrorMsg("Please enter the breed or flock name.");
       return;
     }
-    if (isNaN(init) || init <= 0) {
-      setErrorMsg("Initial count of birds must be at least 1.");
+    if (isNaN(init) || init < 1) {
+      setErrorMsg("Please enter a valid initial count (at least 1).");
       return;
     }
     if (isNaN(curr) || curr < 0) {
-      setErrorMsg("Current count of live birds cannot be negative.");
+      setErrorMsg("Current count cannot be negative.");
       return;
     }
     if (curr > init) {
-      setErrorMsg("Current count cannot be higher than initial birds acquired.");
+      setErrorMsg("Current count cannot be greater than initial bird count.");
       return;
     }
-    if (isNaN(age) || age < 0) {
-      setErrorMsg("Age in weeks must be 0 or more.");
-      return;
-    }
+
+    const price = purchasePrice ? parseFloat(purchasePrice) : 0;
+    const finalHatchDate = hatchDate.trim() || getNairobiToday();
+    const calcWeeks = getWeeksBetween(finalHatchDate, getNairobiToday());
 
     try {
       setSaving(true);
@@ -205,12 +287,14 @@ export default function PoultryView() {
         purpose: purpose.trim(),
         initialCount: init,
         currentCount: curr,
-        ageWeeks: age,
+        ageWeeks: calcWeeks,
         dateAdded,
         stage,
         source: source.trim(),
         purchasePrice: price,
         notes: notes.trim(),
+        hatchDate: finalHatchDate,
+        isHatchDateEstimated,
       };
 
       if (editingId) {
@@ -241,14 +325,24 @@ export default function PoultryView() {
     setDeleteConfirm({ id, name });
   }
 
-  const filteredPoultry = poultry.filter((b) => {
-    if (filterStage === "all") return true;
-    if (filterStage === "chicks") return b.stage === "chicks" || b.ageWeeks <= 4;
-    if (filterStage === "layers") return b.stage === "layers" || /layer/i.test(b.purpose);
-    if (filterStage === "broilers") return b.stage === "broilers" || /broiler/i.test(b.purpose);
-    if (filterStage === "kienyeji") return /kienyeji/i.test(b.breed) || b.stage === "kienyeji";
-    return true;
-  });
+  // Filter and sort poultry
+  const filteredPoultry = useMemo(() => {
+    const list = poultry.filter((b) => {
+      if (filterStage === "all") return true;
+      const { ageInfo } = getBatchAgeInfo(b);
+      const weeks = ageInfo.weeks;
+      if (filterStage === "chicks") return b.stage === "chicks" || (!b.stage && weeks < 8);
+      if (filterStage === "layers") return b.stage === "layers" || /layer/i.test(b.purpose);
+      if (filterStage === "broilers") return b.stage === "broilers" || /broiler/i.test(b.purpose);
+      if (filterStage === "kienyeji") return /kienyeji/i.test(b.breed) || b.stage === "kienyeji";
+      return true;
+    });
+
+    // Sort by hatch date, NOT formatted string
+    return list.sort((a, b) =>
+      compareAgeByDate(a.hatchDate || a.dateAdded, b.hatchDate || b.dateAdded, ageSortOrder)
+    );
+  }, [poultry, filterStage, ageSortOrder, popEvents]);
 
   return (
     <main className="kf-page">
@@ -256,7 +350,13 @@ export default function PoultryView() {
         title="Poultry Management"
         description="Manage your chicks from day-old brooding, broilers, layers, and kienyeji flocks."
         actions={
-          <Button icon={<Plus size={16} />} onClick={() => { clearForm(); window.scrollTo({ top: 400, behavior: "smooth" }); }}>
+          <Button
+            icon={<Plus size={16} />}
+            onClick={() => {
+              clearForm();
+              window.scrollTo({ top: 400, behavior: "smooth" });
+            }}
+          >
             Add batch
           </Button>
         }
@@ -274,7 +374,7 @@ export default function PoultryView() {
               Poultry Operations & Flock Register
             </h2>
             <p className="kf-page-hero-desc">
-              Manage day-old brooding chicks, active layers, broilers and kienyeji flocks. Track flock mortality and stock balance.
+              Manage day-old brooding chicks, active layers, broilers and kienyeji flocks. Age updates automatically every day.
             </p>
           </div>
           <div className="kf-page-hero-stats">
@@ -282,6 +382,20 @@ export default function PoultryView() {
             <Badge tone="amber">{totalChicks.toLocaleString()} In Brooder</Badge>
           </div>
         </div>
+
+        {/* Growth alerts */}
+        {chicksOldEnough.length > 0 && (
+          <Notice tone="info">
+            <strong>Growth stage alert:</strong> {chicksOldEnough.length}{" "}
+            {chicksOldEnough.length === 1 ? "flock has" : "flocks have"} reached 8+ weeks and are old enough to move to growers.
+          </Notice>
+        )}
+        {broilersReady.length > 0 && (
+          <Notice tone="success">
+            <strong>Market readiness alert:</strong> {broilersReady.length}{" "}
+            {broilersReady.length === 1 ? "broiler flock is" : "broiler flocks are"} now 6+ weeks and ready for market sale.
+          </Notice>
+        )}
 
         {/* KPI Summary Cards */}
         <div className="kf-grid kf-grid--stats">
@@ -301,7 +415,7 @@ export default function PoultryView() {
             layout="image-right"
             label="Chicks in Brooder"
             value={totalChicks.toLocaleString()}
-            hint="Day-old to 4 weeks"
+            hint="0 to 8 weeks old"
           />
           <StatCard
             tone="blue"
@@ -326,7 +440,7 @@ export default function PoultryView() {
         {/* Add / Edit Form */}
         <Panel
           title={editingId ? "Edit Chicken Batch" : "Add Chickens (Chicks / Broilers / Layers)"}
-          subtitle="Record arrival of day-old chicks or existing flocks. Stock formula: Closing = Initial − Deaths."
+          subtitle="Age is calculated from hatch date and updates automatically every day."
         >
           {errorMsg && <ErrorBanner message={errorMsg} />}
           {successMsg && <Notice tone="success">{successMsg}</Notice>}
@@ -335,11 +449,11 @@ export default function PoultryView() {
             <div className="kf-form-grid">
               <Field label="Growth Stage" htmlFor="stage" required>
                 <select id="stage" value={stage} onChange={(e) => setStage(e.target.value)}>
-                  <option value="chicks">Day-old Chicks (Brooding)</option>
+                  <option value="chicks">Day-old Chicks (0 – 8 wks)</option>
+                  <option value="growers">Growers / Pullets (8 – 18 wks)</option>
+                  <option value="layers">Layers (18+ wks)</option>
                   <option value="broilers">Broilers (Meat)</option>
-                  <option value="layers">Layers (Egg production)</option>
                   <option value="kienyeji">Kienyeji / Improved Kienyeji</option>
-                  <option value="growers">Growers / Pullets</option>
                   <option value="adult">Adult Flock</option>
                 </select>
               </Field>
@@ -348,34 +462,25 @@ export default function PoultryView() {
                 <input
                   id="breed"
                   type="text"
-                  list="breed-options"
-                  placeholder="e.g. KARI Improved, Cobb 500, Isa Brown"
+                  placeholder="e.g. Kenbro, Kuroiler, Cobb 500, Kienyeji"
                   value={breed}
                   onChange={(e) => setBreed(e.target.value)}
                   required
                 />
-                <datalist id="breed-options">
-                  <option value="KARI Improved Kienyeji" />
-                  <option value="Kuroiler" />
-                  <option value="Rainbow Rooster" />
-                  <option value="Isa Brown (Layers)" />
-                  <option value="Lohmann Brown" />
-                  <option value="Cobb 500 (Broilers)" />
-                  <option value="Ross 308 (Broilers)" />
-                  <option value="Kenbro" />
-                </datalist>
               </Field>
 
               <Field label="Purpose" htmlFor="purpose" required>
-                <select id="purpose" value={purpose} onChange={(e) => setPurpose(e.target.value)}>
-                  <option value="Eggs & Meat">Eggs & Meat (Dual purpose)</option>
-                  <option value="Egg Production">Egg Production (Layers)</option>
-                  <option value="Meat Production">Meat Production (Broilers)</option>
-                  <option value="Breeding & Chicks">Breeding & Hatching</option>
-                </select>
+                <input
+                  id="purpose"
+                  type="text"
+                  placeholder="e.g. Eggs, Meat, Dual-purpose"
+                  value={purpose}
+                  onChange={(e) => setPurpose(e.target.value)}
+                  required
+                />
               </Field>
 
-              <Field label="Number Acquired / Hatched" htmlFor="initialCount" required>
+              <Field label="Initial Flock Size" htmlFor="initialCount" required>
                 <input
                   id="initialCount"
                   type="number"
@@ -395,7 +500,10 @@ export default function PoultryView() {
                 required
                 hint={
                   initialCount && currentCount && parseInt(initialCount) > parseInt(currentCount)
-                    ? `Deaths/Losses: ${parseInt(initialCount) - parseInt(currentCount)} birds (${(((parseInt(initialCount) - parseInt(currentCount)) / parseInt(initialCount)) * 100).toFixed(1)}%)`
+                    ? `Deaths/Losses: ${parseInt(initialCount) - parseInt(currentCount)} birds (${(
+                        ((parseInt(initialCount) - parseInt(currentCount)) / parseInt(initialCount)) *
+                        100
+                      ).toFixed(1)}%)`
                     : undefined
                 }
               >
@@ -409,16 +517,110 @@ export default function PoultryView() {
                 />
               </Field>
 
-              <Field label="Age in Weeks" htmlFor="ageWeeks" required>
-                <input
-                  id="ageWeeks"
-                  type="number"
-                  placeholder="e.g. 1"
-                  value={ageWeeks}
-                  onChange={(e) => setAgeWeeks(e.target.value)}
-                  required
-                />
-              </Field>
+              {/* Automatic Age Entry Section */}
+              <div
+                style={{
+                  gridColumn: "span 2",
+                  background: "rgba(255, 255, 255, 0.04)",
+                  padding: "12px",
+                  borderRadius: 8,
+                  border: "1px solid rgba(255, 255, 255, 0.08)",
+                }}
+              >
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    marginBottom: 8,
+                  }}
+                >
+                  <label style={{ fontSize: 13, fontWeight: 600 }}>Age Registration Method</label>
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <button
+                      type="button"
+                      className={`kf-btn kf-btn--sm ${ageEntryMode === "date" ? "kf-btn--primary" : "kf-btn--ghost"}`}
+                      onClick={() => {
+                        setAgeEntryMode("date");
+                        setIsHatchDateEstimated(false);
+                      }}
+                    >
+                      <Calendar size={13} style={{ marginRight: 4 }} />
+                      Exact Hatch Date
+                    </button>
+                    <button
+                      type="button"
+                      className={`kf-btn kf-btn--sm ${ageEntryMode === "age" ? "kf-btn--primary" : "kf-btn--ghost"}`}
+                      onClick={() => {
+                        setAgeEntryMode("age");
+                        setIsHatchDateEstimated(true);
+                        const est = estimateBirthDateFromAge(
+                          parseFloat(ageVal) || 0,
+                          ageUnit,
+                          dateAdded || getNairobiToday()
+                        );
+                        setHatchDate(est);
+                      }}
+                    >
+                      <Clock size={13} style={{ marginRight: 4 }} />
+                      Age When Registered
+                    </button>
+                  </div>
+                </div>
+
+                {ageEntryMode === "date" ? (
+                  <Field label="Hatch Date" htmlFor="hatchDate" required>
+                    <input
+                      id="hatchDate"
+                      type="date"
+                      value={hatchDate}
+                      onChange={(e) => {
+                        setHatchDate(e.target.value);
+                        setIsHatchDateEstimated(false);
+                      }}
+                      required
+                    />
+                  </Field>
+                ) : (
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                    <Field label="Age Value" htmlFor="poultryAgeVal" required>
+                      <input
+                        id="poultryAgeVal"
+                        type="number"
+                        step="0.5"
+                        min="0"
+                        placeholder="e.g. 3"
+                        value={ageVal}
+                        onChange={(e) => setAgeVal(e.target.value)}
+                        required
+                      />
+                    </Field>
+                    <Field label="Unit" htmlFor="poultryAgeUnit" required>
+                      <select
+                        id="poultryAgeUnit"
+                        value={ageUnit}
+                        onChange={(e) => setAgeUnit(e.target.value as "days" | "weeks" | "months")}
+                      >
+                        <option value="days">Days (under 3 weeks)</option>
+                        <option value="weeks">Weeks (e.g. 5 weeks)</option>
+                        <option value="months">Months (e.g. 6 months)</option>
+                      </select>
+                    </Field>
+                  </div>
+                )}
+
+                <div style={{ fontSize: 12, marginTop: 6, color: "var(--kf-text-muted)" }}>
+                  {isHatchDateEstimated ? (
+                    <span style={{ color: "var(--kf-warning, #d97706)" }}>
+                      Estimated hatch date: <strong>{hatchDate || "—"}</strong> (Marked estimated · Age will update automatically every day)
+                    </span>
+                  ) : (
+                    <span>
+                      Hatch date: <strong>{hatchDate || "—"}</strong> (Age will update automatically every day)
+                    </span>
+                  )}
+                </div>
+              </div>
 
               <Field label="Date Added / Received" htmlFor="dateAdded">
                 <input
@@ -476,7 +678,7 @@ export default function PoultryView() {
         {/* Records Table */}
         <Panel
           title={`Recorded Chicken Batches (${poultry.length})`}
-          subtitle="Track live counts, stage progress, and mortalities."
+          subtitle="Age updates automatically every day. Click header to sort by age."
           actions={
             <Segmented
               label="Filter by stage"
@@ -498,8 +700,14 @@ export default function PoultryView() {
                 <thead>
                   <tr>
                     <th>Flock / Breed</th>
-                    <th>Growth Stage</th>
-                    <th>Age</th>
+                    <th>Stage</th>
+                    <th
+                      style={{ cursor: "pointer", userSelect: "none" }}
+                      onClick={() => setAgeSortOrder(ageSortOrder === "asc" ? "desc" : "asc")}
+                      title="Sort by age"
+                    >
+                      Age & Stage {ageSortOrder === "asc" ? "▲" : "▼"}
+                    </th>
                     <th>Initial Birds</th>
                     <th>Current Live</th>
                     <th>Losses</th>
@@ -510,6 +718,7 @@ export default function PoultryView() {
                 </thead>
                 <tbody>
                   {filteredPoultry.map((b) => {
+                    const { ageInfo, lifeStage } = getBatchAgeInfo(b);
                     const losses = Math.max(0, b.initialCount - b.currentCount);
                     const lossPct = b.initialCount > 0 ? (losses / b.initialCount) * 100 : 0;
                     const isHighLoss = lossPct >= 5;
@@ -521,21 +730,46 @@ export default function PoultryView() {
                           <div style={{ fontSize: 12, color: "var(--kf-text-muted)" }}>{b.purpose}</div>
                         </td>
                         <td>
-                          <Badge tone={stageTone(b.stage)}>
-                            {stageLabel(b.stage)}
+                          <Badge tone={lifeStage.tone}>
+                            {b.stage ? b.stage.charAt(0).toUpperCase() + b.stage.slice(1) : lifeStage.name}
                           </Badge>
                         </td>
-                        <td>{b.ageWeeks} wks</td>
+                        <td>
+                          <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+                              <strong>{ageInfo.formatted}</strong>
+                              <Badge tone={lifeStage.tone}>{lifeStage.name}</Badge>
+                              {lifeStage.readyForSale && (
+                                <Badge tone="green">Ready for sale</Badge>
+                              )}
+                            </div>
+                            {b.isHatchDateEstimated && (
+                              <span
+                                style={{
+                                  fontSize: 10,
+                                  color: "var(--kf-warning, #d97706)",
+                                  background: "rgba(245, 158, 11, 0.12)",
+                                  padding: "1px 5px",
+                                  borderRadius: 4,
+                                  width: "fit-content",
+                                }}
+                              >
+                                Estimated · Please confirm hatch date
+                              </span>
+                            )}
+                          </div>
+                        </td>
                         <td>{b.initialCount.toLocaleString()}</td>
                         <td>
                           <strong>{b.currentCount.toLocaleString()}</strong>
                         </td>
                         <td>{losses > 0 ? `${losses} birds` : "0"}</td>
                         <td>
-                          {isHighLoss
-                            ? <Badge tone="red">{lossPct.toFixed(1)}%</Badge>
-                            : <Badge tone="slate">{lossPct.toFixed(1)}%</Badge>
-                          }
+                          {isHighLoss ? (
+                            <Badge tone="red">{lossPct.toFixed(1)}%</Badge>
+                          ) : (
+                            <Badge tone="slate">{lossPct.toFixed(1)}%</Badge>
+                          )}
                         </td>
                         <td>{b.dateAdded ? b.dateAdded.slice(0, 10) : "—"}</td>
                         <td>
@@ -598,15 +832,18 @@ export default function PoultryView() {
       >
         <p>Are you sure you want to delete '{deleteConfirm?.name}'? This cannot be undone.</p>
       </Modal>
-      {/* Individual Poultry Batch Production Modal */}
-      <AnimalProductionModal
-        open={!!productionBatch}
-        onClose={() => setProductionBatch(null)}
-        target={productionBatch ? { type: "poultry", batch: productionBatch } : null}
-        records={productionRecords}
-        onRecordSaved={refreshPoultry}
-        allPoultry={poultry}
-      />
+
+      {/* Individual Batch Production Modal */}
+      {productionBatch && (
+        <AnimalProductionModal
+          open={!!productionBatch}
+          onClose={() => setProductionBatch(null)}
+          target={{ type: "poultry", batch: productionBatch }}
+          records={productionRecords}
+          onRecordSaved={refreshPoultry}
+          allPoultry={poultry}
+        />
+      )}
     </main>
   );
 }

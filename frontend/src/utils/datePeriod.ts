@@ -1,11 +1,14 @@
 /**
  * Date period tracking utilities for Kagochi Farm Enterprise.
  *
- * Designed specifically to prevent timezone/UTC conversion errors
- * that shift farm records to the wrong calendar day.
+ * Configured specifically for the Africa/Nairobi timezone to prevent
+ * timezone/UTC conversion errors that shift farm records to the wrong calendar day.
  */
 
-export type PeriodMode = "today" | "week" | "month" | "year" | "custom";
+export const NAIROBI_TIMEZONE = "Africa/Nairobi";
+export const DEFAULT_PERIOD: PeriodMode = "today";
+
+export type PeriodMode = "today" | "yesterday" | "week" | "month" | "year" | "custom";
 
 export interface DateRange {
   from: string; // YYYY-MM-DD
@@ -25,17 +28,65 @@ export interface PeriodInfo {
 }
 
 /**
- * Returns YYYY-MM-DD for a local date object, avoiding UTC conversion shifts.
+ * Returns YYYY-MM-DD in Africa/Nairobi timezone.
  */
-export function getLocalDateString(d: Date = new Date()): string {
-  const year = d.getFullYear();
-  const month = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
+export function getNairobiDateString(d: Date = new Date()): string {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: NAIROBI_TIMEZONE,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(d);
 }
 
 /**
- * Parses YYYY-MM-DD safely into a local midday Date object.
+ * Extracts numeric date/time parts for Africa/Nairobi timezone.
+ */
+export function getNairobiParts(d: Date = new Date()): {
+  year: number;
+  month: number;
+  day: number;
+  hour: number;
+  minute: number;
+  second: number;
+} {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: NAIROBI_TIMEZONE,
+    year: "numeric",
+    month: "numeric",
+    day: "numeric",
+    hour: "numeric",
+    minute: "numeric",
+    second: "numeric",
+    hour12: false,
+  }).formatToParts(d);
+
+  const partMap: Record<string, number> = {};
+  for (const p of parts) {
+    if (p.type !== "literal") {
+      partMap[p.type] = Number(p.value);
+    }
+  }
+
+  return {
+    year: partMap.year ?? 2026,
+    month: partMap.month ?? 1,
+    day: partMap.day ?? 1,
+    hour: partMap.hour === 24 ? 0 : (partMap.hour ?? 0),
+    minute: partMap.minute ?? 0,
+    second: partMap.second ?? 0,
+  };
+}
+
+/**
+ * Returns YYYY-MM-DD for a date object in Africa/Nairobi timezone.
+ */
+export function getLocalDateString(d: Date = new Date()): string {
+  return getNairobiDateString(d);
+}
+
+/**
+ * Parses YYYY-MM-DD safely into a midday Date object.
  */
 export function parseLocalDate(str: string): Date {
   const [year, month, day] = str.slice(0, 10).split("-").map(Number);
@@ -48,7 +99,10 @@ export function parseLocalDate(str: string): Date {
 export function addDaysToDateStr(dateStr: string, days: number): string {
   const d = parseLocalDate(dateStr);
   d.setDate(d.getDate() + days);
-  return getLocalDateString(d);
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
 }
 
 /**
@@ -81,7 +135,7 @@ const SHORT_MONTH_NAMES = [
 const DAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 /**
- * Formats a YYYY-MM-DD string into readable farm date (e.g., "8 Nov 2026" or "Sun, 8 Nov").
+ * Formats a YYYY-MM-DD string into readable farm date (e.g., "Tue, 24 Nov 2026" or "24 Nov 2026").
  */
 export function formatDisplayDate(dateStr: string, includeDayOfWeek: boolean = true): string {
   if (!dateStr) return "—";
@@ -94,21 +148,34 @@ export function formatDisplayDate(dateStr: string, includeDayOfWeek: boolean = t
 }
 
 /**
- * Computes period information for any given mode and offset.
+ * Determines whether Next button can be clicked without going past today.
+ */
+export function canStepNext(mode: PeriodMode, offset: number): boolean {
+  if (mode === "today") return offset < 0;
+  if (mode === "yesterday") return offset < 1; // offset 0 is yesterday, +1 goes to today, beyond today is blocked
+  if (mode === "week") return offset < 0;
+  if (mode === "month") return offset < 0;
+  if (mode === "year") return offset < 0;
+  return false;
+}
+
+/**
+ * Computes period information for any given mode, offset, and optional base date.
  */
 export function calculatePeriod(
   mode: PeriodMode,
   offset: number = 0,
   customFrom?: string,
-  customTo?: string
+  customTo?: string,
+  baseTodayStr?: string,
 ): PeriodInfo {
-  const todayStr = getLocalDateString();
+  const todayStr = baseTodayStr || getNairobiDateString();
   const todayDate = parseLocalDate(todayStr);
 
   if (mode === "today") {
     const targetDate = new Date(todayDate);
     targetDate.setDate(todayDate.getDate() + offset);
-    const targetStr = getLocalDateString(targetDate);
+    const targetStr = addDaysToDateStr(todayStr, offset);
     const prevStr = addDaysToDateStr(targetStr, -1);
 
     let label = formatDisplayDate(targetStr);
@@ -117,6 +184,27 @@ export function calculatePeriod(
 
     return {
       mode: "today",
+      from: targetStr,
+      to: targetStr,
+      previousFrom: prevStr,
+      previousTo: prevStr,
+      label,
+      sublabel: `Single day (${targetStr})`,
+      offset,
+      daysCount: 1,
+    };
+  }
+
+  if (mode === "yesterday") {
+    const targetStr = addDaysToDateStr(todayStr, -1 + offset);
+    const prevStr = addDaysToDateStr(targetStr, -1);
+
+    let label = formatDisplayDate(targetStr);
+    if (offset === 0) label = `Yesterday (${formatDisplayDate(targetStr)})`;
+    else if (offset === 1) label = `Today (${formatDisplayDate(targetStr)})`;
+
+    return {
+      mode: "yesterday",
       from: targetStr,
       to: targetStr,
       previousFrom: prevStr,
@@ -241,6 +329,7 @@ export function calculatePeriod(
     offset: 0,
     daysCount: daysDiff,
   };
+}
 }
 
 /**

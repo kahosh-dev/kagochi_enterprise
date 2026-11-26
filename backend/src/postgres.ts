@@ -63,13 +63,17 @@ export const schemaStatements = [
     stage TEXT NOT NULL DEFAULT 'adult',
     source TEXT NOT NULL DEFAULT '',
     purchase_price REAL NOT NULL DEFAULT 0,
-    notes TEXT NOT NULL DEFAULT ''
+    notes TEXT NOT NULL DEFAULT '',
+    hatch_date TEXT NOT NULL DEFAULT '',
+    is_hatch_date_estimated INTEGER NOT NULL DEFAULT 0
   )`,
 
   `ALTER TABLE poultry_batches ADD COLUMN IF NOT EXISTS stage TEXT NOT NULL DEFAULT 'adult'`,
   `ALTER TABLE poultry_batches ADD COLUMN IF NOT EXISTS source TEXT NOT NULL DEFAULT ''`,
   `ALTER TABLE poultry_batches ADD COLUMN IF NOT EXISTS purchase_price REAL NOT NULL DEFAULT 0`,
   `ALTER TABLE poultry_batches ADD COLUMN IF NOT EXISTS notes TEXT NOT NULL DEFAULT ''`,
+  `ALTER TABLE poultry_batches ADD COLUMN IF NOT EXISTS hatch_date TEXT NOT NULL DEFAULT ''`,
+  `ALTER TABLE poultry_batches ADD COLUMN IF NOT EXISTS is_hatch_date_estimated INTEGER NOT NULL DEFAULT 0`,
 
   `CREATE TABLE IF NOT EXISTS livestock (
     id TEXT PRIMARY KEY,
@@ -84,7 +88,9 @@ export const schemaStatements = [
     sex TEXT NOT NULL DEFAULT 'female',
     dam_id TEXT NOT NULL DEFAULT '',
     status TEXT NOT NULL DEFAULT 'active',
-    notes TEXT NOT NULL DEFAULT ''
+    notes TEXT NOT NULL DEFAULT '',
+    date_of_birth TEXT NOT NULL DEFAULT '',
+    is_birth_date_estimated INTEGER NOT NULL DEFAULT 0
   )`,
 
   `ALTER TABLE livestock ADD COLUMN IF NOT EXISTS category TEXT NOT NULL DEFAULT 'cow'`,
@@ -93,6 +99,8 @@ export const schemaStatements = [
   `ALTER TABLE livestock ADD COLUMN IF NOT EXISTS dam_id TEXT NOT NULL DEFAULT ''`,
   `ALTER TABLE livestock ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'active'`,
   `ALTER TABLE livestock ADD COLUMN IF NOT EXISTS notes TEXT NOT NULL DEFAULT ''`,
+  `ALTER TABLE livestock ADD COLUMN IF NOT EXISTS date_of_birth TEXT NOT NULL DEFAULT ''`,
+  `ALTER TABLE livestock ADD COLUMN IF NOT EXISTS is_birth_date_estimated INTEGER NOT NULL DEFAULT 0`,
 
   `CREATE TABLE IF NOT EXISTS production (
     id TEXT PRIMARY KEY,
@@ -211,6 +219,33 @@ export const schemaStatements = [
     notes       TEXT NOT NULL DEFAULT ''
   )`,
 
+  `CREATE TABLE IF NOT EXISTS vaccines (
+    id TEXT PRIMARY KEY,
+    owner_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    species TEXT NOT NULL,
+    name TEXT NOT NULL,
+    disease TEXT NOT NULL,
+    default_method TEXT NOT NULL,
+    notes TEXT NOT NULL DEFAULT '',
+    is_active INTEGER NOT NULL DEFAULT 1
+  )`,
+
+  `ALTER TABLE vaccines ADD COLUMN IF NOT EXISTS notes TEXT NOT NULL DEFAULT ''`,
+  `ALTER TABLE vaccines ADD COLUMN IF NOT EXISTS is_active INTEGER NOT NULL DEFAULT 1`,
+
+  `CREATE TABLE IF NOT EXISTS feed_types (
+    id TEXT PRIMARY KEY,
+    owner_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    animal_type TEXT NOT NULL,
+    category TEXT NOT NULL,
+    name TEXT NOT NULL,
+    default_unit TEXT NOT NULL DEFAULT 'kg',
+    is_active INTEGER NOT NULL DEFAULT 1
+  )`,
+
+  `ALTER TABLE feed_types ADD COLUMN IF NOT EXISTS default_unit TEXT NOT NULL DEFAULT 'kg'`,
+  `ALTER TABLE feed_types ADD COLUMN IF NOT EXISTS is_active INTEGER NOT NULL DEFAULT 1`,
+
   `CREATE INDEX IF NOT EXISTS idx_poultry_owner_date ON poultry_batches(owner_id, date_added)`,
   `CREATE INDEX IF NOT EXISTS idx_livestock_owner_date ON livestock(owner_id, date_added)`,
   `CREATE INDEX IF NOT EXISTS idx_production_owner_date ON production(owner_id, date)`,
@@ -219,6 +254,8 @@ export const schemaStatements = [
   `CREATE INDEX IF NOT EXISTS idx_income_owner_date ON income(owner_id, date)`,
   `CREATE INDEX IF NOT EXISTS idx_vaccinations_owner_date ON vaccinations(owner_id, date_due)`,
   `CREATE INDEX IF NOT EXISTS idx_vac_schedules_owner_date ON vaccination_schedules(owner_id, species, category)`,
+  `CREATE INDEX IF NOT EXISTS idx_vaccines_owner_date ON vaccines(owner_id, species, is_active)`,
+  `CREATE INDEX IF NOT EXISTS idx_feed_types_owner_date ON feed_types(owner_id, animal_type, is_active)`,
   `CREATE INDEX IF NOT EXISTS idx_pop_events_owner ON population_events(owner_id, date)`,
   `CREATE INDEX IF NOT EXISTS idx_pop_events_target ON population_events(owner_id, target_id)`,
 ];
@@ -261,6 +298,21 @@ export async function initializePostgresSchema(): Promise<void> {
     for (const statement of schemaStatements) {
       await client.query(statement);
     }
+
+    // Backfill estimated hatch_date and date_of_birth
+    await client.query(`
+      UPDATE poultry_batches
+      SET hatch_date = to_char((to_date(CASE WHEN date_added ~ '^\\d{4}-\\d{2}-\\d{2}' THEN substring(date_added from 1 for 10) ELSE to_char(CURRENT_DATE, 'YYYY-MM-DD') END, 'YYYY-MM-DD') - (age_weeks * 7 || ' days')::interval), 'YYYY-MM-DD'),
+          is_hatch_date_estimated = 1
+      WHERE hatch_date IS NULL OR hatch_date = ''
+    `);
+
+    await client.query(`
+      UPDATE livestock
+      SET date_of_birth = to_char((to_date(CASE WHEN date_added ~ '^\\d{4}-\\d{2}-\\d{2}' THEN substring(date_added from 1 for 10) ELSE to_char(CURRENT_DATE, 'YYYY-MM-DD') END, 'YYYY-MM-DD') - (round(age_years * 365.25) || ' days')::interval), 'YYYY-MM-DD'),
+          is_birth_date_estimated = 1
+      WHERE date_of_birth IS NULL OR date_of_birth = ''
+    `);
 
     await client.query("COMMIT");
   } catch (error) {

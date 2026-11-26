@@ -19,12 +19,12 @@ export interface FarmRow {
 export const resourceTables = {
   poultry: {
     table: "poultry_batches",
-    columns: ["breed", "purpose", "initial_count", "current_count", "age_weeks", "date_added", "stage", "source", "purchase_price", "notes"],
+    columns: ["breed", "purpose", "initial_count", "current_count", "age_weeks", "date_added", "stage", "source", "purchase_price", "notes", "hatch_date", "is_hatch_date_estimated"],
     dateColumn: "date_added",
   },
   livestock: {
     table: "livestock",
-    columns: ["name", "type", "breed", "age_years", "date_added", "category", "tag_number", "sex", "dam_id", "status", "notes"],
+    columns: ["name", "type", "breed", "age_years", "date_added", "category", "tag_number", "sex", "dam_id", "status", "notes", "date_of_birth", "is_birth_date_estimated"],
     dateColumn: "date_added",
   },
   production: {
@@ -56,6 +56,16 @@ export const resourceTables = {
     table: "vaccination_schedules",
     columns: ["species", "category", "vaccine_name", "target_disease", "age_days_due", "booster_interval_days", "notes"],
     dateColumn: "age_days_due",
+  },
+  vaccines: {
+    table: "vaccines",
+    columns: ["species", "name", "disease", "default_method", "notes", "is_active"],
+    dateColumn: "name",
+  },
+  feed_types: {
+    table: "feed_types",
+    columns: ["animal_type", "category", "name", "default_unit", "is_active"],
+    dateColumn: "name",
   },
 } as const;
 

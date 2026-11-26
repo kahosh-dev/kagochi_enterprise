@@ -34,17 +34,18 @@ import {
   Segmented,
   StatCard,
 } from "../components/ui";
-import { BarChart, type ChartPoint } from "../components/Chart";
+import { BarChart, LineChart, type ChartPoint } from "../components/Chart";
 import DatePeriodFilter from "../components/DatePeriodFilter";
 import AnimalProductionModal, { type ProductionTarget } from "../components/AnimalProductionModal";
+import { formatAnimalAge } from "../utils/age";
 import {
-  calculatePeriod,
   calculateComparison,
   formatDisplayDate,
   getLocalDateString,
   isRecordInDateRange,
-  type PeriodMode,
+  addDaysToDateStr,
 } from "../utils/datePeriod";
+import { usePeriod } from "../context/PeriodContext";
 
 const VIEW_TABS = [
   { value: "all", label: "Overview & Totals" },
@@ -64,11 +65,18 @@ export default function ProductionView() {
   const [activeTab, setActiveTab] = useState<string>("all");
   const [deleteConfirm, setDeleteConfirm] = useState<{ id: string } | null>(null);
 
-  // Period filter state
-  const [periodMode, setPeriodMode] = useState<PeriodMode>("month");
-  const [periodOffset, setPeriodOffset] = useState<number>(0);
-  const [customFrom, setCustomFrom] = useState<string>("");
-  const [customTo, setCustomTo] = useState<string>("");
+  // Shared period state
+  const {
+    mode: periodMode,
+    offset: periodOffset,
+    customFrom,
+    customTo,
+    periodInfo: period,
+    setMode: setPeriodMode,
+    setOffset: setPeriodOffset,
+    setCustomRange,
+    resetPeriod,
+  } = usePeriod();
 
   // Modal state for individual animal or batch
   const [selectedTarget, setSelectedTarget] = useState<ProductionTarget | null>(null);
@@ -116,11 +124,6 @@ export default function ProductionView() {
   useEffect(() => {
     refreshData();
   }, []);
-
-  // Compute period boundaries
-  const period = useMemo(() => {
-    return calculatePeriod(periodMode, periodOffset, customFrom, customTo);
-  }, [periodMode, periodOffset, customFrom, customTo]);
 
   // Filter records within current period and previous period
   const periodRecords = useMemo(() => {
@@ -469,6 +472,32 @@ export default function ProductionView() {
     }
   }, [periodRecords, period, periodMode]);
 
+  // Last 7 days combined production trend for Today comparison
+  const last7DaysProdPoints = useMemo<ChartPoint[]>(() => {
+    const today = period.to;
+    const points: ChartPoint[] = [];
+    for (let i = 6; i >= 0; i--) {
+      const d = addDaysToDateStr(today, -i);
+      const dayRecs = records.filter((r) => (r.date || "").slice(0, 10) === d);
+      let milk = 0;
+      let eggs = 0;
+      for (const r of dayRecs) {
+        const qty = Number(r.quantity) || 0;
+        if (r.type === "milk" || r.unit === "litres") {
+          milk += qty;
+        } else {
+          eggs += r.unit === "trays" ? qty : qty / DEFAULT_TRAY_SIZE;
+        }
+      }
+      points.push({
+        label: i === 0 ? "Today" : d.slice(5),
+        value: Math.round((milk + eggs) * 10) / 10,
+        tone: "green",
+      });
+    }
+    return points;
+  }, [records, period.to]);
+
   // Open Individual Animal Production Modal
   function openAnimalModal(animal: LivestockAnimal) {
     setSelectedTarget({ type: "cattle", animal });
@@ -685,15 +714,85 @@ export default function ProductionView() {
             </div>
 
             {/* Overall Production Chart */}
-            {overallChartPoints.length > 0 && farmTotals.totalRecordsCount > 0 && (
-              <div style={{ marginTop: "20px" }}>
-                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "10px" }}>
-                  <strong style={{ fontSize: "13.5px" }}>Combined Daily Production Trends</strong>
-                  <span style={{ fontSize: "12px", color: "var(--kf-text-muted)" }}>{period.label}</span>
-                </div>
-                <BarChart data={overallChartPoints} />
+            <div style={{ marginTop: "20px" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "10px" }}>
+                <strong style={{ fontSize: "13.5px" }}>Combined Daily Production Trends</strong>
+                <span style={{ fontSize: "12px", color: "var(--kf-text-muted)" }}>{period.label}</span>
               </div>
-            )}
+              {period.daysCount === 1 ? (
+                farmTotals.totalRecordsCount === 0 ? (
+                  <div>
+                    <EmptyState
+                      title={`No production recorded yet for ${period.label}`}
+                      description="No eggs or milk collected yet for today. Use the buttons below to record today's collection."
+                    />
+                    <div style={{ marginTop: "16px", borderTop: "1px solid var(--kf-border, #e2e8f0)", paddingTop: "14px" }}>
+                      <div style={{ fontSize: "13px", fontWeight: 600, color: "var(--kf-text, #1e293b)", marginBottom: "8px" }}>
+                        Recent 7-Day Production Context (Milk L + Egg Equiv)
+                      </div>
+                      <LineChart
+                        data={last7DaysProdPoints}
+                        height={180}
+                      />
+                    </div>
+                  </div>
+                ) : (
+                  <div>
+                    <div style={{
+                      display: "grid",
+                      gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
+                      gap: "12px",
+                      marginBottom: "16px",
+                    }}>
+                      <div style={{
+                        padding: "12px 14px",
+                        borderRadius: "10px",
+                        background: "var(--kf-surface-alt, #f8fafc)",
+                        border: "1px solid var(--kf-border, #e2e8f0)",
+                      }}>
+                        <div style={{ fontSize: "12px", color: "var(--kf-text-muted)" }}>Cattle Milk (Today)</div>
+                        <div style={{ fontSize: "18px", fontWeight: 700, color: "var(--kf-primary, #15803d)" }}>
+                          {farmTotals.milkLitres.toFixed(1)} Litres
+                        </div>
+                        <div style={{ fontSize: "11px", color: "var(--kf-text-muted)" }}>Fresh milk collected</div>
+                      </div>
+
+                      <div style={{
+                        padding: "12px 14px",
+                        borderRadius: "10px",
+                        background: "var(--kf-surface-alt, #f8fafc)",
+                        border: "1px solid var(--kf-border, #e2e8f0)",
+                      }}>
+                        <div style={{ fontSize: "12px", color: "var(--kf-text-muted)" }}>Poultry Eggs (Today)</div>
+                        <div style={{ fontSize: "18px", fontWeight: 700, color: "var(--kf-primary, #15803d)" }}>
+                          {farmTotals.eggTrays.toFixed(1)} Trays
+                        </div>
+                        <div style={{ fontSize: "11px", color: "var(--kf-text-muted)" }}>
+                          {farmTotals.eggTotalPieces.toLocaleString()} pieces
+                        </div>
+                      </div>
+                    </div>
+
+                    <div style={{ borderTop: "1px solid var(--kf-border, #e2e8f0)", paddingTop: "14px" }}>
+                      <div style={{ fontSize: "13px", fontWeight: 600, color: "var(--kf-text, #1e293b)", marginBottom: "8px" }}>
+                        Recent 7-Day Production Context (Milk L + Egg Equiv)
+                      </div>
+                      <LineChart
+                        data={last7DaysProdPoints}
+                        height={180}
+                      />
+                    </div>
+                  </div>
+                )
+              ) : overallChartPoints.length > 0 && farmTotals.totalRecordsCount > 0 ? (
+                <BarChart data={overallChartPoints} />
+              ) : (
+                <EmptyState
+                  title={`No production recorded for ${period.label}`}
+                  description="No milk or egg yields logged during this time period."
+                />
+              )}
+            </div>
           </Panel>
         )}
 
@@ -745,7 +844,7 @@ export default function ProductionView() {
                         <td>
                           <strong>{s.batch.breed}</strong>
                           <div style={{ fontSize: "11.5px", color: "var(--kf-text-muted)" }}>
-                            Age: {s.batch.ageWeeks} wks
+                            Age: {formatAnimalAge(s.batch.hatchDate, "poultry", { legacyAgeWeeks: s.batch.ageWeeks, isEstimated: s.batch.isHatchDateEstimated }).formatted}
                           </div>
                         </td>
                         <td>
@@ -863,7 +962,7 @@ export default function ProductionView() {
                         <td>
                           <strong>{c.animal.name}</strong>
                           <div style={{ fontSize: "11.5px", color: "var(--kf-text-muted)" }}>
-                            {c.animal.ageYears} yrs • {c.animal.sex === "male" ? "Male" : "Female"}
+                            {formatAnimalAge(c.animal.dateOfBirth, "cattle", { legacyAgeYears: c.animal.ageYears, isEstimated: c.animal.isBirthDateEstimated }).formatted} • {c.animal.sex === "male" ? "Male" : "Female"}
                           </div>
                         </td>
                         <td>

@@ -21,6 +21,8 @@ describe("PostgreSQL Architecture & Schema Verification", () => {
       "vaccinations",
       "vaccination_schedules",
       "population_events",
+      "vaccines",
+      "feed_types",
     ];
 
     for (const table of expectedTables) {

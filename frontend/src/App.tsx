@@ -38,6 +38,7 @@ import {
   loadSurvivorSummary,
   loadVaccinations,
 } from "./services/storage";
+import { PeriodProvider } from "./context/PeriodContext";
 
 import {
   getCurrentUser,
@@ -606,64 +607,66 @@ function App() {
      ===================================================== */
 
   return (
-    <div className="kf-app">
-      <Header
-        farmName="Kagochi Farm Enterprise"
-        userName={user.name}
-        activeView={activeView}
-        onMenuToggle={() => setSideNavOpen(true)}
-      />
+    <PeriodProvider activeView={activeView}>
+      <div className="kf-app">
+        <Header
+          farmName="Kagochi Farm Enterprise"
+          userName={user.name}
+          activeView={activeView}
+          onMenuToggle={() => setSideNavOpen(true)}
+        />
 
-      <SideNav
-        isOpen={sideNavOpen}
-        onClose={() => setSideNavOpen(false)}
-        activeView={activeView}
-        onNavigate={setActiveView}
-        userName={user.name}
-        userEmail={user.email}
-        onLogout={handleLogout}
-      />
+        <SideNav
+          isOpen={sideNavOpen}
+          onClose={() => setSideNavOpen(false)}
+          activeView={activeView}
+          onNavigate={setActiveView}
+          userName={user.name}
+          userEmail={user.email}
+          onLogout={handleLogout}
+        />
 
-      <div className="kf-content">
-        {loadingFarmData && (
-          <div style={{ padding: "10px 20px 0" }}>
-            <div className="kf-alert kf-alert--info" role="status">
-              <span>Updating farm overview…</span>
+        <div className="kf-content">
+          {loadingFarmData && (
+            <div style={{ padding: "10px 20px 0" }}>
+              <div className="kf-alert kf-alert--info" role="status">
+                <span>Updating farm overview…</span>
+              </div>
             </div>
-          </div>
-        )}
+          )}
 
-        {activeView === "home" && (
-          <HomeView
-            poultryCount={poultryCount}
-            livestockCount={livestockCount}
-            productionCount={productionCount}
-            expenseTotal={expenseTotal}
-            totalPoultryBirds={totalPoultryBirds}
-            totalLivestockActive={totalLivestockActive}
-            onNavigate={setActiveView}
-          />
-        )}
-        {activeView === "poultry" && <PoultryView />}
-        {activeView === "livestock" && <LivestockView />}
-        {activeView === "production" && <ProductionView />}
-        {activeView === "feeding" && <FeedingView />}
-        {activeView === "expenses" && <ExpensesView />}
-        {activeView === "performance" && <PerformanceView />}
-        {activeView === "advisor" && <AdvisorView />}
-        {activeView === "vaccinations" && <VaccinationsView />}
-        {activeView === "survivors" && <SurvivorView />}
-        {activeView === "mortality" && <MortalityView />}
-        {activeView === "admin" && <AdminView />}
+          {activeView === "home" && (
+            <HomeView
+              poultryCount={poultryCount}
+              livestockCount={livestockCount}
+              productionCount={productionCount}
+              expenseTotal={expenseTotal}
+              totalPoultryBirds={totalPoultryBirds}
+              totalLivestockActive={totalLivestockActive}
+              onNavigate={setActiveView}
+            />
+          )}
+          {activeView === "poultry" && <PoultryView />}
+          {activeView === "livestock" && <LivestockView />}
+          {activeView === "production" && <ProductionView />}
+          {activeView === "feeding" && <FeedingView />}
+          {activeView === "expenses" && <ExpensesView />}
+          {activeView === "performance" && <PerformanceView />}
+          {activeView === "advisor" && <AdvisorView />}
+          {activeView === "vaccinations" && <VaccinationsView />}
+          {activeView === "survivors" && <SurvivorView />}
+          {activeView === "mortality" && <MortalityView />}
+          {activeView === "admin" && <AdminView />}
+        </div>
+
+        <BottomNav
+          activeView={activeView}
+          setActiveView={setActiveView}
+          onMore={() => setSideNavOpen(true)}
+          overdueVacCount={overdueVacCount}
+        />
       </div>
-
-      <BottomNav
-        activeView={activeView}
-        setActiveView={setActiveView}
-        onMore={() => setSideNavOpen(true)}
-        overdueVacCount={overdueVacCount}
-      />
-    </div>
+    </PeriodProvider>
   );
 }
 

@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import { loadFarmSummary } from "../services/storage";
 import type { FarmSummaryData } from "../types/farm";
 import {
-  CalendarDays,
   Download,
   ChartNoAxesCombined,
 } from "lucide-react";
@@ -13,45 +12,34 @@ import {
   Button,
   EmptyState,
   ErrorBanner,
-  Segmented,
   CssBar,
 } from "../components/ui";
+import DatePeriodFilter from "../components/DatePeriodFilter";
+import { usePeriod } from "../context/PeriodContext";
 import { formatCurrency, formatNumber, percent } from "../utils/format";
 
-type ReportPeriodKey = "daily" | "weekly" | "monthly" | "quarterly" | "annual" | "custom";
-
 export default function PerformanceView() {
-  const [periodKey, setPeriodKey] = useState<ReportPeriodKey>("monthly");
-  const [customFrom, setCustomFrom] = useState("");
-  const [customTo, setCustomTo] = useState("");
+  const {
+    mode: periodMode,
+    offset: periodOffset,
+    customFrom,
+    customTo,
+    periodInfo,
+    setMode: setPeriodMode,
+    setOffset: setPeriodOffset,
+    setCustomRange,
+    resetPeriod,
+  } = usePeriod();
+
   const [summary, setSummary] = useState<FarmSummaryData | null>(null);
   const [_loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState("");
-
-  const todayStr = new Date().toISOString().slice(0, 10);
-
-  function getQueryParams(key: ReportPeriodKey) {
-    if (key === "daily") return { days: 1, to: todayStr, from: todayStr };
-    if (key === "weekly") return { days: 7, to: todayStr };
-    if (key === "monthly") {
-      const startOfMonth = `${todayStr.slice(0, 7)}-01`;
-      return { to: todayStr, from: startOfMonth };
-    }
-    if (key === "quarterly") return { days: 90, to: todayStr };
-    if (key === "annual") {
-      const startOfYear = `${todayStr.slice(0, 4)}-01-01`;
-      return { to: todayStr, from: startOfYear };
-    }
-    if (key === "custom" && customFrom && customTo) return { from: customFrom, to: customTo };
-    return { days: 30, to: todayStr };
-  }
 
   async function fetchReport() {
     try {
       setLoading(true);
       setErrorMsg("");
-      const params = getQueryParams(periodKey);
-      const data = await loadFarmSummary(params);
+      const data = await loadFarmSummary({ from: periodInfo.from, to: periodInfo.to });
       setSummary(data);
     } catch (err) {
       setErrorMsg(err instanceof Error ? err.message : "Failed to calculate farm performance.");
@@ -62,7 +50,7 @@ export default function PerformanceView() {
 
   useEffect(() => {
     fetchReport();
-  }, [periodKey, customFrom, customTo]);
+  }, [periodInfo.from, periodInfo.to]);
 
   const totalIncome = summary?.financial.totalIncome ?? 0;
   const totalExpenses = summary?.financial.totalExpenses ?? 0;
@@ -135,42 +123,19 @@ export default function PerformanceView() {
         }
       />
 
-      {/* Period selector */}
-      <Segmented
-        label="Report period"
-        options={[
-          { value: "daily", label: "Daily" },
-          { value: "weekly", label: "Weekly" },
-          { value: "monthly", label: "Monthly" },
-          { value: "quarterly", label: "Quarterly" },
-          { value: "annual", label: "Annual" },
-          { value: "custom", label: "Custom" },
-        ]}
-        value={periodKey}
-        onChange={(v) => setPeriodKey(v as ReportPeriodKey)}
+      {/* Shared Period Filter */}
+      <DatePeriodFilter
+        mode={periodMode}
+        offset={periodOffset}
+        customFrom={customFrom}
+        customTo={customTo}
+        periodInfo={periodInfo}
+        onModeChange={setPeriodMode}
+        onOffsetChange={setPeriodOffset}
+        onCustomRangeChange={setCustomRange}
+        onReset={resetPeriod}
+        title="Performance Reporting Period"
       />
-
-      {periodKey === "custom" && (
-        <div className="kf-filter-row">
-          <label className="kf-label" htmlFor="perf-from">
-            <CalendarDays size={14} /> From
-          </label>
-          <input
-            id="perf-from"
-            type="date"
-            className="kf-input"
-            value={customFrom}
-            onChange={(e) => setCustomFrom(e.target.value)}
-          />
-          <span style={{ padding: "0 0.5rem" }}>to</span>
-          <input
-            type="date"
-            className="kf-input"
-            value={customTo}
-            onChange={(e) => setCustomTo(e.target.value)}
-          />
-        </div>
-      )}
 
       {errorMsg && <ErrorBanner message={errorMsg} onRetry={fetchReport} />}
 

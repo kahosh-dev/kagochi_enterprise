@@ -33,17 +33,17 @@ import {
   CssBar,
   Badge,
 } from "../components/ui";
-import { BarChart, type ChartPoint } from "../components/Chart";
+import { BarChart, LineChart, type ChartPoint } from "../components/Chart";
 import DatePeriodFilter from "../components/DatePeriodFilter";
 import {
-  calculatePeriod,
   calculateComparison,
   formatDisplayDate,
   getLocalDateString,
   isRecordInDateRange,
-  type PeriodMode,
+  addDaysToDateStr,
 } from "../utils/datePeriod";
 import { formatCurrency } from "../utils/format";
+import { usePeriod } from "../context/PeriodContext";
 
 type ViewSection = "summary" | "income" | "expense";
 
@@ -83,11 +83,18 @@ export default function ExpensesView() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; desc: string; type: "income" | "expense" } | null>(null);
 
-  // Period filter state
-  const [periodMode, setPeriodMode] = useState<PeriodMode>("month");
-  const [periodOffset, setPeriodOffset] = useState<number>(0);
-  const [customFrom, setCustomFrom] = useState<string>("");
-  const [customTo, setCustomTo] = useState<string>("");
+  // Shared period state
+  const {
+    mode: periodMode,
+    offset: periodOffset,
+    customFrom,
+    customTo,
+    periodInfo,
+    setMode: setPeriodMode,
+    setOffset: setPeriodOffset,
+    setCustomRange,
+    resetPeriod,
+  } = usePeriod();
 
   // Form fields
   const todayStr = getLocalDateString();
@@ -117,11 +124,6 @@ export default function ExpensesView() {
   useEffect(() => {
     refreshData();
   }, []);
-
-  // Compute active period
-  const periodInfo = useMemo(() => {
-    return calculatePeriod(periodMode, periodOffset, customFrom, customTo);
-  }, [periodMode, periodOffset, customFrom, customTo]);
 
   // Filter records within current period
   const currentPeriodIncomes = useMemo(() => {
@@ -260,6 +262,24 @@ export default function ExpensesView() {
         };
       });
   }, [currentPeriodIncomes, currentPeriodExpenses, periodMode, periodInfo.from]);
+
+  // Last 7 days net comparison for Today context
+  const last7DaysNetPoints = useMemo<ChartPoint[]>(() => {
+    const today = periodInfo.to;
+    const points: ChartPoint[] = [];
+    for (let i = 6; i >= 0; i--) {
+      const d = addDaysToDateStr(today, -i);
+      const inc = incomes.filter((item) => (item.date || "").slice(0, 10) === d).reduce((s, item) => s + Number(item.amount || 0), 0);
+      const exp = expenses.filter((item) => (item.date || "").slice(0, 10) === d).reduce((s, item) => s + Number(item.amount || 0), 0);
+      const net = inc - exp;
+      points.push({
+        label: i === 0 ? "Today" : d.slice(5),
+        value: net,
+        tone: net >= 0 ? "green" : "red",
+      });
+    }
+    return points;
+  }, [incomes, expenses, periodInfo.to]);
 
   function resetForm() {
     setEditingId(null);
@@ -489,21 +509,110 @@ export default function ExpensesView() {
         {/* Section 1: Financial Summary & Trend Chart */}
         {activeSection === "summary" && (
           <>
-            {chartData.length > 0 && (
-              <Panel
-                title={`Net Income Trend (${periodInfo.label})`}
-                subtitle="Daily or monthly net farm income (Money In minus Money Out) in KES."
-              >
-                <div style={{ padding: "8px 0" }}>
+            <Panel
+              title={`Net Income Trend (${periodInfo.label})`}
+              subtitle={`Cash flow performance and category distribution for ${periodInfo.label}.`}
+            >
+              <div style={{ padding: "8px 0" }}>
+                {periodInfo.daysCount === 1 ? (
+                  currentPeriodIncomes.length === 0 && currentPeriodExpenses.length === 0 ? (
+                    <div>
+                      <EmptyState
+                        title={`No transactions recorded yet for ${periodInfo.label}`}
+                        description="No sales or expense items have been logged for today. Use the buttons above to record today's income or expenses."
+                      />
+                      <div style={{ marginTop: "16px", borderTop: "1px solid var(--kf-border, #e2e8f0)", paddingTop: "14px" }}>
+                        <div style={{ fontSize: "13px", fontWeight: 600, color: "var(--kf-text, #1e293b)", marginBottom: "8px" }}>
+                          Recent 7-Day Net Cash Flow Trend (KES)
+                        </div>
+                        <LineChart
+                          data={last7DaysNetPoints}
+                          height={180}
+                          valueSuffix=" KES"
+                        />
+                      </div>
+                    </div>
+                  ) : (
+                    <div>
+                      <div style={{
+                        display: "grid",
+                        gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
+                        gap: "12px",
+                        marginBottom: "16px",
+                      }}>
+                        <div style={{
+                          padding: "12px 14px",
+                          borderRadius: "10px",
+                          background: "var(--kf-surface-alt, #f8fafc)",
+                          border: "1px solid var(--kf-border, #e2e8f0)",
+                        }}>
+                          <div style={{ fontSize: "12px", color: "var(--kf-text-muted)" }}>Total Inflow (Today)</div>
+                          <div style={{ fontSize: "18px", fontWeight: 700, color: "var(--kf-primary, #15803d)" }}>
+                            +{formatCurrency(periodIncome)}
+                          </div>
+                          <div style={{ fontSize: "11px", color: "var(--kf-text-muted)" }}>{currentPeriodIncomes.length} sales</div>
+                        </div>
+
+                        <div style={{
+                          padding: "12px 14px",
+                          borderRadius: "10px",
+                          background: "var(--kf-surface-alt, #f8fafc)",
+                          border: "1px solid var(--kf-border, #e2e8f0)",
+                        }}>
+                          <div style={{ fontSize: "12px", color: "var(--kf-text-muted)" }}>Total Outflow (Today)</div>
+                          <div style={{ fontSize: "18px", fontWeight: 700, color: "#dc2626" }}>
+                            -{formatCurrency(periodExpense)}
+                          </div>
+                          <div style={{ fontSize: "11px", color: "var(--kf-text-muted)" }}>{currentPeriodExpenses.length} expenses</div>
+                        </div>
+
+                        <div style={{
+                          padding: "12px 14px",
+                          borderRadius: "10px",
+                          background: "var(--kf-surface-alt, #f8fafc)",
+                          border: "1px solid var(--kf-border, #e2e8f0)",
+                        }}>
+                          <div style={{ fontSize: "12px", color: "var(--kf-text-muted)" }}>Net Margin (Today)</div>
+                          <div style={{
+                            fontSize: "18px",
+                            fontWeight: 700,
+                            color: periodNet >= 0 ? "var(--kf-primary, #15803d)" : "#dc2626",
+                          }}>
+                            {formatCurrency(periodNet)}
+                          </div>
+                          <div style={{ fontSize: "11px", color: "var(--kf-text-muted)" }}>
+                            {periodNet >= 0 ? "Profitable day" : "Net operating deficit"}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div style={{ marginTop: "14px", borderTop: "1px solid var(--kf-border, #e2e8f0)", paddingTop: "14px" }}>
+                        <div style={{ fontSize: "13px", fontWeight: 600, color: "var(--kf-text, #1e293b)", marginBottom: "8px" }}>
+                          Recent 7-Day Net Cash Flow Trend (KES)
+                        </div>
+                        <LineChart
+                          data={last7DaysNetPoints}
+                          height={180}
+                          valueSuffix=" KES"
+                        />
+                      </div>
+                    </div>
+                  )
+                ) : chartData.length > 0 ? (
                   <BarChart
                     data={chartData}
                     height={210}
                     valueSuffix=" KES"
                     emptyLabel="No financial transactions recorded for this period."
                   />
-                </div>
-              </Panel>
-            )}
+                ) : (
+                  <EmptyState
+                    title={`No transactions recorded for ${periodInfo.label}`}
+                    description="No sales or expense items found for this reporting period."
+                  />
+                )}
+              </div>
+            </Panel>
 
             <div style={{
               display: "grid",

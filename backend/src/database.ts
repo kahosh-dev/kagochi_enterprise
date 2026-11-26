@@ -1,6 +1,9 @@
 import Database from "better-sqlite3";
+import crypto from "node:crypto";
 import { config } from "./config.js";
 import { resourceTables, type ResourceName, type RecordValues, type RecordRow, type UserRow } from "./store.js";
+import { DEFAULT_VACCINES } from "./vaccineDefaults.js";
+import { DEFAULT_FEED_TYPES } from "./feedTypeDefaults.js";
 
 let _db: Database.Database | null = null;
 
@@ -45,6 +48,8 @@ function initSqlite(database: Database.Database): void {
       source TEXT NOT NULL DEFAULT '',
       purchase_price REAL NOT NULL DEFAULT 0,
       notes TEXT NOT NULL DEFAULT '',
+      hatch_date TEXT NOT NULL DEFAULT '',
+      is_hatch_date_estimated INTEGER NOT NULL DEFAULT 0,
       FOREIGN KEY (owner_id) REFERENCES users(id) ON DELETE CASCADE
     );
 
@@ -62,6 +67,8 @@ function initSqlite(database: Database.Database): void {
       dam_id TEXT NOT NULL DEFAULT '',
       status TEXT NOT NULL DEFAULT 'active',
       notes TEXT NOT NULL DEFAULT '',
+      date_of_birth TEXT NOT NULL DEFAULT '',
+      is_birth_date_estimated INTEGER NOT NULL DEFAULT 0,
       FOREIGN KEY (owner_id) REFERENCES users(id) ON DELETE CASCADE
     );
 
@@ -163,6 +170,29 @@ function initSqlite(database: Database.Database): void {
       notes       TEXT NOT NULL DEFAULT '',
       FOREIGN KEY (owner_id) REFERENCES users(id) ON DELETE CASCADE
     );
+
+    CREATE TABLE IF NOT EXISTS vaccines (
+      id TEXT PRIMARY KEY,
+      owner_id TEXT NOT NULL,
+      species TEXT NOT NULL,
+      name TEXT NOT NULL,
+      disease TEXT NOT NULL,
+      default_method TEXT NOT NULL,
+      notes TEXT NOT NULL DEFAULT '',
+      is_active INTEGER NOT NULL DEFAULT 1,
+      FOREIGN KEY (owner_id) REFERENCES users(id) ON DELETE CASCADE
+    );
+
+    CREATE TABLE IF NOT EXISTS feed_types (
+      id TEXT PRIMARY KEY,
+      owner_id TEXT NOT NULL,
+      animal_type TEXT NOT NULL,
+      category TEXT NOT NULL,
+      name TEXT NOT NULL,
+      default_unit TEXT NOT NULL DEFAULT 'kg',
+      is_active INTEGER NOT NULL DEFAULT 1,
+      FOREIGN KEY (owner_id) REFERENCES users(id) ON DELETE CASCADE
+    );
   `);
 
   /*
@@ -196,6 +226,8 @@ function initSqlite(database: Database.Database): void {
   ensureColumn("poultry_batches", "source", "TEXT NOT NULL DEFAULT ''");
   ensureColumn("poultry_batches", "purchase_price", "REAL NOT NULL DEFAULT 0");
   ensureColumn("poultry_batches", "notes", "TEXT NOT NULL DEFAULT ''");
+  ensureColumn("poultry_batches", "hatch_date", "TEXT NOT NULL DEFAULT ''");
+  ensureColumn("poultry_batches", "is_hatch_date_estimated", "INTEGER NOT NULL DEFAULT 0");
 
   // Livestock migrations
   ensureColumn("livestock", "category", "TEXT NOT NULL DEFAULT 'cow'");
@@ -204,6 +236,46 @@ function initSqlite(database: Database.Database): void {
   ensureColumn("livestock", "dam_id", "TEXT NOT NULL DEFAULT ''");
   ensureColumn("livestock", "status", "TEXT NOT NULL DEFAULT 'active'");
   ensureColumn("livestock", "notes", "TEXT NOT NULL DEFAULT ''");
+  ensureColumn("livestock", "date_of_birth", "TEXT NOT NULL DEFAULT ''");
+  ensureColumn("livestock", "is_birth_date_estimated", "INTEGER NOT NULL DEFAULT 0");
+
+  // Backfill estimated hatch_date for existing poultry rows without hatch_date
+  try {
+    const unmigratedPoultry = database.prepare(
+      "SELECT id, age_weeks, date_added FROM poultry_batches WHERE hatch_date IS NULL OR hatch_date = ''"
+    ).all() as { id: string; age_weeks: number; date_added: string }[];
+    const updatePoultryHatch = database.prepare(
+      "UPDATE poultry_batches SET hatch_date = ?, is_hatch_date_estimated = 1 WHERE id = ?"
+    );
+    for (const p of unmigratedPoultry) {
+      const baseDate = (p.date_added && p.date_added.slice(0, 10)) || new Date().toISOString().slice(0, 10);
+      const daysAgo = (p.age_weeks || 0) * 7;
+      const d = new Date(Date.parse(`${baseDate}T00:00:00Z`) - daysAgo * 86_400_000);
+      const estimatedDate = !Number.isNaN(d.getTime()) ? d.toISOString().slice(0, 10) : baseDate;
+      updatePoultryHatch.run(estimatedDate, p.id);
+    }
+  } catch {
+    // ignore if columns not accessible
+  }
+
+  // Backfill estimated date_of_birth for existing livestock rows without date_of_birth
+  try {
+    const unmigratedLivestock = database.prepare(
+      "SELECT id, age_years, date_added FROM livestock WHERE date_of_birth IS NULL OR date_of_birth = ''"
+    ).all() as { id: string; age_years: number; date_added: string }[];
+    const updateLivestockDob = database.prepare(
+      "UPDATE livestock SET date_of_birth = ?, is_birth_date_estimated = 1 WHERE id = ?"
+    );
+    for (const l of unmigratedLivestock) {
+      const baseDate = (l.date_added && l.date_added.slice(0, 10)) || new Date().toISOString().slice(0, 10);
+      const daysAgo = Math.round((l.age_years || 0) * 365.25);
+      const d = new Date(Date.parse(`${baseDate}T00:00:00Z`) - daysAgo * 86_400_000);
+      const estimatedDate = !Number.isNaN(d.getTime()) ? d.toISOString().slice(0, 10) : baseDate;
+      updateLivestockDob.run(estimatedDate, l.id);
+    }
+  } catch {
+    // ignore if columns not accessible
+  }
 
   // Production migrations
   ensureColumn("production", "destination", "TEXT NOT NULL DEFAULT 'produced'");
@@ -226,6 +298,14 @@ function initSqlite(database: Database.Database): void {
   ensureColumn("vaccinations", "administered_by", "TEXT NOT NULL DEFAULT ''");
   ensureColumn("vaccinations", "count_vaccinated", "INTEGER NOT NULL DEFAULT 0");
 
+  // Vaccines reference table migrations
+  ensureColumn("vaccines", "notes", "TEXT NOT NULL DEFAULT ''");
+  ensureColumn("vaccines", "is_active", "INTEGER NOT NULL DEFAULT 1");
+
+  // Feed types reference table migrations
+  ensureColumn("feed_types", "default_unit", "TEXT NOT NULL DEFAULT 'kg'");
+  ensureColumn("feed_types", "is_active", "INTEGER NOT NULL DEFAULT 1");
+
   database.exec(`
     CREATE INDEX IF NOT EXISTS idx_poultry_owner ON poultry_batches(owner_id, date_added);
     CREATE INDEX IF NOT EXISTS idx_livestock_owner ON livestock(owner_id, date_added);
@@ -235,9 +315,62 @@ function initSqlite(database: Database.Database): void {
     CREATE INDEX IF NOT EXISTS idx_income_owner ON income(owner_id, date);
     CREATE INDEX IF NOT EXISTS idx_vaccinations_owner ON vaccinations(owner_id, date_due);
     CREATE INDEX IF NOT EXISTS idx_vac_schedules_owner ON vaccination_schedules(owner_id, species, category);
+    CREATE INDEX IF NOT EXISTS idx_vaccines_owner ON vaccines(owner_id, species, is_active);
+    CREATE INDEX IF NOT EXISTS idx_feed_types_owner ON feed_types(owner_id, animal_type, is_active);
     CREATE INDEX IF NOT EXISTS idx_pop_events_owner ON population_events(owner_id, date);
     CREATE INDEX IF NOT EXISTS idx_pop_events_target ON population_events(owner_id, target_id);
   `);
+
+  // Seed default vaccines & feed types for existing users if they have none
+  try {
+    const existingUsers = database.prepare("SELECT id FROM users").all() as { id: string }[];
+    for (const u of existingUsers) {
+      seedDefaultVaccinesForOwnerDb(database, u.id);
+      seedDefaultFeedTypesForOwnerDb(database, u.id);
+    }
+  } catch {
+    // ignore
+  }
+}
+
+export function seedDefaultFeedTypesForOwnerDb(dbInstance: Database.Database, ownerId: string) {
+  try {
+    const existing = dbInstance.prepare("SELECT COUNT(*) as c FROM feed_types WHERE owner_id = ?").get(ownerId) as { c: number } | undefined;
+    if (!existing || existing.c === 0) {
+      const insert = dbInstance.prepare(
+        "INSERT INTO feed_types (id, owner_id, animal_type, category, name, default_unit, is_active) VALUES (?, ?, ?, ?, ?, ?, 1)"
+      );
+      for (const ft of DEFAULT_FEED_TYPES) {
+        insert.run(crypto.randomUUID(), ownerId, ft.animal_type, ft.category, ft.name, ft.default_unit);
+      }
+    }
+  } catch {
+    // ignore
+  }
+}
+
+export function seedDefaultFeedTypesForOwner(ownerId: string) {
+  seedDefaultFeedTypesForOwnerDb(db, ownerId);
+}
+
+export function seedDefaultVaccinesForOwnerDb(dbInstance: Database.Database, ownerId: string) {
+  try {
+    const existing = dbInstance.prepare("SELECT COUNT(*) as c FROM vaccines WHERE owner_id = ?").get(ownerId) as { c: number } | undefined;
+    if (!existing || existing.c === 0) {
+      const insert = dbInstance.prepare(
+        "INSERT INTO vaccines (id, owner_id, species, name, disease, default_method, notes, is_active) VALUES (?, ?, ?, ?, ?, ?, ?, 1)"
+      );
+      for (const v of DEFAULT_VACCINES) {
+        insert.run(crypto.randomUUID(), ownerId, v.species, v.name, v.disease, v.default_method, v.notes);
+      }
+    }
+  } catch {
+    // ignore
+  }
+}
+
+export function seedDefaultVaccinesForOwner(ownerId: string) {
+  seedDefaultVaccinesForOwnerDb(db, ownerId);
 }
 
 /**
@@ -346,6 +479,12 @@ export function findFarmByOwnerId(ownerId: string) {
 export { resourceTables, type ResourceName, type RecordValues, type RecordRow, type UserRow };
 
 export function listRecords(resource: ResourceName, ownerId: string): RecordRow[] {
+  if (resource === "vaccines") {
+    seedDefaultVaccinesForOwner(ownerId);
+  }
+  if (resource === "feed_types") {
+    seedDefaultFeedTypesForOwner(ownerId);
+  }
   const { table, columns, dateColumn } = resourceTables[resource];
   return db
     .prepare(`SELECT id, ${columns.join(", ")} FROM ${table} WHERE owner_id = ? ORDER BY ${dateColumn} DESC, rowid DESC`)
@@ -361,6 +500,8 @@ function orderedValues(resource: ResourceName, values: RecordValues) {
     if (column === "sex") return "female";
     if (column === "status") return resource === "livestock" ? "active" : "upcoming";
     if (column === "destination") return "produced";
+    if (column === "default_unit") return "kg";
+    if (column === "is_active") return 1;
     if (
       column === "purchase_price" ||
       column === "selling_price" ||
@@ -368,7 +509,9 @@ function orderedValues(resource: ResourceName, values: RecordValues) {
       column === "booster_interval_days" ||
       column === "age_days_due" ||
       column === "quantity" ||
-      column === "count_vaccinated"
+      column === "count_vaccinated" ||
+      column === "is_hatch_date_estimated" ||
+      column === "is_birth_date_estimated"
     ) {
       return 0;
     }

@@ -8,6 +8,8 @@ import type {
   IncomeRecord,
   VaccinationRecord,
   VaccinationSchedule,
+  Vaccine,
+  FeedType,
   ReminderItem,
   AdviceItem,
   FarmSummaryData,
@@ -76,6 +78,8 @@ function mapPoultry(row: any): PoultryBatch {
     source: row.source || "",
     purchasePrice: Number(row.purchase_price || 0),
     notes: row.notes || "",
+    hatchDate: row.hatch_date || "",
+    isHatchDateEstimated: Boolean(row.is_hatch_date_estimated),
   };
 }
 
@@ -100,6 +104,8 @@ export async function addPoultry(
       source: poultry.source || "",
       purchasePrice: poultry.purchasePrice || 0,
       notes: poultry.notes || "",
+      hatchDate: poultry.hatchDate || "",
+      isHatchDateEstimated: Boolean(poultry.isHatchDateEstimated),
     }),
   });
   return {
@@ -125,6 +131,8 @@ export async function updatePoultry(
       source: poultry.source || "",
       purchasePrice: poultry.purchasePrice || 0,
       notes: poultry.notes || "",
+      hatchDate: poultry.hatchDate || "",
+      isHatchDateEstimated: Boolean(poultry.isHatchDateEstimated),
     }),
   });
 }
@@ -152,6 +160,8 @@ function mapLivestock(row: any): LivestockAnimal {
     damId: row.dam_id || "",
     status: row.status || "active",
     notes: row.notes || "",
+    dateOfBirth: row.date_of_birth || "",
+    isBirthDateEstimated: Boolean(row.is_birth_date_estimated),
   };
 }
 
@@ -177,6 +187,8 @@ export async function addLivestock(
       damId: livestock.damId || "",
       status: livestock.status || "active",
       notes: livestock.notes || "",
+      dateOfBirth: livestock.dateOfBirth || "",
+      isBirthDateEstimated: Boolean(livestock.isBirthDateEstimated),
     }),
   });
   return {
@@ -203,6 +215,8 @@ export async function updateLivestock(
       damId: livestock.damId || "",
       status: livestock.status || "active",
       notes: livestock.notes || "",
+      dateOfBirth: livestock.dateOfBirth || "",
+      isBirthDateEstimated: Boolean(livestock.isBirthDateEstimated),
     }),
   });
 }
@@ -586,6 +600,129 @@ export async function addVaccinationSchedule(
 
 export async function deleteVaccinationSchedule(id: string): Promise<void> {
   await apiRequest(`/api/farm/vaccination_schedules/${encodeURIComponent(id)}`, {
+    method: "DELETE",
+  });
+}
+
+/* =====================================================
+   VACCINES (REFERENCE TABLE)
+   ===================================================== */
+function mapVaccine(row: any): Vaccine {
+  return {
+    id: String(row.id),
+    species: row.species === "cattle" ? "cattle" : "poultry",
+    name: row.name,
+    disease: row.disease,
+    defaultMethod: row.default_method || "",
+    notes: row.notes || "",
+    isActive: row.is_active === 1 || row.is_active === true || row.is_active === undefined,
+  };
+}
+
+export async function loadVaccines(): Promise<Vaccine[]> {
+  const data = await apiRequest<{ vaccines: any[] }>("/api/farm/vaccines");
+  return (data.vaccines || []).map(mapVaccine);
+}
+
+export async function addVaccine(
+  vac: Omit<Vaccine, "id">
+): Promise<Vaccine> {
+  const data = await apiRequest<{ message: string; id: string }>("/api/farm/vaccines", {
+    method: "POST",
+    body: JSON.stringify({
+      species: vac.species,
+      name: vac.name,
+      disease: vac.disease,
+      defaultMethod: vac.defaultMethod,
+      notes: vac.notes || "",
+      isActive: vac.isActive ? 1 : 0,
+    }),
+  });
+  return {
+    ...vac,
+    id: data.id,
+  };
+}
+
+export async function updateVaccine(
+  id: string,
+  vac: Partial<Vaccine>
+): Promise<void> {
+  await apiRequest(`/api/farm/vaccines/${encodeURIComponent(id)}`, {
+    method: "PUT",
+    body: JSON.stringify({
+      species: vac.species,
+      name: vac.name,
+      disease: vac.disease,
+      defaultMethod: vac.defaultMethod,
+      notes: vac.notes || "",
+      isActive: vac.isActive !== false ? 1 : 0,
+    }),
+  });
+}
+
+export async function deleteVaccine(id: string): Promise<void> {
+  await apiRequest(`/api/farm/vaccines/${encodeURIComponent(id)}`, {
+    method: "DELETE",
+  });
+}
+
+/* =====================================================
+   FEED TYPES (REFERENCE TABLE)
+   ===================================================== */
+function mapFeedType(row: any): FeedType {
+  return {
+    id: String(row.id),
+    animalType: row.animal_type === "cattle" ? "cattle" : "poultry",
+    category: row.category || "General",
+    name: row.name,
+    defaultUnit: row.default_unit || "kg",
+    isActive: row.is_active === 1 || row.is_active === true || row.is_active === undefined,
+  };
+}
+
+export async function loadFeedTypes(): Promise<FeedType[]> {
+  const data = await apiRequest<{ feed_types: any[] }>("/api/farm/feed_types");
+  return (data.feed_types || []).map(mapFeedType);
+}
+
+export async function addFeedType(
+  ft: Omit<FeedType, "id">
+): Promise<FeedType> {
+  const data = await apiRequest<{ message: string; id: string }>("/api/farm/feed_types", {
+    method: "POST",
+    body: JSON.stringify({
+      animalType: ft.animalType,
+      category: ft.category,
+      name: ft.name,
+      defaultUnit: ft.defaultUnit,
+      isActive: ft.isActive ? 1 : 0,
+    }),
+  });
+  return {
+    ...ft,
+    id: data.id,
+  };
+}
+
+export async function updateFeedType(
+  id: string,
+  ft: Partial<FeedType>
+): Promise<void> {
+  await apiRequest(`/api/farm/feed_types/${encodeURIComponent(id)}`, {
+    method: "PUT",
+    body: JSON.stringify({
+      animalType: ft.animalType,
+      category: ft.category,
+      name: ft.name,
+      defaultUnit: ft.defaultUnit,
+      isActive: ft.isActive !== false ? 1 : 0,
+    }),
+  });
+}
+
+export async function deleteFeedType(id: string): Promise<void> {
+  await apiRequest(`/api/farm/feed_types/${encodeURIComponent(id)}`, {
     method: "DELETE",
   });
 }

@@ -1,5 +1,11 @@
 import { z } from "zod";
 import type { RecordValues, ResourceName } from "./store.js";
+import {
+  estimateBirthDateFromAge,
+  getWeeksBetween,
+  getCalendarMonthsBetween,
+  getNairobiToday,
+} from "./age.js";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -37,7 +43,7 @@ const text = (max: number) =>
   z.string().trim().min(1, "This field is required.").max(max, `Use at most ${max} characters.`);
 
 export const PRODUCTION_UNITS = { eggs: ["pieces", "trays"], milk: ["litres"] } as const;
-export const FEED_UNITS = ["kg", "g", "litres", "bags"] as const;
+export const FEED_UNITS = ["kg", "g", "litres", "bags", "bales", "wheelbarrows"] as const;
 
 export const poultrySchema = z
   .object({
@@ -45,12 +51,14 @@ export const poultrySchema = z
     purpose: text(100),
     initialCount: z.number().int().min(1, "Initial count must be at least 1.").max(1_000_000),
     currentCount: z.number().int().min(0, "Current count cannot be negative.").max(1_000_000),
-    ageWeeks: z.number().int().min(0).max(520),
+    ageWeeks: z.number().int().min(0).max(520).optional(),
     dateAdded: isoDate,
     stage: z.string().trim().max(50).default("adult"),
     source: z.string().trim().max(100).default(""),
     purchasePrice: z.number().min(0).max(10_000_000).default(0),
     notes: z.string().trim().max(500).default(""),
+    hatchDate: z.string().trim().max(50).optional().default(""),
+    isHatchDateEstimated: z.union([z.boolean(), z.number()]).optional().default(false),
   })
   .refine((data) => data.currentCount <= data.initialCount, {
     message: "Current count cannot be greater than the initial count.",
@@ -61,7 +69,7 @@ export const livestockSchema = z.object({
   name: text(100),
   type: text(50),
   breed: text(100),
-  ageYears: z.number().min(0).max(40),
+  ageYears: z.number().min(0).max(40).optional(),
   dateAdded: isoDate,
   category: z.enum(["calf", "heifer", "cow", "bull"]).default("cow"),
   tagNumber: z.string().trim().max(50).default(""),
@@ -69,6 +77,8 @@ export const livestockSchema = z.object({
   damId: z.string().trim().max(100).default(""),
   status: z.enum(["active", "sold", "transferred", "deceased"]).default("active"),
   notes: z.string().trim().max(500).default(""),
+  dateOfBirth: z.string().trim().max(50).optional().default(""),
+  isBirthDateEstimated: z.union([z.boolean(), z.number()]).optional().default(false),
 });
 
 export const productionSchema = z
@@ -143,6 +153,23 @@ export const vaccinationScheduleSchema = z.object({
   notes: z.string().trim().max(500).default(""),
 });
 
+export const vaccineSchema = z.object({
+  species: z.enum(["poultry", "cattle"]),
+  name: text(150),
+  disease: text(150),
+  defaultMethod: z.string().trim().max(150).default(""),
+  notes: z.string().trim().max(500).default(""),
+  isActive: z.union([z.boolean(), z.number()]).optional().default(1),
+});
+
+export const feedTypeSchema = z.object({
+  animalType: z.enum(["poultry", "cattle", "Poultry", "Cattle"]),
+  category: text(100),
+  name: text(150),
+  defaultUnit: z.enum(FEED_UNITS).default("kg"),
+  isActive: z.union([z.boolean(), z.number()]).optional().default(1),
+});
+
 /* ---- Population events (new from main) ---- */
 export const populationEventSchema = z.object({
   species:    z.enum(["poultry", "cattle"]),
@@ -178,35 +205,63 @@ export const resourceDefinitions: Record<ResourceName, ResourceDefinition> = {
   poultry: {
     label: "Poultry batch",
     schema: poultrySchema,
-    toColumns: (d: z.infer<typeof poultrySchema>) => ({
-      breed: d.breed,
-      purpose: d.purpose,
-      initial_count: d.initialCount,
-      current_count: d.currentCount,
-      age_weeks: d.ageWeeks,
-      date_added: d.dateAdded,
-      stage: d.stage ?? "adult",
-      source: d.source ?? "",
-      purchase_price: d.purchasePrice ?? 0,
-      notes: d.notes ?? "",
-    }),
+    toColumns: (d: z.infer<typeof poultrySchema>) => {
+      let hatchDate = d.hatchDate ? d.hatchDate.slice(0, 10) : "";
+      let isEstimated = Boolean(d.isHatchDateEstimated) ? 1 : 0;
+      if (!hatchDate && d.ageWeeks !== undefined) {
+        hatchDate = estimateBirthDateFromAge(d.ageWeeks, "weeks", d.dateAdded);
+        isEstimated = 1;
+      }
+      const calcAgeWeeks = hatchDate
+        ? getWeeksBetween(hatchDate, getNairobiToday())
+        : (d.ageWeeks ?? 0);
+
+      return {
+        breed: d.breed,
+        purpose: d.purpose,
+        initial_count: d.initialCount,
+        current_count: d.currentCount,
+        age_weeks: calcAgeWeeks,
+        date_added: d.dateAdded,
+        stage: d.stage ?? "adult",
+        source: d.source ?? "",
+        purchase_price: d.purchasePrice ?? 0,
+        notes: d.notes ?? "",
+        hatch_date: hatchDate,
+        is_hatch_date_estimated: isEstimated,
+      };
+    },
   },
   livestock: {
     label: "Livestock record",
     schema: livestockSchema,
-    toColumns: (d: z.infer<typeof livestockSchema>) => ({
-      name: d.name,
-      type: d.type,
-      breed: d.breed,
-      age_years: d.ageYears,
-      date_added: d.dateAdded,
-      category: d.category ?? "cow",
-      tag_number: d.tagNumber ?? "",
-      sex: d.sex ?? "female",
-      dam_id: d.damId ?? "",
-      status: d.status ?? "active",
-      notes: d.notes ?? "",
-    }),
+    toColumns: (d: z.infer<typeof livestockSchema>) => {
+      let dateOfBirth = d.dateOfBirth ? d.dateOfBirth.slice(0, 10) : "";
+      let isEstimated = Boolean(d.isBirthDateEstimated) ? 1 : 0;
+      if (!dateOfBirth && d.ageYears !== undefined) {
+        dateOfBirth = estimateBirthDateFromAge(d.ageYears, "years", d.dateAdded);
+        isEstimated = 1;
+      }
+      const calcAgeYears = dateOfBirth
+        ? Math.round((getCalendarMonthsBetween(dateOfBirth, getNairobiToday()) / 12) * 10) / 10
+        : (d.ageYears ?? 0);
+
+      return {
+        name: d.name,
+        type: d.type,
+        breed: d.breed,
+        age_years: calcAgeYears,
+        date_added: d.dateAdded,
+        category: d.category ?? "cow",
+        tag_number: d.tagNumber ?? "",
+        sex: d.sex ?? "female",
+        dam_id: d.damId ?? "",
+        status: d.status ?? "active",
+        notes: d.notes ?? "",
+        date_of_birth: dateOfBirth,
+        is_birth_date_estimated: isEstimated,
+      };
+    },
   },
   production: {
     label: "Production record",
@@ -291,6 +346,29 @@ export const resourceDefinitions: Record<ResourceName, ResourceDefinition> = {
       age_days_due: d.ageDaysDue,
       booster_interval_days: d.boosterIntervalDays ?? 0,
       notes: d.notes ?? "",
+    }),
+  },
+  vaccines: {
+    label: "Vaccine",
+    schema: vaccineSchema,
+    toColumns: (d: z.infer<typeof vaccineSchema>) => ({
+      species: d.species,
+      name: d.name,
+      disease: d.disease,
+      default_method: d.defaultMethod ?? "",
+      notes: d.notes ?? "",
+      is_active: d.isActive === false || d.isActive === 0 ? 0 : 1,
+    }),
+  },
+  feed_types: {
+    label: "Feed type",
+    schema: feedTypeSchema,
+    toColumns: (d: z.infer<typeof feedTypeSchema>) => ({
+      animal_type: d.animalType.toLowerCase(),
+      category: d.category,
+      name: d.name,
+      default_unit: d.defaultUnit ?? "kg",
+      is_active: d.isActive === false || d.isActive === 0 ? 0 : 1,
     }),
   },
 };

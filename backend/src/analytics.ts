@@ -1,3 +1,13 @@
+import {
+  formatAnimalAge,
+  getPoultryLifeStage,
+  getCattleLifeStage,
+  getNairobiToday,
+  getWeeksBetween,
+  getCalendarMonthsBetween,
+} from "./age.js";
+import { LIFE_STAGE_CONFIG } from "./lifeStages.js";
+
 /*
  * Farm analytics and rule-based decision support.
  *
@@ -141,17 +151,32 @@ export function summarizePopulation(records: FarmRecords, thresholds: Thresholds
     const initial = positiveNumber(row.initial_count) ?? 0;
     const current = positiveNumber(row.current_count) ?? 0;
     const losses = Math.max(initial - current, 0);
-    const ageWeeks = positiveNumber(row.age_weeks);
-    const stage = label(row.stage || (ageWeeks !== null && ageWeeks <= 4 ? "chicks" : "adult")).toLowerCase();
+    const hatchDate = row.hatch_date ? String(row.hatch_date).slice(0, 10) : "";
+    const isEstimated = Boolean(row.is_hatch_date_estimated);
+
+    // Calculate age dynamically from hatch_date (or fallback to age_weeks)
+    const ageInfo = formatAnimalAge(hatchDate || null, "poultry", {
+      isEstimated,
+      legacyAgeWeeks: positiveNumber(row.age_weeks) ?? 0,
+    });
+
+    const lifeStage = getPoultryLifeStage(hatchDate || ageInfo.weeks, label(row.purpose));
+    const stage = label(row.stage || lifeStage.id).toLowerCase();
 
     return {
+      id: row.id,
       breed: label(row.breed),
       purpose: label(row.purpose),
       stage,
+      suggestedStage: lifeStage.name,
+      readyForSale: lifeStage.readyForSale ?? false,
       source: label(row.source || ""),
       purchasePrice: positiveNumber(row.purchase_price) ?? 0,
       notes: label(row.notes || ""),
-      ageWeeks,
+      ageWeeks: ageInfo.weeks,
+      ageFormatted: ageInfo.formatted,
+      isAgeEstimated: isEstimated,
+      hatchDate,
       initialCount: initial,
       currentCount: current,
       losses,
@@ -163,7 +188,7 @@ export function summarizePopulation(records: FarmRecords, thresholds: Thresholds
   const initialBirds = batches.reduce((s, b) => s + b.initialCount, 0);
   const currentBirds = batches.reduce((s, b) => s + b.currentCount, 0);
   const layerBirds = batches.filter((b) => /layer/i.test(b.purpose) || b.stage === "layers").reduce((s, b) => s + b.currentCount, 0);
-  const chickBirds = batches.filter((b) => b.stage === "chicks" || (b.ageWeeks !== null && b.ageWeeks <= 4)).reduce((s, b) => s + b.currentCount, 0);
+  const chickBirds = batches.filter((b) => b.stage === "chicks" || (!b.stage && b.ageWeeks < LIFE_STAGE_CONFIG.poultry.chickMaxWeeks)).reduce((s, b) => s + b.currentCount, 0);
   const broilerBirds = batches.filter((b) => /broiler/i.test(b.purpose) || b.stage === "broilers").reduce((s, b) => s + b.currentCount, 0);
 
   const livestockByType = new Map<string, { type: string; count: number }>();
@@ -171,6 +196,8 @@ export function summarizePopulation(records: FarmRecords, thresholds: Thresholds
   let heifersCount = 0;
   let cowsCount = 0;
   let bullsCount = 0;
+  let calvesOldEnoughCount = 0;
+  let heifersOldEnoughCount = 0;
 
   for (const row of records.livestock) {
     const k = key(row.type);
@@ -179,18 +206,46 @@ export function summarizePopulation(records: FarmRecords, thresholds: Thresholds
     livestockByType.set(k, entry);
 
     const cat = key(row.category);
-    const ageYears = positiveNumber(row.age_years) ?? 0;
     const sex = key(row.sex);
+    const dob = row.date_of_birth ? String(row.date_of_birth).slice(0, 10) : "";
+    const isEstimated = Boolean(row.is_birth_date_estimated);
 
-    if (cat === "calf" || ageYears < 1) {
+    const ageInfo = formatAnimalAge(dob || null, "cattle", {
+      isEstimated,
+      legacyAgeYears: positiveNumber(row.age_years) ?? 0,
+    });
+
+    const isMale = sex === "male";
+    const months = ageInfo.months;
+
+    // Cattle categories: calf (0-6 months), weaner/heifer or young bull (6-24 months), cow or bull (24+ months)
+    if (cat === "calf" || (!cat && months < LIFE_STAGE_CONFIG.cattle.calfMaxMonths)) {
       calvesCount++;
-    } else if (cat === "heifer" || (ageYears >= 1 && ageYears < 2.5 && sex !== "male" && cat !== "cow" && cat !== "bull")) {
+      if (months >= LIFE_STAGE_CONFIG.cattle.calfMaxMonths) {
+        calvesOldEnoughCount++;
+      }
+    } else if (cat === "heifer" || (months >= LIFE_STAGE_CONFIG.cattle.calfMaxMonths && months < LIFE_STAGE_CONFIG.cattle.weanerMaxMonths && !isMale && cat !== "cow" && cat !== "bull")) {
       heifersCount++;
-    } else if (cat === "bull" || sex === "male") {
+      if (months >= LIFE_STAGE_CONFIG.cattle.weanerMaxMonths) {
+        heifersOldEnoughCount++;
+      }
+    } else if (cat === "bull" || isMale) {
       bullsCount++;
     } else {
       cowsCount++;
     }
+  }
+
+  const transitionAlerts: string[] = [];
+  if (calvesOldEnoughCount > 0) {
+    transitionAlerts.push(
+      `${calvesOldEnoughCount} ${calvesOldEnoughCount === 1 ? "calf is" : "calves are"} now old enough to move to heifers`
+    );
+  }
+  if (heifersOldEnoughCount > 0) {
+    transitionAlerts.push(
+      `${heifersOldEnoughCount} ${heifersOldEnoughCount === 1 ? "heifer is" : "heifers are"} now old enough to move to cows`
+    );
   }
 
   return {
@@ -212,6 +267,9 @@ export function summarizePopulation(records: FarmRecords, thresholds: Thresholds
       heifersCount,
       cowsCount,
       bullsCount,
+      calvesOldEnoughCount,
+      heifersOldEnoughCount,
+      transitionAlerts,
       byType: [...livestockByType.values()].sort((a, b) => b.count - a.count),
     },
   };
@@ -575,6 +633,17 @@ export function evaluateRules(s: Summary, t: Thresholds = DEFAULT_THRESHOLDS): R
       condition: "IF one or more scheduled vaccinations are overdue",
       finding: `${s.vaccinations.overdueCount} scheduled vaccination(s) are overdue.`,
       recommendation: "Review the vaccination schedule and administer overdue doses or consult a veterinarian to update the plan.",
+    });
+  }
+
+  if (s.population.livestock.calvesOldEnoughCount && s.population.livestock.calvesOldEnoughCount > 0) {
+    const count = s.population.livestock.calvesOldEnoughCount;
+    results.push({
+      id: "calves-old-enough",
+      severity: "info",
+      condition: "IF calves have reached 6 months of age",
+      finding: `${count} ${count === 1 ? "calf is" : "calves are"} now old enough to move to heifers.`,
+      recommendation: "Review the cattle herd inventory and transition them to heifers or young bulls.",
     });
   }
 

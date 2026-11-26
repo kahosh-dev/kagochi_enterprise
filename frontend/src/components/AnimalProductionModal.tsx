@@ -18,6 +18,7 @@ import {
 } from "./ui";
 import { BarChart, type ChartPoint } from "./Chart";
 import DatePeriodFilter from "./DatePeriodFilter";
+import { formatAnimalAge } from "../utils/age";
 import {
   calculatePeriod,
   calculateComparison,
@@ -527,8 +528,8 @@ export default function AnimalProductionModal({
 
   const targetSubtitle =
     target.type === "cattle"
-      ? `Tag: ${target.animal.tagNumber || `#${target.animal.id.slice(0, 6)}`} • Category: ${target.animal.category || "Cow"} • Age: ${target.animal.ageYears} yrs`
-      : `Live Birds: ${(target.batch.currentCount || target.batch.initialCount).toLocaleString()} • Stage: ${target.batch.stage || "Adult"} • Age: ${target.batch.ageWeeks} wks`;
+      ? `Tag: ${target.animal.tagNumber || `#${target.animal.id.slice(0, 6)}`} • Category: ${target.animal.category || "Cow"} • Age: ${formatAnimalAge(target.animal.dateOfBirth, "cattle", { legacyAgeYears: target.animal.ageYears, isEstimated: target.animal.isBirthDateEstimated }).formatted}`
+      : `Live Birds: ${(target.batch.currentCount || target.batch.initialCount).toLocaleString()} • Stage: ${target.batch.stage || "Adult"} • Age: ${formatAnimalAge(target.batch.hatchDate, "poultry", { legacyAgeWeeks: target.batch.ageWeeks, isEstimated: target.batch.isHatchDateEstimated }).formatted}`;
 
   return (
     <Modal

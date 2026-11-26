@@ -31,6 +31,8 @@ import {
   StatCard,
 } from "../components/ui";
 import { formatCurrency, formatDate, formatNumber, percent } from "../utils/format";
+import DatePeriodFilter from "../components/DatePeriodFilter";
+import { usePeriod } from "../context/PeriodContext";
 
 interface HomeViewProps {
   poultryCount: number;
@@ -41,18 +43,6 @@ interface HomeViewProps {
   totalLivestockActive?: number;
   onNavigate: (view: string) => void;
 }
-
-type PeriodFilterKey = "today" | "yesterday" | "7d" | "30d" | "month" | "year" | "custom";
-
-const PERIOD_OPTIONS: { value: PeriodFilterKey; label: string }[] = [
-  { value: "today", label: "Today" },
-  { value: "yesterday", label: "Yesterday" },
-  { value: "7d", label: "7 days" },
-  { value: "30d", label: "30 days" },
-  { value: "month", label: "This month" },
-  { value: "year", label: "This year" },
-  { value: "custom", label: "Custom" },
-];
 
 const QUICK_ACTIONS = [
   { view: "poultry", label: "Poultry", hint: "Chicks, broilers & layers", image: "/images/farm/chicken.webp", icon: Bird },
@@ -79,29 +69,26 @@ export default function HomeView({
   totalLivestockActive = 0,
   onNavigate,
 }: HomeViewProps) {
-  const [filterKey, setFilterKey] = useState<PeriodFilterKey>("30d");
-  const [customFrom, setCustomFrom] = useState("");
-  const [customTo, setCustomTo] = useState("");
+  const {
+    mode: periodMode,
+    offset: periodOffset,
+    customFrom,
+    customTo,
+    periodInfo,
+    setMode: setPeriodMode,
+    setOffset: setPeriodOffset,
+    setCustomRange,
+    resetPeriod,
+  } = usePeriod();
+
   const [summary, setSummary] = useState<FarmSummaryData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [modalOpen, setModalOpen] = useState(false);
 
-  const todayStr = new Date().toISOString().slice(0, 10);
-
   const filterParams = useMemo(() => {
-    if (filterKey === "today") return { days: 1, to: todayStr, from: todayStr };
-    if (filterKey === "yesterday") {
-      const yDate = new Date(Date.now() - 86_400_000).toISOString().slice(0, 10);
-      return { days: 1, to: yDate, from: yDate };
-    }
-    if (filterKey === "7d") return { days: 7, to: todayStr };
-    if (filterKey === "30d") return { days: 30, to: todayStr };
-    if (filterKey === "month") return { to: todayStr, from: `${todayStr.slice(0, 7)}-01` };
-    if (filterKey === "year") return { to: todayStr, from: `${todayStr.slice(0, 4)}-01-01` };
-    if (filterKey === "custom" && customFrom && customTo) return { from: customFrom, to: customTo };
-    return { days: 30, to: todayStr };
-  }, [filterKey, customFrom, customTo, todayStr]);
+    return { from: periodInfo.from, to: periodInfo.to };
+  }, [periodInfo.from, periodInfo.to]);
 
   useEffect(() => {
     let active = true;
@@ -167,6 +154,14 @@ export default function HomeView({
   const overdueVac = summary?.vaccinations.overdueCount ?? 0;
 
   const activeWarnings = summary?.rules.filter((rule) => rule.severity === "warning") ?? [];
+  const lifeStageAlerts =
+    summary?.rules.filter(
+      (rule) =>
+        rule.id === "calves-old-enough" ||
+        rule.id.includes("old-enough") ||
+        (rule.severity === "info" && rule.finding.toLowerCase().includes("old enough"))
+    ) ?? [];
+  const transitionAlerts = summary?.population.livestock.transitionAlerts ?? [];
 
   const poultryHintParts = [
     totalChicks > 0 ? `${formatNumber(totalChicks)} chicks` : "",
@@ -184,11 +179,7 @@ export default function HomeView({
   const hasAnyPopulation = totalBirds > 0 || totalCattle > 0 || totalPoultryBirds > 0 || totalLivestockActive > 0;
   const hasAnyFinance = totalIncome > 0 || totalExpenses > 0;
 
-  const periodLabel = summary
-    ? `${formatDate(summary.period.from)} – ${formatDate(summary.period.to)} · ${summary.period.days} day${summary.period.days === 1 ? "" : "s"}`
-    : loading
-      ? "Loading reporting period…"
-      : "Reporting period unavailable";
+  const periodLabel = periodInfo.label;
 
   const feedDisplay =
     feedKg > 0
@@ -220,50 +211,36 @@ export default function HomeView({
       />
 
       <div className="kf-stack">
-        <Panel>
-          <div className="kf-stack--sm" style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-            <div className="kf-filter-row">
-              <span className="kf-inline-meta" style={{ display: "inline-flex", alignItems: "center", gap: 6, margin: 0 }}>
-                <Filter size={14} /> Period
-              </span>
-              <Segmented
-                label="Dashboard reporting period"
-                options={PERIOD_OPTIONS.map((option) => ({ value: option.value, label: option.label }))}
-                value={filterKey}
-                onChange={(value) => setFilterKey(value as PeriodFilterKey)}
-              />
-            </div>
-
-            {filterKey === "custom" && (
-              <div className="kf-filter-row">
-                <input
-                  type="date"
-                  aria-label="Custom period start"
-                  value={customFrom}
-                  max={customTo || todayStr}
-                  onChange={(event) => setCustomFrom(event.target.value)}
-                />
-                <span className="kf-muted kf-small">to</span>
-                <input
-                  type="date"
-                  aria-label="Custom period end"
-                  value={customTo}
-                  min={customFrom || undefined}
-                  max={todayStr}
-                  onChange={(event) => setCustomTo(event.target.value)}
-                />
-              </div>
-            )}
-
-            <InlineMeta>
-              <CalendarDays size={13} style={{ verticalAlign: "-2px", marginRight: 5 }} />
-              {periodLabel}
-              {loading && <span className="kf-muted"> · updating…</span>}
-            </InlineMeta>
-          </div>
-        </Panel>
+        <DatePeriodFilter
+          mode={periodMode}
+          offset={periodOffset}
+          customFrom={customFrom}
+          customTo={customTo}
+          periodInfo={periodInfo}
+          onModeChange={setPeriodMode}
+          onOffsetChange={setPeriodOffset}
+          onCustomRangeChange={setCustomRange}
+          onReset={resetPeriod}
+          title="Dashboard Reporting Period"
+        />
 
         {error && <Notice tone="warning">{error}</Notice>}
+
+        {(lifeStageAlerts.length > 0 || transitionAlerts.length > 0) && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {lifeStageAlerts.map((alert) => (
+              <Notice key={alert.id} tone="info">
+                <strong>Growth stage alert:</strong> {alert.finding} {alert.recommendation}
+              </Notice>
+            ))}
+            {lifeStageAlerts.length === 0 &&
+              transitionAlerts.map((msg, idx) => (
+                <Notice key={idx} tone="info">
+                  <strong>Growth stage alert:</strong> {msg}. Review the cattle herd inventory to transition them.
+                </Notice>
+              ))}
+          </div>
+        )}
 
         {activeWarnings.length > 0 && (
           <Panel
@@ -566,8 +543,8 @@ export default function HomeView({
           </Panel>
 
           <Panel
-            title={`Profit & loss`}
-            subtitle={summary ? `${formatDate(summary.period.from)} – ${formatDate(summary.period.to)}` : "Selected period"}
+            title="Profit & loss"
+            subtitle={`Financial summary for ${periodInfo.label}`}
             actions={
               <Button variant="ghost" icon={<ChevronRight size={15} />} onClick={() => onNavigate("performance")}>
                 Details

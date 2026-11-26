@@ -17,6 +17,8 @@ export interface PoultryBatch {
   source?: string;
   purchasePrice?: number;
   notes?: string;
+  hatchDate?: string;
+  isHatchDateEstimated?: boolean;
 }
 
 export interface LivestockAnimal {
@@ -32,6 +34,8 @@ export interface LivestockAnimal {
   damId?: string;
   status?: "active" | "sold" | "transferred" | "deceased" | string;
   notes?: string;
+  dateOfBirth?: string;
+  isBirthDateEstimated?: boolean;
 }
 
 export interface ProductionRecord {
@@ -106,6 +110,25 @@ export interface VaccinationSchedule {
   ageDaysDue: number;
   boosterIntervalDays?: number;
   notes?: string;
+}
+
+export interface Vaccine {
+  id: string;
+  species: "poultry" | "cattle";
+  name: string;
+  disease: string;
+  defaultMethod: string;
+  notes?: string;
+  isActive: boolean;
+}
+
+export interface FeedType {
+  id: string;
+  animalType: "poultry" | "cattle";
+  category: string;
+  name: string;
+  defaultUnit: "kg" | "bags" | "bales" | "wheelbarrows" | "litres";
+  isActive: boolean;
 }
 
 export interface ReminderItem {
@@ -199,6 +222,9 @@ export interface FarmSummaryData {
       heifersCount: number;
       cowsCount: number;
       bullsCount: number;
+      calvesOldEnoughCount?: number;
+      heifersOldEnoughCount?: number;
+      transitionAlerts?: string[];
       byType: { type: string; count: number }[];
     };
   };

@@ -11,22 +11,20 @@ import {
   Button,
   EmptyState,
   Notice,
-  Segmented,
 } from "../components/ui";
 import { formatCurrency, formatNumber } from "../utils/format";
+import { usePeriod } from "../context/PeriodContext";
 
 export default function AdvisorView() {
+  const { periodInfo } = usePeriod();
   const [advice, setAdvice] = useState("");
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState("");
   const [summary, setSummary] = useState<FarmSummaryData | null>(null);
-  const [periodDays, setPeriodDays] = useState<number>(1);
-
-  const todayStr = new Date().toISOString().slice(0, 10);
 
   async function loadData() {
     try {
-      const data = await loadFarmSummary({ days: periodDays, to: todayStr });
+      const data = await loadFarmSummary({ from: periodInfo.from, to: periodInfo.to });
       setSummary(data);
     } catch (err) {
       console.error(err);
@@ -35,13 +33,13 @@ export default function AdvisorView() {
 
   useEffect(() => {
     loadData();
-  }, [periodDays]);
+  }, [periodInfo.from, periodInfo.to]);
 
   async function generateAdvice() {
     try {
       setGenerating(true);
       setError("");
-      const result = await getFarmAdvice(undefined, { periodDays, to: todayStr });
+      const result = await getFarmAdvice(undefined, { from: periodInfo.from, to: periodInfo.to });
       setAdvice(result);
     } catch (err) {
       console.error(err);
