@@ -1,4 +1,5 @@
 import { config } from "./config.js";
+import { aiProviderConfig } from "./aiProvider.js";
 import { createApp } from "./app.js";
 import { initializePostgresSchema, verifyPostgresConnection, postgresPool } from "./postgres.js";
 import { postgresStore } from "./postgresStore.js";
@@ -42,6 +43,9 @@ async function main(): Promise<void> {
 
   const server = app.listen(config.port, () => {
     console.log(`Kagochi Farm backend running on http://localhost:${config.port}`);
+    const aiCfg = aiProviderConfig();
+    console.log(`[AI] Primary provider: ${aiCfg.primary} (${aiCfg.primary === "groq" ? aiCfg.groqModel : aiCfg.primary === "gemini" ? aiCfg.geminiModel : aiCfg.anthropicModel})`);
+    console.log(`[AI] Fallback provider: ${aiCfg.fallback} (${aiCfg.fallback === "groq" ? aiCfg.groqModel : aiCfg.fallback === "gemini" ? aiCfg.geminiModel : aiCfg.anthropicModel})`);
     console.log(`[Auth] Self-registration: ${config.allowRegistration ? "enabled" : "disabled"}`);
     console.log(`[AI Advisor] Status: ${config.geminiApiKey ? `enabled (${config.geminiModel})` : "disabled (GEMINI_API_KEY not set)"}`);
     console.log(`[Proxy] Express trust proxy: enabled (hop: 1)`);

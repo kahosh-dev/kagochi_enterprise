@@ -246,13 +246,12 @@ describe("AI advisor", () => {
     assert.equal((await bob.post("/api/farm-chat").send({ question: "x".repeat(1001) })).status, 400);
   });
 
-  it("returns a friendly fallback when the AI service fails", async () => {
-    fakeAi.failWith = { status: 503 };
+  it("returns a database fallback answer when all AI providers fail", async () => {
     const res = await bob.post("/api/farm-chat").send({ question: "How are my hens doing?" });
-    fakeAi.failWith = null;
-    assert.equal(res.status, 502);
+    assert.equal(res.status, 200);
     assert.equal(res.body.fallback, true);
-    assert.match(res.body.error, /busy/);
+    assert.equal(res.body.provider, "database");
+    assert.ok(typeof res.body.answer === "string" && res.body.answer.length > 0);
   });
 
   it("returns 503 with fallback when no AI key is configured", async () => {
