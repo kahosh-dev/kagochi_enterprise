@@ -457,6 +457,22 @@ export function createApp(options: AppOptions = {}) {
         // Guard: prevent negative population
         const reducingTypes = ['death', 'sale', 'transfer_out'];
         if (reducingTypes.includes(data.eventType)) {
+          // Lock target row to prevent race conditions on concurrent events
+          let initialCount = 0;
+          if (data.species === 'poultry') {
+            const batchQ = await client.query(
+              `SELECT initial_count FROM poultry_batches WHERE id = $1 AND owner_id = $2 FOR UPDATE`,
+              [data.targetId, ownerId],
+            );
+            initialCount = batchQ.rows[0]?.initial_count ?? 0;
+          } else {
+            const animalQ = await client.query(
+              `SELECT id FROM livestock WHERE id = $1 AND owner_id = $2 FOR UPDATE`,
+              [data.targetId, ownerId],
+            );
+            initialCount = animalQ.rows.length > 0 ? 1 : 0;
+          }
+          
           const netQ = await client.query(
             `SELECT
                COALESCE(SUM(CASE WHEN event_type IN ('addition','transfer_in') THEN count ELSE 0 END), 0)
@@ -465,20 +481,6 @@ export function createApp(options: AppOptions = {}) {
              FROM population_events WHERE owner_id = $1 AND target_id = $2`,
             [ownerId, data.targetId],
           );
-          let initialCount = 0;
-          if (data.species === 'poultry') {
-            const batchQ = await client.query(
-              `SELECT initial_count FROM poultry_batches WHERE id = $1 AND owner_id = $2`,
-              [data.targetId, ownerId],
-            );
-            initialCount = batchQ.rows[0]?.initial_count ?? 0;
-          } else {
-            const animalQ = await client.query(
-              `SELECT id FROM livestock WHERE id = $1 AND owner_id = $2`,
-              [data.targetId, ownerId],
-            );
-            initialCount = animalQ.rows.length > 0 ? 1 : 0;
-          }
           const net = Number(netQ.rows[0]?.net ?? 0);
           if (initialCount + net - data.count < 0) {
             throw new Error('NEGATIVE_POPULATION');
