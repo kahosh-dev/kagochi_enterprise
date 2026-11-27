@@ -4625,3 +4625,514 @@ body {
 .kf-vacc-overdue-pulse {
   animation: kf-pulse 2s infinite;
 }
+/* =====================================================
+   MOBILE FORM AND AGE REGISTRATION FIXES
+   ===================================================== */
+
+/* Prevent form controls from expanding beyond their containers */
+.kf-app input,
+.kf-app select,
+.kf-app textarea {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+}
+
+.kf-form-grid > *,
+.kf-field {
+  min-width: 0;
+}
+
+/* Poultry age registration section */
+.kf-age-registration {
+  grid-column: 1 / -1;
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid var(--kf-border);
+  border-radius: 12px;
+  background: var(--kf-surface);
+}
+
+.kf-age-registration__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.kf-age-registration__actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-width: 0;
+}
+
+.kf-age-registration__fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  min-width: 0;
+}
+
+/* Smaller screens */
+@media (max-width: 640px) {
+  .kf-age-registration {
+    padding: 12px;
+  }
+
+  .kf-age-registration__header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .kf-age-registration__actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    width: 100%;
+  }
+
+  .kf-age-registration__actions .kf-btn {
+    width: 100%;
+    min-width: 0;
+    white-space: normal;
+    justify-content: center;
+    padding-inline: 8px;
+  }
+
+  .kf-age-registration__fields {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .kf-form-grid {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  .kf-form-actions {
+    width: 100%;
+  }
+
+  .kf-form-actions .kf-btn {
+    min-width: 0;
+  }
+}
+
+@media (max-width: 360px) {
+  .kf-age-registration__actions {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* =====================================================
+   APP-WIDE RESPONSIVE SAFETY LAYER
+   Applied after all page styles so every farm module shares
+   the same mobile sizing and overflow behaviour.
+   ===================================================== */
+
+.kf-app,
+.kf-content,
+.kf-page,
+.kf-page-header,
+.kf-page-header-copy,
+.kf-panel,
+.kf-panel-body,
+.kf-grid,
+.kf-stack,
+.kf-row,
+.kf-form-grid,
+.kf-field,
+.kf-card,
+.kf-stat,
+.kf-chart-card {
+  min-width: 0;
+}
+
+.kf-app {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: clip;
+}
+
+.kf-content {
+  width: 100%;
+  max-width: 100%;
+}
+
+.kf-page img,
+.kf-page svg,
+.kf-panel img,
+.kf-panel svg {
+  max-width: 100%;
+}
+
+.kf-page p,
+.kf-page h1,
+.kf-page h2,
+.kf-page h3,
+.kf-panel p,
+.kf-panel h2,
+.kf-panel h3,
+.kf-stat-label,
+.kf-stat-hint {
+  overflow-wrap: anywhere;
+}
+
+.kf-grid,
+.kf-grid--stats,
+.kf-grid--2,
+.kf-grid--3,
+.kf-grid--main-side,
+.kf-form-grid,
+.kf-form-grid--2 {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.kf-grid > *,
+.kf-grid--stats > *,
+.kf-grid--2 > *,
+.kf-grid--3 > *,
+.kf-grid--main-side > *,
+.kf-form-grid > *,
+.kf-form-grid--2 > * {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.kf-page-header {
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.kf-page-actions,
+.kf-panel-actions,
+.kf-form-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.kf-page-actions .kf-btn,
+.kf-panel-actions .kf-btn,
+.kf-form-actions .kf-btn {
+  max-width: 100%;
+}
+
+.kf-panel-header {
+  min-width: 0;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.kf-panel-title,
+.kf-panel-subtitle {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.kf-table-wrap {
+  max-width: 100%;
+  overscroll-behavior-x: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+.kf-table {
+  table-layout: auto;
+}
+
+.kf-filter-row,
+.kf-toolbar,
+.kf-search-row {
+  min-width: 0;
+  max-width: 100%;
+  flex-wrap: wrap;
+}
+
+.kf-filter-row > *,
+.kf-toolbar > *,
+.kf-search-row > * {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.kf-chart-card,
+.recharts-responsive-container,
+.recharts-wrapper {
+  min-width: 0 !important;
+  max-width: 100%;
+}
+
+.kf-modal-overlay {
+  overscroll-behavior: contain;
+}
+
+.kf-modal {
+  min-width: 0;
+  width: min(100%, 760px);
+  overflow: hidden;
+}
+
+.kf-modal-body {
+  min-width: 0;
+  overscroll-behavior: contain;
+}
+
+.kf-modal-footer > * {
+  min-width: 0;
+  max-width: 100%;
+}
+
+@media (max-width: 1023px) {
+  .kf-sidebar {
+    width: min(var(--kf-sidebar-width), calc(100vw - 48px));
+    max-width: calc(100vw - 48px);
+    height: 100dvh;
+    height: 100vh;
+    overflow: hidden;
+  }
+
+  .kf-sidebar-scroll {
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+
+  .kf-content {
+    margin-left: 0;
+  }
+}
+
+@media (max-width: 768px) {
+  .kf-page {
+    padding: 18px 16px calc(var(--kf-bottom-nav-height) + 28px);
+  }
+
+  .kf-grid--main-side,
+  .kf-grid--2,
+  .kf-grid--3 {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .kf-grid--stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .kf-page-header {
+    align-items: flex-start;
+  }
+
+  .kf-page-actions {
+    width: 100%;
+  }
+
+  .kf-panel-body {
+    min-width: 0;
+  }
+
+  .kf-form-grid,
+  .kf-form-grid--2 {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  .kf-form-grid [style*="grid-column: span 2"],
+  .kf-form-grid [style*="grid-column:span 2"] {
+    grid-column: 1 / -1 !important;
+  }
+
+  .kf-modal-overlay {
+    align-items: flex-end;
+    padding: 0;
+  }
+
+  .kf-modal,
+  .kf-modal--sm,
+  .kf-modal--md,
+  .kf-modal--lg {
+    width: 100%;
+    max-width: 100%;
+    max-height: min(92dvh, 900px);
+    border-radius: 18px 18px 0 0;
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  .kf-modal-header {
+    padding: 18px 16px 0;
+  }
+
+  .kf-modal-body {
+    padding: 16px;
+  }
+
+  .kf-modal-footer {
+    padding: 12px 16px calc(14px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .kf-modal-footer .kf-btn {
+    flex: 1 1 auto;
+  }
+}
+
+@media (max-width: 640px) {
+  .kf-header {
+    gap: 8px;
+    padding-inline: 12px;
+  }
+
+  .kf-header-left,
+  .kf-header-right {
+    gap: 8px;
+  }
+
+  .kf-header-brand-name {
+    max-width: min(48vw, 220px);
+    font-size: 13px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .kf-header-icon-button,
+  .kf-menu-button {
+    flex: 0 0 40px;
+    width: 40px;
+    height: 40px;
+  }
+
+  .kf-page {
+    padding: 16px 12px calc(var(--kf-bottom-nav-height) + 30px);
+  }
+
+  .kf-page-title {
+    font-size: clamp(21px, 6vw, 27px);
+    line-height: 1.2;
+  }
+
+  .kf-page-description {
+    font-size: 12px;
+    line-height: 1.5;
+  }
+
+  .kf-grid--stats {
+    gap: 9px;
+  }
+
+  .kf-stat {
+    min-width: 0;
+    padding: 11px;
+  }
+
+  .kf-stat-value {
+    font-size: clamp(17px, 5vw, 22px);
+    overflow-wrap: anywhere;
+  }
+
+  .kf-stat-label {
+    line-height: 1.35;
+  }
+
+  .kf-panel {
+    border-radius: 14px;
+  }
+
+  .kf-panel-header {
+    padding: 14px 14px 0;
+  }
+
+  .kf-panel-body {
+    padding: 14px;
+  }
+
+  .kf-btn {
+    min-height: 42px;
+    white-space: normal;
+    line-height: 1.25;
+  }
+
+  .kf-page-actions .kf-btn,
+  .kf-form-actions .kf-btn {
+    flex: 1 1 130px;
+  }
+
+  .kf-filter-row input[type="date"] {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .kf-table {
+    min-width: 600px;
+  }
+
+  .kf-bottom-nav {
+    left: 8px;
+    right: 8px;
+    bottom: max(8px, env(safe-area-inset-bottom, 0px));
+    gap: 1px;
+    padding: 5px 4px;
+  }
+
+  .kf-bottom-nav button {
+    min-width: 0;
+    min-height: 52px;
+    padding: 5px 2px;
+    font-size: 9px;
+  }
+
+  .kf-bottom-nav button span {
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+@media (max-width: 380px) {
+  .kf-page {
+    padding-inline: 10px;
+  }
+
+  .kf-grid--stats {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .kf-header-brand-name {
+    max-width: 42vw;
+    font-size: 12px;
+  }
+
+  .kf-bottom-nav {
+    left: 5px;
+    right: 5px;
+  }
+
+  .kf-bottom-nav button {
+    font-size: 8px;
+  }
+
+  .kf-bottom-nav button svg {
+    width: 18px;
+    height: 18px;
+  }
+
+  .kf-modal-header,
+  .kf-modal-body {
+    padding-inline: 13px;
+  }
+
+  .kf-modal-footer {
+    padding-inline: 13px;
+  }
+}
+
+@media (max-width: 320px) {
+  .kf-grid--stats {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .kf-bottom-nav button span {
+    font-size: 7.5px;
+  }
+}

@@ -517,26 +517,11 @@ export default function PoultryView() {
                 />
               </Field>
 
-              {/* Automatic Age Entry Section */}
-              <div
-                style={{
-                  gridColumn: "span 2",
-                  background: "rgba(255, 255, 255, 0.04)",
-                  padding: "12px",
-                  borderRadius: 8,
-                  border: "1px solid rgba(255, 255, 255, 0.08)",
-                }}
-              >
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    marginBottom: 8,
-                  }}
-                >
+     {/* Automatic Age Entry Section */}
+<div className="kf-age-registration">
+  <div className="kf-age-registration__header">
                   <label style={{ fontSize: 13, fontWeight: 600 }}>Age Registration Method</label>
-                  <div style={{ display: "flex", gap: 8 }}>
+                  <div className="kf-age-registration__actions">
                     <button
                       type="button"
                       className={`kf-btn kf-btn--sm ${ageEntryMode === "date" ? "kf-btn--primary" : "kf-btn--ghost"}`}
@@ -582,7 +567,7 @@ export default function PoultryView() {
                     />
                   </Field>
                 ) : (
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                 <div className="kf-age-registration__fields">
                     <Field label="Age Value" htmlFor="poultryAgeVal" required>
                       <input
                         id="poultryAgeVal"
