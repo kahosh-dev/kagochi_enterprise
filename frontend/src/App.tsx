@@ -102,6 +102,8 @@ function App() {
   const [publicView, setPublicView] = useState<'home' | 'about' | 'features' | 'how-it-works' | 'founder' | 'login'>('home');
 
   const googleButtonRef = useRef<HTMLDivElement>(null);
+  const passwordInputRef = useRef<HTMLInputElement>(null);
+  const confirmPasswordInputRef = useRef<HTMLInputElement>(null);
   const authApiUrl = (import.meta.env.VITE_API_URL || (import.meta.env.PROD ? "https://kagochi-enterprise.onrender.com" : "http://localhost:3001")).replace(/\/+$/, "");
 
   useEffect(() => {
@@ -490,6 +492,7 @@ function App() {
                   {/* pw-wrap contains ONLY input + toggle — helper text lives outside */}
                   <div className="kf-pw-wrap">
                     <input
+                      ref={passwordInputRef}
                       id="auth-password"
                       type={showPassword ? "text" : "password"}
                       className="kf-input kf-input--pw"
@@ -505,7 +508,11 @@ function App() {
                     <button
                       type="button"
                       className="kf-pw-toggle"
-                      onClick={() => setShowPassword((v) => !v)}
+                      onClick={() => {
+                        setShowPassword((v) => !v);
+                        // Restore focus to input after toggle
+                        setTimeout(() => passwordInputRef.current?.focus(), 0);
+                      }}
                       aria-label={showPassword ? "Hide password" : "Show password"}
                       aria-pressed={showPassword}
                     >
@@ -540,6 +547,7 @@ function App() {
                     </label>
                     <div className="kf-pw-wrap">
                       <input
+                        ref={confirmPasswordInputRef}
                         id="auth-confirm"
                         type={showConfirmPassword ? "text" : "password"}
                         className={`kf-input kf-input--pw${confirmMismatch ? " kf-input--error" : confirmMatch ? " kf-input--ok" : ""}`}
@@ -556,7 +564,11 @@ function App() {
                       <button
                         type="button"
                         className="kf-pw-toggle"
-                        onClick={() => setShowConfirmPassword((v) => !v)}
+                        onClick={() => {
+                          setShowConfirmPassword((v) => !v);
+                          // Restore focus to input after toggle
+                          setTimeout(() => confirmPasswordInputRef.current?.focus(), 0);
+                        }}
                         aria-label={showConfirmPassword ? "Hide confirmation password" : "Show confirmation password"}
                         aria-pressed={showConfirmPassword}
                       >

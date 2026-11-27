@@ -2339,7 +2339,7 @@ body {
 .kf-pw-toggle {
   position: absolute;
   top: 50%;
-  right: 6px;
+  right: 12px;
   transform: translateY(-50%);
   width: 36px;
   height: 36px;
@@ -2352,19 +2352,26 @@ body {
   color: var(--kf-muted-2);
   cursor: pointer;
   flex-shrink: 0;
-  transition: background 0.15s ease, color 0.15s ease;
+  transition: background 0.15s ease, color 0.15s ease, opacity 0.15s ease;
 }
 
 .kf-pw-toggle:hover {
   background: var(--kf-cream-2);
   color: var(--kf-forest);
-  transform: translateY(-50%); /* keep centred */
+  transform: translateY(-50%); /* keep centred, no shift */
   box-shadow: none;
+}
+
+.kf-pw-toggle:active {
+  background: var(--kf-cream-2);
+  color: var(--kf-forest);
+  transform: translateY(-50%); /* keep centred, no shift */
 }
 
 .kf-pw-toggle:focus-visible {
   outline: 2px solid var(--kf-action);
   outline-offset: 1px;
+  transform: translateY(-50%); /* keep centred, no shift */
 }
 
 /* Password hint line — lives OUTSIDE kf-pw-wrap */
