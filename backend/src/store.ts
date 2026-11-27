@@ -24,8 +24,18 @@ export const resourceTables = {
   },
   livestock: {
     table: "livestock",
-    columns: ["name", "type", "breed", "age_years", "date_added", "category", "tag_number", "sex", "dam_id", "status", "notes", "date_of_birth", "is_birth_date_estimated"],
+    columns: ["name", "type", "breed", "age_years", "date_added", "category", "tag_number", "sex", "dam_id", "status", "notes", "date_of_birth", "is_birth_date_estimated", "has_calved"],
     dateColumn: "date_added",
+  },
+  meat_production: {
+    table: "meat_production",
+    columns: ["target_id", "target_name", "species", "date", "count_harvested", "total_weight_kg", "average_weight_kg", "selling_price_per_kg", "total_revenue", "destination", "notes"],
+    dateColumn: "date",
+  },
+  calving_events: {
+    table: "calving_events",
+    columns: ["dam_id", "dam_name", "calf_id", "calf_name", "calf_sex", "calving_date", "calving_ease", "notes", "created_at"],
+    dateColumn: "calving_date",
   },
   production: {
     table: "production",

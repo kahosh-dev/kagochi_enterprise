@@ -274,6 +274,49 @@ export const schemaStatements = [
   `ALTER TABLE feed_types ADD COLUMN IF NOT EXISTS default_unit TEXT NOT NULL DEFAULT 'kg'`,
   `ALTER TABLE feed_types ADD COLUMN IF NOT EXISTS is_active INTEGER NOT NULL DEFAULT 1`,
 
+  // Meat Production table (broilers and dual-purpose birds)
+  `CREATE TABLE IF NOT EXISTS meat_production (
+    id TEXT PRIMARY KEY,
+    owner_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    target_id TEXT NOT NULL,
+    target_name TEXT NOT NULL,
+    species TEXT NOT NULL DEFAULT 'poultry',
+    date TEXT NOT NULL,
+    count_harvested INTEGER NOT NULL DEFAULT 0,
+    total_weight_kg REAL NOT NULL DEFAULT 0,
+    average_weight_kg REAL NOT NULL DEFAULT 0,
+    selling_price_per_kg REAL NOT NULL DEFAULT 0,
+    total_revenue REAL NOT NULL DEFAULT 0,
+    destination TEXT NOT NULL DEFAULT 'sold',
+    notes TEXT NOT NULL DEFAULT ''
+  )`,
+
+  `CREATE INDEX IF NOT EXISTS idx_meat_production_owner_date ON meat_production(owner_id, date)`,
+  `CREATE INDEX IF NOT EXISTS idx_meat_production_target ON meat_production(owner_id, target_id)`,
+
+  // Calving Events table (tracks births and promotes heifer to cow)
+  `CREATE TABLE IF NOT EXISTS calving_events (
+    id TEXT PRIMARY KEY,
+    owner_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    dam_id TEXT NOT NULL,
+    dam_name TEXT NOT NULL,
+    calf_id TEXT,
+    calf_name TEXT NOT NULL DEFAULT '',
+    calf_sex TEXT NOT NULL DEFAULT 'female',
+    calving_date TEXT NOT NULL,
+    calving_ease TEXT NOT NULL DEFAULT 'normal',
+    notes TEXT NOT NULL DEFAULT '',
+    created_at TEXT NOT NULL
+  )`,
+
+  `CREATE INDEX IF NOT EXISTS idx_calving_events_owner_date ON calving_events(owner_id, calving_date)`,
+  `CREATE INDEX IF NOT EXISTS idx_calving_events_dam ON calving_events(owner_id, dam_id)`,
+  `CREATE INDEX IF NOT EXISTS idx_calving_events_calf ON calving_events(owner_id, calf_id)`,
+
+  // Add has_calved flag to livestock for quick eligibility checks
+  `ALTER TABLE livestock ADD COLUMN IF NOT EXISTS has_calved INTEGER NOT NULL DEFAULT 0`,
+  `CREATE INDEX IF NOT EXISTS idx_livestock_has_calved ON livestock(owner_id, has_calved, sex)`,
+
   `CREATE INDEX IF NOT EXISTS idx_poultry_owner_date ON poultry_batches(owner_id, date_added)`,
   `CREATE INDEX IF NOT EXISTS idx_livestock_owner_date ON livestock(owner_id, date_added)`,
   `CREATE INDEX IF NOT EXISTS idx_production_owner_date ON production(owner_id, date)`,
