@@ -14,6 +14,10 @@ function result(value: { changes: number }): StoreResult {
 }
 
 export const sqliteStore: FarmStore = {
+  async executeInTransaction<T>(callback: (client: any) => Promise<T>): Promise<T> {
+    throw new Error("SQLite transactions not implemented for this store. Use PostgreSQL.");
+  },
+
   async findUserByEmail(email) {
     return db.findUserByEmail(email);
   },

@@ -96,6 +96,7 @@ export interface PopulationEventRow {
 }
 
 export interface FarmStore {
+  executeInTransaction<T>(callback: (client: any) => Promise<T>): Promise<T>;
   findUserByEmail(email: string): Promise<UserRow | undefined>;
   findUserById(id: string): Promise<UserRow | undefined>;
   createUser(

@@ -123,7 +123,9 @@ export const schemaStatements = [
   `ALTER TABLE production ADD COLUMN IF NOT EXISTS animal_type TEXT NOT NULL DEFAULT ''`,
   `ALTER TABLE production ADD COLUMN IF NOT EXISTS group_name TEXT NOT NULL DEFAULT ''`,
   `ALTER TABLE production ADD COLUMN IF NOT EXISTS target_id TEXT NOT NULL DEFAULT ''`,
+  `ALTER TABLE production ADD COLUMN IF NOT EXISTS needs_review INTEGER DEFAULT 0`,
   `CREATE INDEX IF NOT EXISTS idx_production_target ON production(target_id)`,
+  `CREATE INDEX IF NOT EXISTS idx_production_needs_review ON production(needs_review) WHERE needs_review = 1`,
 
   `CREATE TABLE IF NOT EXISTS feeding (
     id TEXT PRIMARY KEY,
@@ -143,6 +145,8 @@ export const schemaStatements = [
   `ALTER TABLE feeding ADD COLUMN IF NOT EXISTS supplier TEXT NOT NULL DEFAULT ''`,
   `ALTER TABLE feeding ADD COLUMN IF NOT EXISTS notes TEXT NOT NULL DEFAULT ''`,
   `ALTER TABLE feeding ADD COLUMN IF NOT EXISTS group_name TEXT NOT NULL DEFAULT ''`,
+  `ALTER TABLE feeding ADD COLUMN IF NOT EXISTS needs_review INTEGER DEFAULT 0`,
+  `CREATE INDEX IF NOT EXISTS idx_feeding_needs_review ON feeding(needs_review) WHERE needs_review = 1`,
 
   `CREATE TABLE IF NOT EXISTS expenses (
     id TEXT PRIMARY KEY,
@@ -193,6 +197,8 @@ export const schemaStatements = [
   `ALTER TABLE vaccinations ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'upcoming'`,
   `ALTER TABLE vaccinations ADD COLUMN IF NOT EXISTS count_vaccinated INTEGER NOT NULL DEFAULT 0`,
   `ALTER TABLE vaccinations ADD COLUMN IF NOT EXISTS notes TEXT NOT NULL DEFAULT ''`,
+  `ALTER TABLE vaccinations ADD COLUMN IF NOT EXISTS needs_review INTEGER DEFAULT 0`,
+  `CREATE INDEX IF NOT EXISTS idx_vaccinations_needs_review ON vaccinations(needs_review) WHERE needs_review = 1`,
 
   `CREATE TABLE IF NOT EXISTS vaccination_schedules (
     id TEXT PRIMARY KEY,
@@ -217,6 +223,28 @@ export const schemaStatements = [
     date        TEXT NOT NULL,
     reason      TEXT NOT NULL DEFAULT '',
     notes       TEXT NOT NULL DEFAULT ''
+  )`,
+
+  `CREATE TABLE IF NOT EXISTS event_audit_log (
+    id TEXT PRIMARY KEY,
+    owner_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    event_id TEXT NOT NULL,
+    action TEXT NOT NULL CHECK(action IN ('create', 'update', 'delete', 'undo')),
+    changed_by TEXT NOT NULL,
+    changed_at TEXT NOT NULL,
+    before_state TEXT DEFAULT '',
+    after_state TEXT DEFAULT ''
+  )`,
+
+  `CREATE TABLE IF NOT EXISTS farm_daily_counts (
+    id TEXT PRIMARY KEY,
+    owner_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    date TEXT NOT NULL,
+    target_id TEXT NOT NULL,
+    target_name TEXT NOT NULL,
+    species TEXT NOT NULL CHECK(species IN ('poultry', 'cattle')),
+    live_count INTEGER NOT NULL,
+    created_at TEXT NOT NULL
   )`,
 
   `CREATE TABLE IF NOT EXISTS vaccines (
@@ -258,6 +286,10 @@ export const schemaStatements = [
   `CREATE INDEX IF NOT EXISTS idx_feed_types_owner_date ON feed_types(owner_id, animal_type, is_active)`,
   `CREATE INDEX IF NOT EXISTS idx_pop_events_owner ON population_events(owner_id, date)`,
   `CREATE INDEX IF NOT EXISTS idx_pop_events_target ON population_events(owner_id, target_id)`,
+  `CREATE INDEX IF NOT EXISTS idx_event_audit_owner_date ON event_audit_log(owner_id, changed_at)`,
+  `CREATE INDEX IF NOT EXISTS idx_event_audit_event ON event_audit_log(event_id)`,
+  `CREATE INDEX IF NOT EXISTS idx_farm_daily_owner_target_date ON farm_daily_counts(owner_id, target_id, date)`,
+  `CREATE INDEX IF NOT EXISTS idx_farm_daily_owner_date ON farm_daily_counts(owner_id, date)`,
 ];
 
 /**

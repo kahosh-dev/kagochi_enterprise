@@ -43,6 +43,8 @@ import {
 import { makePeriod, makeCustomPeriod, summarizeFarm, buildSurvivorSummary, buildMortaltySeries, addDays } from "./analytics.js";
 import { postgresStore } from "./postgresStore.js";
 import { sqliteStore } from "./sqliteStore.js";
+import { logEventAudit } from "./eventAudit.service.js";
+import { findRecordsAfterLastActiveDate, getLiveCountOnDate } from "./asOfDate.service.js";
 
 declare global {
   // eslint-disable-next-line @typescript-eslint/no-namespace
@@ -434,6 +436,7 @@ export function createApp(options: AppOptions = {}) {
   api.post("/farm/population-events", requireAuth, async (req, res) => {
     const data = parse(populationEventSchema, req.body, res, "Invalid population event details.");
     if (!data) return;
+    
     // Check for duplicate death events
     let warning: string | undefined;
     if (data.eventType === 'death') {
@@ -445,17 +448,105 @@ export function createApp(options: AppOptions = {}) {
         warning = "A death event with the same date and count already exists for this animal or batch. Please check for duplicates.";
       }
     }
+    
     const id = crypto.randomUUID();
+    const ownerId = req.user!.id;
+    
     try {
-      await store.createPopulationEvent(id, req.user!.id, {
-        species:     data.species,
-        target_id:   data.targetId,
-        target_name: data.targetName,
-        event_type:  data.eventType,
-        count:       data.count,
-        date:        data.date,
-        reason:      data.reason,
-        notes:       data.notes,
+      await store.executeInTransaction(async (client) => {
+        // Guard: prevent negative population
+        const reducingTypes = ['death', 'sale', 'transfer_out'];
+        if (reducingTypes.includes(data.eventType)) {
+          const netQ = await client.query(
+            `SELECT
+               COALESCE(SUM(CASE WHEN event_type IN ('addition','transfer_in') THEN count ELSE 0 END), 0)
+               - COALESCE(SUM(CASE WHEN event_type IN ('death','sale','transfer_out') THEN count ELSE 0 END), 0)
+               AS net
+             FROM population_events WHERE owner_id = $1 AND target_id = $2`,
+            [ownerId, data.targetId],
+          );
+          let initialCount = 0;
+          if (data.species === 'poultry') {
+            const batchQ = await client.query(
+              `SELECT initial_count FROM poultry_batches WHERE id = $1 AND owner_id = $2`,
+              [data.targetId, ownerId],
+            );
+            initialCount = batchQ.rows[0]?.initial_count ?? 0;
+          } else {
+            const animalQ = await client.query(
+              `SELECT id FROM livestock WHERE id = $1 AND owner_id = $2`,
+              [data.targetId, ownerId],
+            );
+            initialCount = animalQ.rows.length > 0 ? 1 : 0;
+          }
+          const net = Number(netQ.rows[0]?.net ?? 0);
+          if (initialCount + net - data.count < 0) {
+            throw new Error('NEGATIVE_POPULATION');
+          }
+        }
+        
+        // Create the event
+        await client.query(
+          `INSERT INTO population_events (id, owner_id, species, target_id, target_name, event_type, count, date, reason, notes)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+          [id, ownerId, data.species, data.targetId, data.targetName, data.eventType, data.count, data.date, data.reason, data.notes],
+        );
+        
+        // Update snapshot counts
+        if (data.species === 'poultry') {
+          const currentCountQ = await client.query(
+            `SELECT current_count FROM poultry_batches WHERE id = $1 AND owner_id = $2`,
+            [data.targetId, ownerId],
+          );
+          let currentCount = currentCountQ.rows[0]?.current_count ?? 0;
+          
+          if (reducingTypes.includes(data.eventType)) {
+            currentCount -= data.count;
+          } else if (['addition', 'transfer_in'].includes(data.eventType)) {
+            currentCount += data.count;
+          }
+          
+          await client.query(
+            `UPDATE poultry_batches SET current_count = $1 WHERE id = $2 AND owner_id = $3`,
+            [Math.max(0, currentCount), data.targetId, ownerId],
+          );
+        } else if (data.species === 'cattle') {
+          // For livestock, update status if it's a death or sale
+          if (data.eventType === 'death') {
+            await client.query(
+              `UPDATE livestock SET status = 'deceased' WHERE id = $1 AND owner_id = $2`,
+              [data.targetId, ownerId],
+            );
+          } else if (data.eventType === 'sale') {
+            await client.query(
+              `UPDATE livestock SET status = 'sold' WHERE id = $1 AND owner_id = $2`,
+              [data.targetId, ownerId],
+            );
+          }
+        }
+        
+        // Create linked income entry if sale with amount (optional future enhancement)
+        // For now, we skip this as it would require additional fields in the schema
+        
+        // Log audit trail
+        await logEventAudit(
+          ownerId,
+          id,
+          'create',
+          ownerId,
+          null,
+          {
+            species: data.species,
+            target_id: data.targetId,
+            target_name: data.targetName,
+            event_type: data.eventType,
+            count: data.count,
+            date: data.date,
+            reason: data.reason,
+            notes: data.notes,
+          },
+          client,
+        );
       });
     } catch (error) {
       if ((error as Error).message === 'NEGATIVE_POPULATION') {
@@ -464,6 +555,7 @@ export function createApp(options: AppOptions = {}) {
       }
       throw error;
     }
+    
     if (warning) {
       res.json({ message: "Population event recorded.", id, warning });
     } else {
@@ -483,6 +575,92 @@ export function createApp(options: AppOptions = {}) {
       return;
     }
     res.json({ message: "Population event deleted." });
+  });
+
+  api.post("/farm/population-events/:id/undo", requireAuth, async (req, res) => {
+    const idResult = idParamSchema.safeParse(req.params.id);
+    if (!idResult.success) {
+      res.status(404).json({ error: "Population event not found." });
+      return;
+    }
+    
+    const eventId = idResult.data;
+    const ownerId = req.user!.id;
+    
+    try {
+      await store.executeInTransaction(async (client) => {
+        // Get the event to undo
+        const eventQ = await client.query(
+          `SELECT id, owner_id, species, target_id, target_name, event_type, count, date, reason, notes
+           FROM population_events WHERE id = $1 AND owner_id = $2`,
+          [eventId, ownerId],
+        );
+        
+        if (eventQ.rows.length === 0) {
+          throw new Error('EVENT_NOT_FOUND');
+        }
+        
+        const event = eventQ.rows[0];
+        
+        // Reverse snapshot changes
+        const reducingTypes = ['death', 'sale', 'transfer_out'];
+        if (event.species === 'poultry') {
+          const currentCountQ = await client.query(
+            `SELECT current_count FROM poultry_batches WHERE id = $1 AND owner_id = $2`,
+            [event.target_id, ownerId],
+          );
+          let currentCount = currentCountQ.rows[0]?.current_count ?? 0;
+          
+          // Reverse the operation
+          if (reducingTypes.includes(event.event_type)) {
+            currentCount += event.count;
+          } else if (['addition', 'transfer_in'].includes(event.event_type)) {
+            currentCount -= event.count;
+          }
+          
+          await client.query(
+            `UPDATE poultry_batches SET current_count = $1 WHERE id = $2 AND owner_id = $3`,
+            [Math.max(0, currentCount), event.target_id, ownerId],
+          );
+        } else if (event.species === 'cattle') {
+          // For livestock, restore status to active
+          if (event.event_type === 'death' || event.event_type === 'sale') {
+            await client.query(
+              `UPDATE livestock SET status = 'active' WHERE id = $1 AND owner_id = $2`,
+              [event.target_id, ownerId],
+            );
+          }
+        }
+        
+        // Delete linked income/expense entries (future enhancement)
+        // For now we skip this
+        
+        // Delete the event
+        await client.query(
+          `DELETE FROM population_events WHERE id = $1 AND owner_id = $2`,
+          [eventId, ownerId],
+        );
+        
+        // Log audit trail
+        await logEventAudit(
+          ownerId,
+          eventId,
+          'undo',
+          ownerId,
+          event,
+          null,
+          client,
+        );
+      });
+      
+      res.json({ message: "Population event undone successfully." });
+    } catch (error) {
+      if ((error as Error).message === 'EVENT_NOT_FOUND') {
+        res.status(404).json({ error: "Population event not found." });
+        return;
+      }
+      throw error;
+    }
   });
 
   api.get("/farm/survivor-summary", requireAuth, async (req, res) => {
