@@ -658,7 +658,13 @@ body {
 
 .kf-grid--main-side {
   grid-template-columns: minmax(0, 1.65fr) minmax(280px, 1fr);
-  align-items: start;
+  align-items: stretch;
+}
+
+.kf-grid--main-side > * {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
 }
 
 .kf-panel {
@@ -667,6 +673,9 @@ body {
   border-radius: var(--kf-radius-lg);
   box-shadow: var(--kf-shadow-xs);
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
 }
 
 .kf-panel-header {
@@ -1488,8 +1497,20 @@ body {
 
 .kf-record-list {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 12px;
+}
+
+@media (max-width: 1023px) {
+  .kf-record-list {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 600px) {
+  .kf-record-list {
+    grid-template-columns: 1fr;
+  }
 }
 
 .kf-record {
@@ -1498,12 +1519,19 @@ body {
   border: 1px solid var(--kf-border);
   border-radius: 14px;
   background: var(--kf-white);
-  transition: border-color 0.16s ease, box-shadow 0.16s ease;
+  transition: border-color 0.16s ease, box-shadow 0.16s ease, transform 0.2s ease;
 }
 
 .kf-record:hover {
   border-color: var(--kf-border-strong);
-  box-shadow: var(--kf-shadow-xs);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  transform: translateY(-3px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .kf-record:hover {
+    transform: none;
+  }
 }
 
 .kf-record-head {
@@ -3637,7 +3665,7 @@ body {
   padding: 22px 24px;
   border-radius: var(--kf-radius-lg);
   background: linear-gradient(135deg, var(--kf-forest) 0%, var(--kf-forest-3) 100%);
-  color: rgba(255, 255, 255, 0.82);
+  color: #fff;
   box-shadow: var(--kf-shadow-sm);
   position: relative;
   overflow: hidden;
@@ -4569,7 +4597,7 @@ body {
 .kf-welcome-banner h2 {
   font-size: clamp(20px, 4vw, 28px);
   font-weight: 760;
-  color: var(--kf-forest);
+  color: #fff;
   margin: 0;
   letter-spacing: -0.02em;
 }
@@ -4577,7 +4605,7 @@ body {
 .kf-welcome-banner p {
   margin: 0 0 4px;
   font-size: 13px;
-  color: var(--kf-muted);
+  color: rgba(255, 255, 255, 0.92);
   text-transform: capitalize;
 }
 

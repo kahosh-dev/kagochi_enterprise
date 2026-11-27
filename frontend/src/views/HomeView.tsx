@@ -14,6 +14,15 @@ import {
   Wallet,
   Wheat,
 } from "lucide-react";
+import {
+  ResponsiveContainer,
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+} from "recharts";
 import { loadFarmSummary } from "../services/storage";
 import type { FarmSummaryData } from "../types/farm";
 import DailyRecordModal from "../components/DailyRecordModal";
@@ -486,56 +495,132 @@ export default function HomeView({
         </section>
 
         <div className="kf-grid kf-grid--main-side">
-          <Panel
-            title="Animals alive on the farm"
-            subtitle="Counts updated each time you record additions, deaths, or sales."
-            actions={
-              <Button variant="soft" icon={<ArrowRight size={15} />} onClick={() => onNavigate("survivors")}>
-                See all records
-              </Button>
-            }
-          >
-            <div className="kf-grid kf-grid--2">
-              <StatCard
-                tone="forest"
-                image="/images/farm/chicken.webp"
-                imageAlt="Birds surviving"
-                layout="image-right"
-                label="Chickens alive"
-                value={formatNumber(totalPoultryBirds || totalBirds)}
-                hint="Alive after additions, sales and deaths"
-                onClick={() => onNavigate("survivors")}
-              />
-              <StatCard
-                tone="plum"
-                image="/images/farm/cow.webp"
-                imageAlt="Livestock active"
-                layout="image-right"
-                label="Cattle alive"
-                value={formatNumber(totalLivestockActive || totalCattle)}
-                hint="Animals with survivors above zero"
-                onClick={() => onNavigate("survivors")}
-              />
-            </div>
-
-            {birdLosses > 0 && (
-              <div style={{ marginTop: 14 }}>
-                <div className="kf-split-bar" aria-hidden="true">
-                  <span
-                    style={{
-                      width: `${Math.min(100, lossPercent ?? 0)}%`,
-                      background: "var(--kf-red)",
-                    }}
-                  />
-                  <span style={{ width: `${Math.max(0, 100 - (lossPercent ?? 0))}%`, background: "var(--kf-action)" }} />
-                </div>
-                <InlineMeta>
-                  Recorded poultry losses: <strong>{formatNumber(birdLosses)}</strong> birds ({percent(lossPercent)} of starting
-                  birds).
-                </InlineMeta>
+          <div className="kf-stack">
+            <Panel
+              title="Animals alive on the farm"
+              subtitle="Counts updated each time you record additions, deaths, or sales."
+              actions={
+                <Button variant="soft" icon={<ArrowRight size={15} />} onClick={() => onNavigate("survivors")}>
+                  See all records
+                </Button>
+              }
+            >
+              <div className="kf-grid kf-grid--2">
+                <StatCard
+                  tone="forest"
+                  image="/images/farm/chicken.webp"
+                  imageAlt="Birds surviving"
+                  layout="image-right"
+                  label="Chickens alive"
+                  value={formatNumber(totalPoultryBirds || totalBirds)}
+                  hint="Alive after additions, sales and deaths"
+                  onClick={() => onNavigate("survivors")}
+                />
+                <StatCard
+                  tone="plum"
+                  image="/images/farm/cow.webp"
+                  imageAlt="Livestock active"
+                  layout="image-right"
+                  label="Cattle alive"
+                  value={formatNumber(totalLivestockActive || totalCattle)}
+                  hint="Animals with survivors above zero"
+                  onClick={() => onNavigate("survivors")}
+                />
               </div>
-            )}
-          </Panel>
+
+              {birdLosses > 0 && (
+                <div style={{ marginTop: 14 }}>
+                  <div className="kf-split-bar" aria-hidden="true">
+                    <span
+                      style={{
+                        width: `${Math.min(100, lossPercent ?? 0)}%`,
+                        background: "var(--kf-red)",
+                      }}
+                    />
+                    <span style={{ width: `${Math.max(0, 100 - (lossPercent ?? 0))}%`, background: "var(--kf-action)" }} />
+                  </div>
+                  <InlineMeta>
+                    Recorded poultry losses: <strong>{formatNumber(birdLosses)}</strong> birds ({percent(lossPercent)} of starting
+                    birds).
+                  </InlineMeta>
+                </div>
+              )}
+            </Panel>
+
+            <Panel
+              title="Production trend"
+              subtitle={`Eggs and milk collected for ${periodInfo.label}`}
+              actions={
+                <Button variant="ghost" icon={<ChevronRight size={15} />} onClick={() => onNavigate("production")}>
+                  View all
+                </Button>
+              }
+            >
+              {eggsTotal > 0 || milkTotal > 0 ? (
+                <div style={{ height: 220, marginTop: 12 }}>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart
+                      data={[
+                        { name: "Eggs", eggs: eggsTotal, milk: 0 },
+                        { name: "Milk", eggs: 0, milk: milkTotal },
+                      ]}
+                      margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
+                    >
+                      <defs>
+                        <linearGradient id="colorEggs" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="var(--kf-action)" stopOpacity={0.3} />
+                          <stop offset="95%" stopColor="var(--kf-action)" stopOpacity={0} />
+                        </linearGradient>
+                        <linearGradient id="colorMilk" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#F59E0B" stopOpacity={0.3} />
+                          <stop offset="95%" stopColor="#F59E0B" stopOpacity={0} />
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" stroke="var(--kf-border)" />
+                      <XAxis dataKey="name" tick={{ fontSize: 11 }} stroke="var(--kf-muted)" />
+                      <YAxis tick={{ fontSize: 11 }} stroke="var(--kf-muted)" />
+                      <Tooltip
+                        contentStyle={{
+                          background: "var(--kf-surface)",
+                          border: "1px solid var(--kf-border)",
+                          borderRadius: "8px",
+                          fontSize: "12px",
+                        }}
+                      />
+                      <Area
+                        type="monotone"
+                        dataKey="eggs"
+                        stroke="var(--kf-action)"
+                        strokeWidth={2}
+                        fillOpacity={1}
+                        fill="url(#colorEggs)"
+                      />
+                      <Area
+                        type="monotone"
+                        dataKey="milk"
+                        stroke="#F59E0B"
+                        strokeWidth={2}
+                        fillOpacity={1}
+                        fill="url(#colorMilk)"
+                      />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                </div>
+              ) : (
+                <EmptyState
+                  icon={<Egg size={22} />}
+                  title="No production recorded"
+                  description="Log egg and milk collection to see trends here."
+                  action={
+                    <Button variant="ghost" size="sm" onClick={() => onNavigate("production")}>
+                      Add production record
+                    </Button>
+                  }
+                  compact
+                />
+              )}
+            </Panel>
+          </div>
 
           <Panel
             title="Profit & loss"
