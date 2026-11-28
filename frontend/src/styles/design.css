@@ -2363,12 +2363,13 @@ body {
   padding-right: 48px;
 }
 
-/* Toggle — anchored to .kf-pw-wrap, never shifts */
-.kf-pw-toggle {
+/* Toggle is inset from the 44px input instead of transform-centred so global
+   button hover/active transforms can never move it out of alignment. */
+.kf-auth-card .kf-pw-wrap > .kf-pw-toggle {
   position: absolute;
-  top: 50%;
-  right: 12px;
-  transform: translateY(-50%);
+  top: 4px;
+  right: 4px;
+  transform: none;
   width: 36px;
   height: 36px;
   padding: 0;
@@ -2383,23 +2384,23 @@ body {
   transition: background 0.15s ease, color 0.15s ease, opacity 0.15s ease;
 }
 
-.kf-pw-toggle:hover {
+.kf-auth-card .kf-pw-wrap > .kf-pw-toggle:hover:not(:disabled) {
   background: var(--kf-cream-2);
   color: var(--kf-forest);
-  transform: translateY(-50%); /* keep centred, no shift */
+  transform: none;
   box-shadow: none;
 }
 
-.kf-pw-toggle:active {
+.kf-auth-card .kf-pw-wrap > .kf-pw-toggle:active:not(:disabled) {
   background: var(--kf-cream-2);
   color: var(--kf-forest);
-  transform: translateY(-50%); /* keep centred, no shift */
+  transform: none;
 }
 
-.kf-pw-toggle:focus-visible {
+.kf-auth-card .kf-pw-wrap > .kf-pw-toggle:focus-visible {
   outline: 2px solid var(--kf-action);
   outline-offset: 1px;
-  transform: translateY(-50%); /* keep centred, no shift */
+  transform: none;
 }
 
 /* Password hint line — lives OUTSIDE kf-pw-wrap */
