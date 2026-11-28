@@ -4,6 +4,7 @@ import { config } from "./config.js";
 import { resourceTables, type ResourceName, type RecordValues, type RecordRow, type UserRow } from "./store.js";
 import { DEFAULT_VACCINES } from "./vaccineDefaults.js";
 import { DEFAULT_FEED_TYPES } from "./feedTypeDefaults.js";
+import { hasNonNegativePopulation, livestockStatusFromEvents, populationAtDate, type PopulationEventLike } from "./population.js";
 
 let _db: Database.Database | null = null;
 
@@ -171,6 +172,18 @@ function initSqlite(database: Database.Database): void {
       FOREIGN KEY (owner_id) REFERENCES users(id) ON DELETE CASCADE
     );
 
+    CREATE TABLE IF NOT EXISTS event_audit_log (
+      id TEXT PRIMARY KEY,
+      owner_id TEXT NOT NULL,
+      event_id TEXT NOT NULL,
+      action TEXT NOT NULL CHECK(action IN ('create', 'update', 'delete', 'undo')),
+      changed_by TEXT NOT NULL,
+      changed_at TEXT NOT NULL,
+      before_state TEXT NOT NULL DEFAULT '{}',
+      after_state TEXT NOT NULL DEFAULT '{}',
+      FOREIGN KEY (owner_id) REFERENCES users(id) ON DELETE CASCADE
+    );
+
     CREATE TABLE IF NOT EXISTS vaccines (
       id TEXT PRIMARY KEY,
       owner_id TEXT NOT NULL,
@@ -290,6 +303,9 @@ function initSqlite(database: Database.Database): void {
   ensureColumn("feeding", "supplier", "TEXT NOT NULL DEFAULT ''");
   ensureColumn("feeding", "notes", "TEXT NOT NULL DEFAULT ''");
   ensureColumn("feeding", "group_name", "TEXT NOT NULL DEFAULT ''");
+
+  // Livestock stage eligibility migration
+  ensureColumn("livestock", "has_calved", "INTEGER NOT NULL DEFAULT 0");
 
   // Vaccinations migrations (ensure both old and new schemas are handled)
   ensureColumn("vaccinations", "target_type", "TEXT NOT NULL DEFAULT ''");
@@ -491,6 +507,24 @@ export function listRecords(resource: ResourceName, ownerId: string): RecordRow[
     .all(ownerId) as RecordRow[];
 }
 
+export function listRecordsForPeriod(
+  resource: ResourceName,
+  ownerId: string,
+  from: string | undefined,
+  to: string,
+): RecordRow[] {
+  const { table, columns, dateColumn } = resourceTables[resource];
+  const predicates = ["owner_id = ?", `${dateColumn} <= ?`];
+  const params: (string | number)[] = [ownerId, to];
+  if (from) {
+    predicates.push(`${dateColumn} >= ?`);
+    params.push(from);
+  }
+  return db
+    .prepare(`SELECT id, ${columns.join(", ")} FROM ${table} WHERE ${predicates.join(" AND ")} ORDER BY ${dateColumn} DESC, rowid DESC`)
+    .all(...params) as RecordRow[];
+}
+
 function orderedValues(resource: ResourceName, values: RecordValues) {
   return resourceTables[resource].columns.map((column) => {
     const value = values[column];
@@ -561,12 +595,16 @@ export function listPopulationEvents(
   ownerId: string,
   species?: string,
   targetId?: string,
+  from?: string,
+  to?: string,
 ): PopulationEventRow[] {
   let sql = `SELECT id, owner_id, species, target_id, target_name, event_type, count, date, reason, notes
              FROM population_events WHERE owner_id = ?`;
   const params: unknown[] = [ownerId];
   if (species) { sql += ` AND species = ?`; params.push(species); }
   if (targetId) { sql += ` AND target_id = ?`; params.push(targetId); }
+  if (from) { sql += ` AND date >= ?`; params.push(from); }
+  if (to) { sql += ` AND date <= ?`; params.push(to); }
   sql += ` ORDER BY date DESC, rowid DESC`;
   return db.prepare(sql).all(...params) as PopulationEventRow[];
 }
@@ -584,41 +622,110 @@ export function getSurvivorCount(ownerId: string, targetId: string): number {
   return row.net;
 }
 
+function batchCurrentCount(targetId: string, ownerId: string): number {
+  const row = db.prepare(`SELECT current_count FROM poultry_batches WHERE id = ? AND owner_id = ?`).get(targetId, ownerId) as { current_count: number } | undefined;
+  return Number(row?.current_count ?? 0);
+}
+
 /** Inserts a new population event. Throws Error('NEGATIVE_POPULATION') if the event
  *  would make survivors go below zero. */
 export function createPopulationEvent(
   id: string,
   ownerId: string,
   data: Omit<PopulationEventRow, 'id' | 'owner_id'>,
+  options: { allowSnapshotReconciliation?: boolean } = {},
 ): void {
-  const reducingTypes = ['death', 'sale', 'transfer_out'];
-  if (reducingTypes.includes(data.event_type)) {
-    // Fetch initial count
-    let initialCount = 0;
+  const run = db.transaction(() => {
+    let initialCount: number;
+    let dateAdded: string;
     if (data.species === 'poultry') {
       const batch = db.prepare(
-        `SELECT initial_count FROM poultry_batches WHERE id = ? AND owner_id = ?`
-      ).get(data.target_id, ownerId) as { initial_count: number } | undefined;
-      initialCount = batch?.initial_count ?? 0;
+        `SELECT initial_count, current_count, date_added FROM poultry_batches WHERE id = ? AND owner_id = ?`
+      ).get(data.target_id, ownerId) as { initial_count: number; current_count: number; date_added: string } | undefined;
+      if (!batch) throw new Error('POPULATION_TARGET_NOT_FOUND');
+      initialCount = Number(batch.initial_count);
+      dateAdded = batch.date_added;
     } else {
-      // Each livestock row = 1 animal
       const animal = db.prepare(
-        `SELECT id FROM livestock WHERE id = ? AND owner_id = ?`
-      ).get(data.target_id, ownerId);
-      initialCount = animal ? 1 : 0;
+        `SELECT id, date_added FROM livestock WHERE id = ? AND owner_id = ?`
+      ).get(data.target_id, ownerId) as { id: string; date_added: string } | undefined;
+      if (!animal) throw new Error('POPULATION_TARGET_NOT_FOUND');
+      if (data.count !== 1) throw new Error('CATTLE_EVENT_COUNT_MUST_BE_ONE');
+      if (data.event_type === 'addition') throw new Error('CATTLE_ADDITION_REQUIRES_ANIMAL_RECORD');
+      initialCount = 1;
+      dateAdded = animal.date_added;
     }
-    const netEvents = getSurvivorCount(ownerId, data.target_id);
-    if (initialCount + netEvents - data.count < 0) {
-      throw new Error('NEGATIVE_POPULATION');
-    }
-  }
+    if (data.date < String(dateAdded).slice(0, 10)) throw new Error('POPULATION_EVENT_BEFORE_TARGET');
 
-  db.prepare(`
-    INSERT INTO population_events (id, owner_id, species, target_id, target_name, event_type, count, date, reason, notes)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `).run(id, ownerId, data.species, data.target_id, data.target_name, data.event_type, data.count, data.date, data.reason, data.notes);
+    const existing = db.prepare(
+      `SELECT id, event_type, count, date FROM population_events WHERE owner_id = ? AND species = ? AND target_id = ?`
+    ).all(ownerId, data.species, data.target_id) as PopulationEventLike[];
+    if (!options.allowSnapshotReconciliation) {
+      if (data.species === 'poultry' && batchCurrentCount(data.target_id, ownerId) !== populationAtDate(initialCount, existing)) {
+        throw new Error('POPULATION_SNAPSHOT_REQUIRES_BACKFILL');
+      }
+      if (data.species === 'cattle') {
+        const storedStatus = String((db.prepare(`SELECT status FROM livestock WHERE id = ? AND owner_id = ?`).get(data.target_id, ownerId) as { status: string } | undefined)?.status ?? 'active');
+        if (storedStatus !== livestockStatusFromEvents(existing)) throw new Error('POPULATION_SNAPSHOT_REQUIRES_BACKFILL');
+      }
+    }
+    const proposed = [...existing, { id, event_type: data.event_type, count: data.count, date: data.date }];
+    if (!hasNonNegativePopulation(initialCount, proposed)) throw new Error('NEGATIVE_POPULATION');
+
+    db.prepare(`
+      INSERT INTO population_events (id, owner_id, species, target_id, target_name, event_type, count, date, reason, notes)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(id, ownerId, data.species, data.target_id, data.target_name, data.event_type, data.count, data.date, data.reason, data.notes);
+    db.prepare(`INSERT INTO event_audit_log (id, owner_id, event_id, action, changed_by, changed_at, before_state, after_state) VALUES (?, ?, ?, 'create', ?, ?, ?, ?)`)
+      .run(crypto.randomUUID(), ownerId, id, ownerId, new Date().toISOString(), JSON.stringify({}), JSON.stringify(data));
+
+    const liveCount = Math.max(0, populationAtDate(initialCount, proposed));
+    if (data.species === 'poultry') {
+      db.prepare(`UPDATE poultry_batches SET current_count = ? WHERE id = ? AND owner_id = ?`).run(liveCount, data.target_id, ownerId);
+    } else {
+      const status = livestockStatusFromEvents(proposed);
+      db.prepare(`UPDATE livestock SET status = ? WHERE id = ? AND owner_id = ?`).run(status, data.target_id, ownerId);
+    }
+  });
+  run.immediate();
 }
 
-export function deletePopulationEvent(id: string, ownerId: string): { changes: number } {
-  return db.prepare(`DELETE FROM population_events WHERE id = ? AND owner_id = ?`).run(id, ownerId) as { changes: number };
+export function deletePopulationEvent(id: string, ownerId: string, action: "delete" | "undo" = "delete"): { changes: number } {
+  const run = db.transaction(() => {
+    const event = db.prepare(
+      `SELECT species, target_id, target_name, event_type, count, date, reason, notes FROM population_events WHERE id = ? AND owner_id = ?`
+    ).get(id, ownerId) as { species: 'poultry' | 'cattle'; target_id: string; target_name: string; event_type: string; count: number; date: string; reason: string; notes: string } | undefined;
+    if (!event) return { changes: 0 };
+    const allEvents = db.prepare(`SELECT id, event_type, count, date FROM population_events WHERE owner_id = ? AND species = ? AND target_id = ?`).all(ownerId, event.species, event.target_id) as PopulationEventLike[];
+    const remaining = allEvents.filter((item) => item.id !== id);
+    const initialCount = event.species === 'poultry'
+      ? Number((db.prepare(`SELECT initial_count FROM poultry_batches WHERE id = ? AND owner_id = ?`).get(event.target_id, ownerId) as { initial_count: number } | undefined)?.initial_count ?? 0)
+      : 1;
+    if (!hasNonNegativePopulation(initialCount, remaining)) throw new Error('NEGATIVE_POPULATION');
+    if (event.species === 'poultry') {
+      const cached = batchCurrentCount(event.target_id, ownerId);
+      if (cached !== populationAtDate(initialCount, allEvents)) throw new Error('POPULATION_SNAPSHOT_REQUIRES_BACKFILL');
+    } else {
+      const status = String((db.prepare(`SELECT status FROM livestock WHERE id = ? AND owner_id = ?`).get(event.target_id, ownerId) as { status: string } | undefined)?.status ?? 'active');
+      if (status !== livestockStatusFromEvents(allEvents)) throw new Error('POPULATION_SNAPSHOT_REQUIRES_BACKFILL');
+    }
+    const deleted = db.prepare(`DELETE FROM population_events WHERE id = ? AND owner_id = ?`).run(id, ownerId);
+    db.prepare(`INSERT INTO event_audit_log (id, owner_id, event_id, action, changed_by, changed_at, before_state, after_state) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`)
+      .run(crypto.randomUUID(), ownerId, id, action, ownerId, new Date().toISOString(), JSON.stringify(event), JSON.stringify({}));
+    if (event.species === 'poultry') {
+      const batch = db.prepare(`SELECT initial_count FROM poultry_batches WHERE id = ? AND owner_id = ?`).get(event.target_id, ownerId) as { initial_count: number } | undefined;
+      if (batch) {
+        const events = db.prepare(`SELECT id, event_type, count, date FROM population_events WHERE owner_id = ? AND species = 'poultry' AND target_id = ?`).all(ownerId, event.target_id) as PopulationEventLike[];
+        db.prepare(`UPDATE poultry_batches SET current_count = ? WHERE id = ? AND owner_id = ?`).run(Math.max(0, populationAtDate(Number(batch.initial_count), events)), event.target_id, ownerId);
+      }
+    } else {
+      const events = db.prepare(`SELECT id, event_type, count, date FROM population_events WHERE owner_id = ? AND species = 'cattle' AND target_id = ?`).all(ownerId, event.target_id) as PopulationEventLike[];
+      const liveCount = populationAtDate(1, events);
+      const lastReducing = [...events].sort((a, b) => a.date.localeCompare(b.date) || a.id.localeCompare(b.id)).filter((row) => ['death', 'sale', 'transfer_out'].includes(row.event_type)).at(-1);
+      const status = liveCount > 0 ? 'active' : lastReducing?.event_type === 'death' ? 'deceased' : lastReducing?.event_type === 'sale' ? 'sold' : 'transferred';
+      db.prepare(`UPDATE livestock SET status = ? WHERE id = ? AND owner_id = ?`).run(status, event.target_id, ownerId);
+    }
+    return { changes: Number(deleted.changes) };
+  });
+  return run.immediate();
 }

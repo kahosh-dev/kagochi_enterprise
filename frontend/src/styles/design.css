@@ -1971,7 +1971,8 @@ body {
   align-items: center;
   justify-content: center;
   padding: 24px;
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
   background:
     radial-gradient(900px 500px at 8% 10%, rgba(134, 239, 172, 0.14), transparent 60%),
     radial-gradient(700px 500px at 95% 90%, rgba(210, 235, 190, 0.2), transparent 60%),
@@ -1982,7 +1983,7 @@ body {
 .kf-auth-shell {
   position: relative;
   z-index: 1;
-  width: min(1060px, 100%);
+  width: min(1000px, 100%);
   display: grid;
   grid-template-columns: minmax(0, 1.02fr) minmax(0, 0.98fr);
   border-radius: 28px;
@@ -1990,7 +1991,7 @@ body {
   background: var(--kf-surface);
   border: 1px solid rgba(255, 255, 255, 0.8);
   box-shadow: 0 34px 90px rgba(11, 38, 23, 0.18);
-  animation: kf-auth-in 0.4s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: kf-auth-in 0.35s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 @keyframes kf-auth-in {
@@ -2213,7 +2214,7 @@ body {
   justify-content: center;
   padding: 32px 36px;
   overflow-y: auto;
-  max-height: 100vh;
+  max-height: calc(100vh - 48px);
 }
 
 /* Brand inside card */
@@ -2292,8 +2293,58 @@ body {
 }
 
 /* Alert above fields */
-.kf-auth-alert {
+.kf-auth-alert-slot {
+  min-height: 42px;
+  display: flex;
+  align-items: flex-start;
   margin-bottom: 12px;
+}
+
+.kf-auth-alert {
+  width: 100%;
+  margin-bottom: 0;
+  align-items: center;
+}
+
+.kf-auth-alert-close {
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  margin-left: auto;
+  padding: 4px;
+  border: 0;
+  border-radius: 7px;
+  color: inherit;
+  background: transparent;
+  cursor: pointer;
+}
+
+.kf-auth-alert-close:hover {
+  background: rgba(127, 29, 29, 0.08);
+}
+
+.kf-auth-alert-close:focus-visible,
+.kf-auth-inline-link:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 2px;
+}
+
+.kf-auth-inline-link {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: #145c3b;
+  font: inherit;
+  font-weight: 750;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
+.kf-auth-form {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
 }
 
 /* Fields stack */
@@ -2471,11 +2522,52 @@ body {
 }
 
 .kf-field-error {
-  display: block;
+  display: flex;
+  align-items: flex-start;
+  gap: 5px;
   margin-top: 5px;
-  font-size: 10.5px;
+  font-size: 11px;
+  line-height: 1.4;
   font-weight: 650;
-  color: var(--kf-red);
+  color: #b42318;
+}
+
+.kf-field-error svg {
+  flex: 0 0 auto;
+  margin-top: 1px;
+}
+
+.kf-field-error-slot,
+.kf-auth-field-feedback {
+  min-height: 16px;
+  box-sizing: border-box;
+}
+
+.kf-field-error-slot.is-empty,
+.kf-auth-field-feedback.is-empty {
+  visibility: hidden;
+}
+
+.kf-auth-field-feedback {
+  display: flex;
+  align-items: flex-start;
+  gap: 5px;
+  margin-top: 5px;
+  font-size: 11px;
+  line-height: 1.4;
+  font-weight: 650;
+}
+
+.kf-password-hint-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: 5px;
+}
+
+.kf-password-hint-wrap .kf-pw-hint,
+.kf-password-hint-wrap .kf-strength {
+  margin-top: 0;
 }
 
 /* Submit button */
@@ -2658,18 +2750,54 @@ body {
 
 /* ── RESPONSIVE ── */
 @media (max-width: 900px) {
+  .kf-auth-page {
+    align-items: flex-start;
+    overflow-x: hidden;
+    overflow-y: auto;
+    padding: 20px;
+  }
+
   .kf-auth-shell {
     grid-template-columns: 1fr;
-    max-width: 480px;
+    max-width: 620px;
   }
 
   .kf-auth-showcase {
+    display: flex;
+    padding: 13px 20px;
+    min-height: 68px;
+  }
+
+  .kf-auth-showcase::after,
+  .kf-auth-showcase-bottom,
+  .kf-auth-headline,
+  .kf-auth-copy,
+  .kf-auth-features,
+  .kf-auth-benefits {
     display: none;
   }
 
+  .kf-auth-showcase-top {
+    width: 100%;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  .kf-auth-hero-copy {
+    align-items: flex-end;
+  }
+
+  .kf-auth-kicker {
+    white-space: nowrap;
+  }
+
   .kf-auth-card {
-    padding: 28px 24px;
+    padding: 24px 28px;
     justify-content: flex-start;
+    max-height: none;
+    overflow: visible;
   }
 }
 
@@ -2997,11 +3125,35 @@ body {
   }
 
   .kf-auth-showcase {
+    display: flex;
+    padding: 13px 20px;
+    min-height: 68px;
+  }
+
+  .kf-auth-showcase::after,
+  .kf-auth-showcase-bottom,
+  .kf-auth-headline,
+  .kf-auth-copy,
+  .kf-auth-features,
+  .kf-auth-benefits {
     display: none;
   }
 
+  .kf-auth-showcase-top {
+    width: 100%;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  .kf-auth-hero-copy { align-items: flex-end; }
+  .kf-auth-kicker { white-space: nowrap; }
+
   .kf-auth-card {
-    padding: 30px;
+    padding: 24px 28px;
+    max-height: none;
+    overflow: visible;
   }
 }
 
@@ -5135,5 +5287,48 @@ body {
 
   .kf-bottom-nav button span {
     font-size: 7.5px;
+  }
+}
+
+/* Compact auth header stays legible on narrow phones. */
+@media (max-width: 480px) {
+  .kf-auth-showcase {
+    padding: 12px 14px;
+  }
+
+  .kf-auth-showcase-top {
+    gap: 8px;
+  }
+
+  .kf-auth-showcase .kf-auth-brand {
+    gap: 7px;
+    flex: 0 1 auto;
+    min-width: 0;
+  }
+
+  .kf-auth-showcase .kf-auth-brand .kf-logo-mark {
+    width: 34px;
+    height: 34px;
+  }
+
+  .kf-auth-showcase .kf-auth-brand strong {
+    font-size: 13px;
+  }
+
+  .kf-auth-kicker {
+    padding: 4px 7px;
+    font-size: 8.5px;
+    letter-spacing: 0.04em;
+  }
+}
+
+@media (max-width: 380px) {
+  .kf-auth-showcase .kf-auth-brand span {
+    display: none;
+  }
+
+  .kf-auth-kicker {
+    gap: 5px;
+    font-size: 8px;
   }
 }

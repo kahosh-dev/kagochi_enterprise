@@ -10,6 +10,7 @@ export interface FarmRecords {
   income?: RecordRow[];
   vaccinations?: RecordRow[];
   vaccination_schedules?: RecordRow[];
+  populationEvents?: Awaited<ReturnType<FarmStore["listPopulationEvents"]>>;
 }
 
 export async function loadFarmRecordsFromStore(
@@ -25,6 +26,7 @@ export async function loadFarmRecordsFromStore(
     income,
     vaccinations,
     vaccination_schedules,
+    populationEvents,
   ] = await Promise.all([
     store.listRecords("poultry", ownerId),
     store.listRecords("livestock", ownerId),
@@ -34,6 +36,7 @@ export async function loadFarmRecordsFromStore(
     store.listRecords("income", ownerId),
     store.listRecords("vaccinations", ownerId),
     store.listRecords("vaccination_schedules", ownerId),
+    store.listPopulationEvents(ownerId),
   ]);
 
   return {
@@ -45,6 +48,7 @@ export async function loadFarmRecordsFromStore(
     income,
     vaccinations,
     vaccination_schedules,
+    populationEvents,
   };
 }
 

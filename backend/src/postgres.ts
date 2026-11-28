@@ -3,16 +3,23 @@ import { config } from "./config.js";
 
 const { Pool } = pg;
 
+function verifiedDatabaseUrl(rawUrl: string): string {
+  const url = new URL(rawUrl);
+  const local = ["localhost", "127.0.0.1", "::1"].includes(url.hostname);
+  if (local) {
+    url.searchParams.delete("sslmode");
+  } else {
+    // Keep TLS verification in the libpq URL itself. Supplying a separate
+    // `ssl` object alongside sslmode can cause node-postgres to warn that one
+    // setting overrides the other and used to disable certificate checks.
+    url.searchParams.set("sslmode", "verify-full");
+  }
+  return url.toString();
+}
+
 export const postgresPool: pg.Pool = config.databaseUrl
   ? new Pool({
-      connectionString: config.databaseUrl,
-      // Neon connections require SSL. Using rejectUnauthorized: false ensures reliable TLS connection
-      // across container environments without custom root CA bundle issues.
-      ssl: config.databaseUrl.includes("localhost") ||
-        config.databaseUrl.includes("127.0.0.1") ||
-        config.databaseUrl.includes("sslmode=disable")
-        ? false
-        : { rejectUnauthorized: process.env.DATABASE_SSL_REJECT_UNAUTHORIZED === "true" },
+      connectionString: verifiedDatabaseUrl(config.databaseUrl),
       max: Number(process.env.PGMAX ?? 10),
       idleTimeoutMillis: 30_000,
       connectionTimeoutMillis: 10_000,

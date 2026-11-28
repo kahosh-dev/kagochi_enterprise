@@ -44,10 +44,13 @@ async function main(): Promise<void> {
   const server = app.listen(config.port, () => {
     console.log(`Kagochi Farm backend running on http://localhost:${config.port}`);
     const aiCfg = aiProviderConfig();
-    console.log(`[AI] Primary provider: ${aiCfg.primary} (${aiCfg.primary === "groq" ? aiCfg.groqModel : aiCfg.primary === "gemini" ? aiCfg.geminiModel : aiCfg.anthropicModel})`);
-    console.log(`[AI] Fallback provider: ${aiCfg.fallback} (${aiCfg.fallback === "groq" ? aiCfg.groqModel : aiCfg.fallback === "gemini" ? aiCfg.geminiModel : aiCfg.anthropicModel})`);
+    const providerModel = (provider: typeof aiCfg.primary) => provider === "groq" ? aiCfg.groqModel : provider === "gemini" ? aiCfg.geminiModel : aiCfg.anthropicModel;
+    console.log(`[AI] Provider chain: primary=${aiCfg.primary}/${providerModel(aiCfg.primary)} fallback=${aiCfg.fallback}/${providerModel(aiCfg.fallback)} timeout=${aiCfg.timeoutMs}ms`);
+    const apiKeyConfigured = (provider: typeof aiCfg.primary) => Boolean(provider === "groq" ? config.groqApiKey : provider === "gemini" ? config.geminiApiKey : config.anthropicApiKey);
+    const missingKeys = [...new Set([aiCfg.primary, aiCfg.fallback])].filter((provider) => !apiKeyConfigured(provider));
+    if (missingKeys.length) console.warn(`[AI] Missing API key for configured provider(s): ${missingKeys.join(", ")}`);
     console.log(`[Auth] Self-registration: ${config.allowRegistration ? "enabled" : "disabled"}`);
-    console.log(`[AI Advisor] Status: ${config.geminiApiKey ? `enabled (${config.geminiModel})` : "disabled (GEMINI_API_KEY not set)"}`);
+    console.log(`[Gemini Performance Review] Status: ${config.geminiApiKey ? `enabled (${config.geminiModel})` : "disabled (GEMINI_API_KEY not set)"}`);
     console.log(`[Proxy] Express trust proxy: enabled (hop: 1)`);
   });
 

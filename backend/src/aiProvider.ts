@@ -23,6 +23,7 @@ export interface GenerateAnswerInput {
   system: string;
   messages: AiMessage[];
   maxTokens?: number;
+  signal?: AbortSignal;
 }
 
 /* ========================================================================
@@ -48,9 +49,9 @@ export function aiProviderConfig(): AiProviderConfig {
   return {
     primary: parseProvider(process.env.AI_PROVIDER_PRIMARY, "groq"),
     fallback: parseProvider(process.env.AI_PROVIDER_FALLBACK, "gemini"),
-    groqModel: process.env.GROQ_MODEL?.trim() ?? "llama-3.1-8b-instant",
-    geminiModel: process.env.GEMINI_MODEL?.trim() ?? "gemini-3.5-flash",
-    anthropicModel: process.env.ANTHROPIC_MODEL?.trim() ?? "claude-haiku-5-5",
+    groqModel: process.env.GROQ_MODEL?.trim() || "llama-3.1-8b-instant",
+    geminiModel: process.env.GEMINI_MODEL?.trim() || "gemini-3.5-flash",
+    anthropicModel: process.env.ANTHROPIC_MODEL?.trim() || "claude-haiku-5-5",
     timeoutMs: Number(process.env.AI_TIMEOUT_MS ?? 15000) || 15000,
   };
 }
@@ -89,6 +90,9 @@ export function sanitizeToPlainText(text: string): string {
   out = out.replace(/\*(.+?)\*/g, "$1");
   out = out.replace(/_(.+?)_/g, "$1");
   out = out.replace(/`([^`]*)`/g, "$1");
+  out = out.replace(/^\s*[>*+]\s+/gm, "- ");
+  out = out.replace(/~~([^~]+)~~/g, "$1");
+  out = out.replace(/[\*#]/g, "");
 
   return out.replace(/[ \t]+$/gm, "").replace(/\n{3,}/g, "\n\n").trim();
 }
@@ -119,6 +123,25 @@ function promptSize(system: string, messages: AiMessage[]): number {
   let size = system.length;
   for (const m of messages) size += m.content.length;
   return size;
+}
+
+async function providerResponseError(response: Response, provider: string): Promise<Error & { status: number }> {
+  const body = await response.text().catch(() => "");
+  let message = body;
+  try {
+    const parsed: unknown = JSON.parse(body);
+    if (parsed && typeof parsed === "object") {
+      const root = parsed as { error?: unknown; message?: unknown };
+      if (typeof root.message === "string") message = root.message;
+      else if (root.error && typeof root.error === "object" && "message" in root.error) {
+        const errorMessage = (root.error as { message?: unknown }).message;
+        if (typeof errorMessage === "string") message = errorMessage;
+      } else if (typeof root.error === "string") message = root.error;
+    }
+  } catch {
+    // Keep the provider's plain-text error body.
+  }
+  return Object.assign(new Error(`${provider} API returned ${response.status}: ${message.slice(0, 500)}`), { status: response.status });
 }
 
 function parseSseDelta(line: string): string | null {
@@ -166,7 +189,7 @@ async function groqGenerate(args: {
     signal: args.signal,
   });
 
-  if (!res.ok) throw Object.assign(new Error(`Groq API returned ${res.status}`), { status: res.status });
+  if (!res.ok) throw await providerResponseError(res, "Groq");
   if (!res.body) throw new Error("Groq API returned no body");
 
   let text = "";
@@ -267,7 +290,7 @@ async function anthropicGenerate(args: {
     signal: args.signal,
   });
 
-  if (!res.ok) throw Object.assign(new Error(`Anthropic API returned ${res.status}`), { status: res.status });
+  if (!res.ok) throw await providerResponseError(res, "Anthropic");
   const data = await res.json();
   const text = data.content?.[0]?.text ?? "";
   const cleaned = sanitizeToPlainText(text);
@@ -286,63 +309,67 @@ const PROVIDERS: Record<AiProviderName, (args: { system: string; messages: AiMes
  * Main entry point
  * ======================================================================== */
 
-/** Try the configured primary provider, then the fallback on timeout / 429 /
- *  500 / 503. Returns the first successful answer.
- *
- *  History is capped to the last 4 messages to keep prompts small for the
- *  free-tier token-per-minute limits.
- */
+/** Primary first, then fallback. Each provider gets one retry for timeouts,
+ *  HTTP 429, 500, or 503; every attempt has its own timeout budget. */
+export async function executeWithFallback<T>(
+  providers: readonly AiProviderName[],
+  timeoutMs: number,
+  enabled: (provider: AiProviderName) => boolean,
+  request: (provider: AiProviderName, signal: AbortSignal) => Promise<T>,
+  callerSignal?: AbortSignal,
+): Promise<{ provider: AiProviderName; value: T; ms: number }> {
+  let lastError: unknown;
+  for (const provider of providers) {
+    if (!enabled(provider)) {
+      console.warn(`[AI] provider=${provider} model=${modelFor(provider)} skipped: API key is not configured`);
+      continue;
+    }
+    for (let attempt = 1; attempt <= 2; attempt += 1) {
+      const controller = new AbortController();
+      const abortFromCaller = () => controller.abort(callerSignal?.reason);
+      callerSignal?.addEventListener("abort", abortFromCaller, { once: true });
+      const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+      const started = Date.now();
+      try {
+        const value = await request(provider, controller.signal);
+        return { provider, value, ms: Date.now() - started };
+      } catch (error) {
+        const elapsed = Date.now() - started;
+        const status = (error as { status?: number })?.status;
+        const message = error instanceof Error ? error.message : String(error);
+        console.error(`[AI] provider=${provider} model=${modelFor(provider)} failed attempt=${attempt} after=${elapsed}ms status=${status ?? "none"} message=${message}`);
+        lastError = error;
+        if (callerSignal?.aborted) throw error;
+        if (!isRetryableError(error) || attempt === 2) break;
+      } finally {
+        clearTimeout(timeoutId);
+        callerSignal?.removeEventListener("abort", abortFromCaller);
+      }
+    }
+  }
+  throw lastError ?? new Error("All configured AI providers failed or are missing API keys.");
+}
+
 export async function generateAnswer(input: GenerateAnswerInput): Promise<AiAnswer> {
   const cfg = aiProviderConfig();
   const maxTokens = input.maxTokens ?? 400;
-
-  // Cap conversation history to the last 4 messages (compact prompts).
-  const messages = input.messages.slice(-4);
+  const messages = input.messages;
   const size = promptSize(input.system, messages);
-
-  // Dedup while preserving order (primary == fallback means try once).
-  const providers: AiProviderName[] = [];
-  for (const name of [cfg.primary, cfg.fallback]) {
-    if (!providers.includes(name)) providers.push(name);
-  }
-
-  let lastError: unknown;
-  for (const name of providers) {
-    if (!providerEnabled(name)) {
-      console.warn(`[AI] Provider "${name}" skipped: API key not configured.`);
-      continue;
-    }
-
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), cfg.timeoutMs);
-    const started = Date.now();
-    try {
-      const text = await PROVIDERS[name]({
-        system: input.system,
-        messages,
-        maxTokens,
-        signal: controller.signal,
-      });
-      const ms = Date.now() - started;
-      clearTimeout(timeoutId);
-      console.log(
-        `[AI] provider=${name} model=${modelFor(name)} promptChars=${size} responseMs=${ms}`,
-      );
-      return { text, provider: name, model: modelFor(name), ms };
-    } catch (error) {
-      const ms = Date.now() - started;
-      clearTimeout(timeoutId);
-      const status = (error as { status?: number })?.status;
-      const retryable = isRetryableError(error);
-      console.warn(
-        `[AI] provider=${name} model=${modelFor(name)} failed after ${ms}ms status=${status ?? "unknown"} retryable=${retryable}`,
-      );
-      lastError = error;
-      if (!retryable) break;
-    }
-  }
-
-  throw lastError ?? new Error("All AI providers failed");
+  const providers = [...new Set([cfg.primary, cfg.fallback])];
+  const result = await executeWithFallback(
+    providers,
+    cfg.timeoutMs,
+    providerEnabled,
+    (provider, signal) => PROVIDERS[provider]({ system: input.system, messages, maxTokens, signal }),
+    input.signal,
+  );
+  console.log(`[AI] provider=${result.provider} model=${modelFor(result.provider)} promptChars=${size} promptTokensApprox=${estimateTokens(input.system + messages.map((message) => message.content).join(""))} responseMs=${result.ms}`);
+  return {
+    text: sanitizeToPlainText(result.value),
+    provider: result.provider,
+    model: modelFor(result.provider),
+    ms: result.ms,
+  };
 }
 
 

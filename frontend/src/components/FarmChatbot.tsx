@@ -1,6 +1,8 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   chatWithFarmAI,
+  pingApiHealth,
+  AIRequestError,
   type ChatMessage,
 } from "../services/aiService";
 import {
@@ -11,20 +13,24 @@ import {
   RefreshCw,
   UserRound,
 } from "lucide-react";
-import { usePeriod } from "../context/PeriodContext";
 import { getNairobiDateString, addDaysToDateStr } from "../utils/datePeriod";
 
 type ChatPeriod = "today" | "yesterday" | "7d" | "30d" | "month";
 
 export default function FarmChatbot() {
-  const { periodInfo } = usePeriod();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [question, setQuestion] = useState("");
   const [period, setPeriod] = useState<ChatPeriod>("today");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [errorCode, setErrorCode] = useState("");
+  const [failedQuestion, setFailedQuestion] = useState("");
 
-  const todayStr = periodInfo.to || getNairobiDateString();
+  useEffect(() => {
+    void pingApiHealth();
+  }, []);
+
+  const todayStr = getNairobiDateString();
 
   function getPeriodOptions(p: ChatPeriod) {
     if (p === "today") return { periodDays: 1, to: todayStr, from: todayStr };
@@ -46,6 +52,8 @@ export default function FarmChatbot() {
     if (!q || loading) return;
 
     setError("");
+    setErrorCode("");
+    setFailedQuestion("");
     const userMsg: ChatMessage = { role: "user", text: q };
     const updated = [...messages, userMsg];
     setMessages(updated);
@@ -54,15 +62,58 @@ export default function FarmChatbot() {
 
     try {
       const opts = getPeriodOptions(period);
-      const answer = await chatWithFarmAI(q, undefined, messages, opts);
-      setMessages([...updated, { role: "assistant", text: answer }]);
+      const response = await chatWithFarmAI(q, undefined, messages, opts);
+      setMessages([...updated, { role: "assistant", text: response.answer }]);
+      if (response.warningCode) {
+        setFailedQuestion(q);
+        setErrorCode(response.warningCode);
+        setError("The provider returned a database-only answer.");
+      } else {
+        setFailedQuestion("");
+      }
     } catch (err) {
       console.error(err);
+      setFailedQuestion(q);
+      setErrorCode(err instanceof AIRequestError ? err.code : "unavailable");
       setError(err instanceof Error ? err.message : "Failed to get AI response.");
     } finally {
       setLoading(false);
     }
   }
+
+  async function retryLastQuestion() {
+    const q = failedQuestion;
+    if (!q || loading) return;
+    setLoading(true);
+    setError("");
+    setErrorCode("");
+    try {
+      const response = await chatWithFarmAI(q, undefined, messages.slice(0, -1), getPeriodOptions(period));
+      setMessages((current) => [...current, { role: "assistant", text: response.answer }]);
+      if (response.warningCode) {
+        setErrorCode(response.warningCode);
+        setError("The provider returned a database-only answer.");
+      } else {
+        setFailedQuestion("");
+      }
+    } catch (err) {
+      console.error(err);
+      setErrorCode(err instanceof AIRequestError ? err.code : "unavailable");
+      setError(err instanceof Error ? err.message : "Failed to get AI response.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  const friendlyError = errorCode === "timeout"
+    ? "The farm assistant took too long to respond. Please try again."
+    : errorCode === "rate_limit" || errorCode === "quota"
+      ? "The assistant is busy or has reached its current quota. Please try again shortly."
+      : errorCode === "configuration"
+        ? "The farm assistant is not configured yet. Please contact your administrator."
+        : errorCode === "data_unavailable"
+          ? "Your farm records could not be loaded. Please try again."
+          : error || "The farm assistant is temporarily unavailable. Please try again.";
 
   return (
     <div className="kf-panel farm-chatbot-container">
@@ -199,8 +250,10 @@ export default function FarmChatbot() {
       </div>
 
       {error && (
-        <div className="kf-alert kf-alert--error" style={{ margin: "8px 16px" }}>
-          <AlertCircle size={15} /> <span>{error}</span>
+        <div className="kf-alert kf-alert--error farm-chat-error" role="alert" style={{ margin: "8px 16px" }}>
+          <AlertCircle size={15} />
+          <span>{friendlyError}</span>
+          <button type="button" onClick={retryLastQuestion} disabled={loading || !failedQuestion}>Try again</button>
         </div>
       )}
 

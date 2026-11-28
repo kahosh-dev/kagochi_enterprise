@@ -2540,7 +2540,8 @@ main {
 }
 
 .farm-chat-error > span {
-  font-size: 20px;
+  font-size: 13px;
+  line-height: 1.45;
 }
 
 .farm-chat-error strong {
@@ -2554,11 +2555,20 @@ main {
 
 .farm-chat-error button {
   margin-left: auto;
-  border: none;
-  background: transparent;
+  border: 1px solid #b91c1c;
+  border-radius: 999px;
+  padding: 6px 12px;
+  background: #fff;
   color: #991b1b;
-  font-size: 20px;
+  font-size: 12px;
+  font-weight: 700;
   cursor: pointer;
+  white-space: nowrap;
+}
+
+.farm-chat-error button:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
 }
 
 /* Footer */

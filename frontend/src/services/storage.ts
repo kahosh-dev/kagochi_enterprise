@@ -162,6 +162,7 @@ function mapLivestock(row: any): LivestockAnimal {
     notes: row.notes || "",
     dateOfBirth: row.date_of_birth || "",
     isBirthDateEstimated: Boolean(row.is_birth_date_estimated),
+    hasCalved: Boolean(Number(row.has_calved || 0)),
   };
 }
 

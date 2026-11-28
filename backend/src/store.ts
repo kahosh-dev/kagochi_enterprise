@@ -137,6 +137,7 @@ export interface FarmStore {
   ): Promise<StoreResult>;
   findFarmByOwnerId(ownerId: string): Promise<FarmRow | undefined>;
   listRecords(resource: ResourceName, ownerId: string): Promise<RecordRow[]>;
+  listRecordsForPeriod(resource: ResourceName, ownerId: string, from: string | undefined, to: string): Promise<RecordRow[]>;
   createRecord(
     resource: ResourceName,
     id: string,
@@ -158,11 +159,14 @@ export interface FarmStore {
     ownerId: string,
     species?: string,
     targetId?: string,
+    from?: string,
+    to?: string,
   ): Promise<PopulationEventRow[]>;
   createPopulationEvent(
     id: string,
     ownerId: string,
     data: Omit<PopulationEventRow, 'id' | 'owner_id'>,
+    options?: { allowSnapshotReconciliation?: boolean },
   ): Promise<void>;
-  deletePopulationEvent(id: string, ownerId: string): Promise<StoreResult>;
+  deletePopulationEvent(id: string, ownerId: string, action?: "delete" | "undo"): Promise<StoreResult>;
 }

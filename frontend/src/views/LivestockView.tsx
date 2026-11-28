@@ -348,9 +348,13 @@ export default function LivestockView() {
   }
 
   async function actualDelete(id: string) {
-    await deleteLivestock(id);
-    setSuccessMsg("Cattle record removed.");
-    await refreshAnimals();
+    try {
+      await deleteLivestock(id);
+      setSuccessMsg("Cattle record removed.");
+      await refreshAnimals();
+    } catch (error) {
+      setErrorMsg(error instanceof Error ? error.message : "Failed to delete cattle record.");
+    }
   }
 
   function handleDelete(id: string, animalName: string) {
@@ -807,9 +811,10 @@ export default function LivestockView() {
                               onClick={() => startEdit(a)}
                             />
                             <IconButton
-                              label="Delete"
+                              label={popEvents.some((event) => event.targetId === a.id) || (a.status && a.status !== "active") ? "Reconcile population history before deleting" : "Delete"}
                               tone="danger"
                               icon={<Trash2 size={16} />}
+                              disabled={popEvents.some((event) => event.targetId === a.id) || (a.status !== undefined && a.status !== "active")}
                               onClick={() => handleDelete(a.id, a.name)}
                             />
                           </div>
