@@ -91,18 +91,24 @@ export default function PublicWebsite({ onLogin, onNavigate }: PublicWebsiteProp
   return (
     <div className="pub-root">
       {/* ===== NAV ===== */}
-      <nav className="pub-nav">
+      <nav className="pub-nav" aria-label="Main navigation">
         <div className="pub-nav-inner">
-          <div className="pub-nav-brand">
-            <Leaf size={24} className="pub-nav-leaf" />
-            <span className="pub-nav-title">Kagochi Farm Enterprise</span>
-          </div>
+          <button className="pub-nav-brand" onClick={() => handleNav('home', homeRef)}>
+            <span className="pub-nav-logo" aria-hidden="true">
+              <Leaf size={21} />
+            </span>
+            <span className="pub-nav-title">
+              <strong>Kagochi Farm</strong>
+              <small>Enterprise</small>
+            </span>
+          </button>
           <div className="pub-nav-links">
             {navLinks.map(link => (
               <button
                 key={link.id}
                 className={`pub-nav-link${activeSection === link.id ? ' active' : ''}`}
                 onClick={() => handleNav(link.id, link.ref)}
+                aria-current={activeSection === link.id ? 'page' : undefined}
               >
                 {link.label}
               </button>
@@ -116,25 +122,46 @@ export default function PublicWebsite({ onLogin, onNavigate }: PublicWebsiteProp
               <LogIn size={16} />
               Login
             </button>
-            <button className="pub-nav-hamburger" onClick={() => setMobileOpen(o => !o)} aria-label="Menu">
+            <button
+              className="pub-nav-hamburger"
+              onClick={() => setMobileOpen(o => !o)}
+              aria-label={mobileOpen ? 'Close menu' : 'Open menu'}
+              aria-expanded={mobileOpen}
+              aria-controls="public-mobile-menu"
+            >
               {mobileOpen ? <X size={24} /> : <Menu size={24} />}
             </button>
           </div>
         </div>
         {mobileOpen && (
-          <div className="pub-mobile-menu">
-            {navLinks.map(link => (
-              <button
-                key={link.id}
-                className={`pub-mobile-link${activeSection === link.id ? ' active' : ''}`}
-                onClick={() => handleNav(link.id, link.ref)}
-              >
-                {link.label}
-              </button>
-            ))}
-            <button className="pub-mobile-login" onClick={onLogin}>
-              <LogIn size={16} /> Login to Dashboard
-            </button>
+          <div className="pub-mobile-menu" id="public-mobile-menu">
+            <div className="pub-mobile-menu-inner">
+              <p className="pub-mobile-menu-label">Explore Kagochi</p>
+              <div className="pub-mobile-links">
+                {navLinks.map((link, index) => (
+                  <button
+                    key={link.id}
+                    className={`pub-mobile-link${activeSection === link.id ? ' active' : ''}`}
+                    onClick={() => handleNav(link.id, link.ref)}
+                    aria-current={activeSection === link.id ? 'page' : undefined}
+                  >
+                    <span>{link.label}</span>
+                    <span className="pub-mobile-link-number" aria-hidden="true">
+                      {String(index + 1).padStart(2, '0')}
+                    </span>
+                  </button>
+                ))}
+              </div>
+              <div className="pub-mobile-actions">
+                <button className="pub-mobile-get-started" onClick={onLogin}>
+                  Get Started
+                </button>
+                <button className="pub-mobile-login" onClick={onLogin}>
+                  <LogIn size={17} /> Login
+                </button>
+              </div>
+              <p className="pub-mobile-menu-note">Smart farm records. Better decisions.</p>
+            </div>
           </div>
         )}
       </nav>
