@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import type { ProductionRecord, LivestockAnimal, PoultryBatch } from "../types/farm";
+import { computeCattleStage, computePoultryStage } from "../../../backend/src/stageEngine.ts";
 import {
   addProduction,
   updateProduction,
@@ -88,6 +89,30 @@ export default function AnimalProductionModal({
   const defaultUnit = isCattle ? "litres" : "trays";
 
   const [date, setDate] = useState<string>(todayStr);
+  const productionEligibility = useMemo(() => {
+    if (!target) return null;
+    if (target.type === "cattle") {
+      return computeCattleStage(
+        target.animal.dateOfBirth,
+        target.animal.sex || "female",
+        Boolean(target.animal.hasCalved),
+        target.animal.status || "active",
+        date,
+      );
+    }
+    return computePoultryStage(
+      target.batch.hatchDate,
+      target.batch.purpose,
+      target.batch.breed,
+      undefined,
+      date,
+      undefined,
+      target.batch.currentCount,
+    );
+  }, [target, date]);
+  const canRecordProduction = target?.type === "cattle"
+    ? Boolean(productionEligibility && "canRecordMilk" in productionEligibility && productionEligibility.canRecordMilk)
+    : Boolean(productionEligibility && "canRecordEggs" in productionEligibility && productionEligibility.canRecordEggs);
   const [quantity, setQuantity] = useState<string>("");
   const [unit, setUnit] = useState<string>(defaultUnit);
   const [destination, setDestination] = useState<string>("produced");
@@ -429,6 +454,10 @@ export default function AnimalProductionModal({
   async function handleSaveRecord(e: React.FormEvent) {
     e.preventDefault();
     if (!target) return;
+    if (!editingRecordId && productionEligibility && !canRecordProduction) {
+      setErrorMsg(productionEligibility.disabledReason || "This animal is not eligible for production yet.");
+      return;
+    }
 
     const qty = parseFloat(quantity);
     if (isNaN(qty) || qty <= 0) {
@@ -703,6 +732,7 @@ export default function AnimalProductionModal({
           <Button
             variant={showAddForm ? "ghost" : "primary"}
             size="sm"
+            disabled={!showAddForm && !canRecordProduction}
             icon={showAddForm ? undefined : <Plus size={16} />}
             onClick={() => {
               setShowAddForm(!showAddForm);
@@ -712,6 +742,12 @@ export default function AnimalProductionModal({
             {showAddForm ? "Cancel Form" : target.type === "cattle" ? "Record Milk Yield" : "Record Egg Yield"}
           </Button>
         </div>
+
+        {productionEligibility && !canRecordProduction && (
+          <p role="status" style={{ margin: 0, color: "var(--kf-text-muted)", fontSize: 13 }}>
+            {productionEligibility.stageLabel}: {productionEligibility.disabledReason || productionEligibility.nextStageInfo || "Production is not eligible at this stage."}
+          </p>
+        )}
 
         {/* Record Form (Collapsible) */}
         {showAddForm && (

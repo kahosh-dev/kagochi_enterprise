@@ -316,9 +316,13 @@ export default function PoultryView() {
   }
 
   async function actualDelete(id: string) {
-    await deletePoultry(id);
-    setSuccessMsg("Batch deleted.");
-    await refreshPoultry();
+    try {
+      await deletePoultry(id);
+      setSuccessMsg("Batch deleted.");
+      await refreshPoultry();
+    } catch (error) {
+      setErrorMsg(error instanceof Error ? error.message : "Failed to delete batch.");
+    }
   }
 
   function handleDelete(id: string, name: string) {
@@ -486,9 +490,10 @@ export default function PoultryView() {
                   type="number"
                   placeholder="e.g. 500"
                   value={initialCount}
+                  disabled={!!editingId}
                   onChange={(e) => {
                     setInitialCount(e.target.value);
-                    if (!editingId && !currentCount) setCurrentCount(e.target.value);
+                    if (!editingId) setCurrentCount(e.target.value);
                   }}
                   required
                 />
@@ -498,21 +503,14 @@ export default function PoultryView() {
                 label="Current Number Alive"
                 htmlFor="currentCount"
                 required
-                hint={
-                  initialCount && currentCount && parseInt(initialCount) > parseInt(currentCount)
-                    ? `Deaths/Losses: ${parseInt(initialCount) - parseInt(currentCount)} birds (${(
-                        ((parseInt(initialCount) - parseInt(currentCount)) / parseInt(initialCount)) *
-                        100
-                      ).toFixed(1)}%)`
-                    : undefined
-                }
+                hint="Calculated from the population ledger. Record deaths, sales, or transfers in Survivor Tracking."
               >
                 <input
                   id="currentCount"
                   type="number"
-                  placeholder="e.g. 485"
+                  placeholder="Matches initial count until events are recorded"
                   value={currentCount}
-                  onChange={(e) => setCurrentCount(e.target.value)}
+                  readOnly
                   required
                 />
               </Field>
@@ -773,9 +771,10 @@ export default function PoultryView() {
                               onClick={() => startEdit(b)}
                             />
                             <IconButton
-                              label="Delete"
+                              label={popEvents.some((event) => event.targetId === b.id) || b.currentCount !== b.initialCount ? "Reconcile population history before deleting" : "Delete"}
                               tone="danger"
                               icon={<Trash2 size={16} />}
+                              disabled={popEvents.some((event) => event.targetId === b.id) || b.currentCount !== b.initialCount}
                               onClick={() => handleDelete(b.id, `${b.breed} (${b.purpose})`)}
                             />
                           </div>

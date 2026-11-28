@@ -93,6 +93,21 @@ describe("population", () => {
     assert.equal(p.batches[2].lossPercent, null);
   });
 
+  it("uses population events over cached counts and lifecycle status", () => {
+    const eventRecords: FarmRecords = {
+      ...records,
+      poultry: [{ id: "flock", breed: "Layers", purpose: "Layers", initial_count: 10, current_count: 10, age_weeks: 30, date_added: "2026-01-01" }],
+      livestock: [{ id: "cow", name: "Daisy", type: "Cow", breed: "Friesian", age_years: 3, date_added: "2026-01-01", status: "active" }],
+      populationEvents: [
+        { id: "d1", owner_id: "owner", species: "poultry", target_id: "flock", target_name: "Layers", event_type: "death", count: 3, date: "2026-03-30", reason: "", notes: "" },
+        { id: "s1", owner_id: "owner", species: "cattle", target_id: "cow", target_name: "Daisy", event_type: "sale", count: 1, date: "2026-03-30", reason: "", notes: "" },
+      ],
+    };
+    const population = summarizeFarm(eventRecords, period).population;
+    assert.equal(population.poultry.currentBirds, 7);
+    assert.equal(population.livestock.animalCount, 0);
+  });
+
   it("groups livestock types case-insensitively", () => {
     assert.deepEqual(summary.population.livestock.byType, [
       { type: "Cow", count: 2 },

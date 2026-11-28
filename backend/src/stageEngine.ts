@@ -46,10 +46,11 @@ export function classifyPoultryType(purpose: string): PoultryType {
 export function computePoultryStage(
   hatchDate: string | null | undefined,
   purpose: string,
-  breed: string,
+  _breed: string,
   status?: string,
   asOfDate?: string,
-  config: LifeStageConfig = LIFE_STAGE_CONFIG
+  config: LifeStageConfig = LIFE_STAGE_CONFIG,
+  currentCount?: number
 ): PoultryStageResult {
   const asOf = asOfDate || getNairobiToday();
   
@@ -62,6 +63,17 @@ export function computePoultryStage(
       canRecordMeat: false,
       tone: "slate",
       disabledReason: `Batch is ${status}`
+    };
+  }
+
+  if (currentCount !== undefined && currentCount <= 0) {
+    return {
+      stage: "chick",
+      stageLabel: "No birds remaining",
+      canRecordEggs: false,
+      canRecordMeat: false,
+      tone: "slate",
+      disabledReason: "No birds remain in this batch",
     };
   }
 
@@ -121,7 +133,7 @@ export function computePoultryStage(
   }
 
   // LAYER & DUAL-PURPOSE track: Chick -> Grower -> Layer
-  const pointOfLay = birdType === "dual-purpose" ? 20 : config.poultry.growerMaxWeeks; // 20 weeks for dual-purpose, 18 for layers
+  const pointOfLay = birdType === "dual-purpose" ? config.poultry.dualPurposePointOfLayWeeks : config.poultry.growerMaxWeeks;
 
   if (weeks < config.poultry.chickMaxWeeks) {
     return {

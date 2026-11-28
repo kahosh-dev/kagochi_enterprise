@@ -12,7 +12,8 @@
     "test": "tsx --test \"test/**/*.test.ts\"",
     "users": "tsx scripts/manage-users.ts",
     "migrate:postgres": "tsx scripts/migrate-to-postgres.ts",
-    "migrate:legacy": "tsx scripts/migrate-legacy-db.ts"
+    "migrate:legacy": "tsx scripts/migrate-legacy-db.ts",
+    "backfill:population": "tsx scripts/backfill-population-events.ts"
   },
   "dependencies": {
     "@google/genai": "^2.24.0",

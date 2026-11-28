@@ -70,6 +70,10 @@ export const sqliteStore: FarmStore = {
     return db.listRecords(resource, ownerId);
   },
 
+  async listRecordsForPeriod(resource, ownerId, from, to): Promise<RecordRow[]> {
+    return db.listRecordsForPeriod(resource, ownerId, from, to);
+  },
+
   async createRecord(resource, id, ownerId, values: RecordValues) {
     return result(db.createRecord(resource, id, ownerId, values));
   },
@@ -82,15 +86,15 @@ export const sqliteStore: FarmStore = {
     return result(db.deleteRecord(resource, id, ownerId));
   },
 
-  async listPopulationEvents(ownerId, species, targetId) {
-    return db.listPopulationEvents(ownerId, species, targetId);
+  async listPopulationEvents(ownerId, species, targetId, from, to) {
+    return db.listPopulationEvents(ownerId, species, targetId, from, to);
   },
 
-  async createPopulationEvent(id, ownerId, data) {
-    return db.createPopulationEvent(id, ownerId, data);
+  async createPopulationEvent(id, ownerId, data, options) {
+    return db.createPopulationEvent(id, ownerId, data, options);
   },
 
-  async deletePopulationEvent(id, ownerId) {
-    return result(db.deletePopulationEvent(id, ownerId));
+  async deletePopulationEvent(id, ownerId, action = "delete") {
+    return result(db.deletePopulationEvent(id, ownerId, action));
   },
 };

@@ -36,6 +36,7 @@ export interface LivestockAnimal {
   notes?: string;
   dateOfBirth?: string;
   isBirthDateEstimated?: boolean;
+  hasCalved?: boolean;
 }
 
 export interface ProductionRecord {

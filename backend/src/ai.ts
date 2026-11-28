@@ -57,11 +57,7 @@ RULES:
 export function buildAdvicePrompt(farmContext: unknown): string {
   return `You are the Kagochi Farm decision-support assistant for a small poultry and livestock farm.
 ${SHARED_RULES}
-Respond in Markdown with exactly these headings:
-## Facts from the records
-## Possible explanations
-## Recommendations
-## Missing or incomplete data
+Reply in plain text only. Do not use markdown: no asterisks, no bold, no headings, no hash symbols, no backticks, no tables. For lists use short lines starting with a dash or a number. Be short and clear. Use KES for currency and readable dates.
 
 <farm_data>
 ${JSON.stringify(farmContext, null, 2)}

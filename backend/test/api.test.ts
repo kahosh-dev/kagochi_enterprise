@@ -113,22 +113,174 @@ describe("authentication", () => {
 
 describe("farm records", () => {
   it("creates, lists, updates and deletes a poultry batch", async () => {
-    const body = { breed: "Kienyeji", purpose: "Layers", initialCount: 100, currentCount: 95, ageWeeks: 20, dateAdded: today };
+    const body = { breed: "Kienyeji", purpose: "Layers", initialCount: 100, currentCount: 100, ageWeeks: 20, dateAdded: today };
     const created = await alice.post("/api/farm/poultry").send(body);
     assert.equal(created.status, 201);
     const id = created.body.id;
 
     const list = await alice.get("/api/farm/poultry");
     assert.equal(list.body.poultry.length, 1);
-    assert.equal(list.body.poultry[0].current_count, 95);
+    assert.equal(list.body.poultry[0].current_count, 100);
     assert.equal(list.body.poultry[0].owner_id, undefined);
 
-    const updated = await alice.put(`/api/farm/poultry/${id}`).send({ ...body, currentCount: 90 });
+    const updated = await alice.put(`/api/farm/poultry/${id}`).send({ ...body, currentCount: 100 });
     assert.equal(updated.status, 200);
-    assert.equal((await alice.get("/api/farm/poultry")).body.poultry[0].current_count, 90);
+    assert.equal((await alice.get("/api/farm/poultry")).body.poultry[0].current_count, 100);
 
     assert.equal((await alice.delete(`/api/farm/poultry/${id}`)).status, 200);
     assert.equal((await alice.get("/api/farm/poultry")).body.poultry.length, 0);
+  });
+
+  it("enforces owner-scoped production eligibility for batches while retaining group records", async () => {
+    const juvenile = await alice.post("/api/farm/poultry").send({
+      breed: "Layer", purpose: "Layers", initialCount: 20, currentCount: 20,
+      ageWeeks: 1, hatchDate: today, dateAdded: today,
+    });
+    assert.equal(juvenile.status, 201, JSON.stringify(juvenile.body));
+    const blocked = await alice.post("/api/farm/production").send({
+      type: "eggs", quantity: 1, unit: "trays", date: today, targetId: juvenile.body.id,
+    });
+    assert.equal(blocked.status, 400);
+    assert.match(blocked.body.error, /Hatch date|stage/i);
+
+    const adult = await alice.post("/api/farm/poultry").send({
+      breed: "Layer", purpose: "Layers", initialCount: 20, currentCount: 20,
+      ageWeeks: 100, hatchDate: "2025-01-01", dateAdded: today,
+    });
+    assert.equal(adult.status, 201, JSON.stringify(adult.body));
+    const accepted = await alice.post("/api/farm/production").send({
+      type: "eggs", quantity: 1, unit: "trays", date: today, targetId: adult.body.id,
+    });
+    assert.equal(accepted.status, 201, JSON.stringify(accepted.body));
+
+    const crossOwner = await bob.post("/api/farm/production").send({
+      type: "eggs", quantity: 1, unit: "trays", date: today, targetId: adult.body.id,
+    });
+    assert.equal(crossOwner.status, 400);
+    assert.match(crossOwner.body.error, /not found/i);
+  });
+
+  it("enforces cattle milk eligibility using calving, sex, and owner-scoped animal data", async () => {
+    const heifer = await alice.post("/api/farm/livestock").send({
+      name: "Young Heifer", type: "Cattle", breed: "Friesian", sex: "female",
+      ageYears: 3, dateOfBirth: "2023-01-01", dateAdded: today, hasCalved: false,
+    });
+    assert.equal(heifer.status, 201, JSON.stringify(heifer.body));
+    const denied = await alice.post("/api/farm/production").send({
+      type: "milk", quantity: 1, unit: "litres", date: today, targetId: heifer.body.id,
+    });
+    assert.equal(denied.status, 400);
+    assert.match(denied.body.error, /calved|eligible|heifer/i);
+
+    const cow = await alice.post("/api/farm/livestock").send({
+      name: "Mature Cow", type: "Cattle", breed: "Friesian", sex: "female",
+      ageYears: 3, dateOfBirth: "2023-01-01", dateAdded: today, hasCalved: true,
+    });
+    assert.equal(cow.status, 201, JSON.stringify(cow.body));
+    const accepted = await alice.post("/api/farm/production").send({
+      type: "milk", quantity: 1, unit: "litres", date: today, targetId: cow.body.id,
+    });
+    assert.equal(accepted.status, 201, JSON.stringify(accepted.body));
+  });
+
+  it("treats population events as the ledger and recalculates snapshots on undo/delete", async () => {
+    const batch = await alice.post("/api/farm/poultry").send({
+      breed: "Ledger flock", purpose: "Layers", initialCount: 20, currentCount: 20,
+      ageWeeks: 30, dateAdded: today,
+    });
+    assert.equal(batch.status, 201);
+    const event = await alice.post("/api/farm/population-events").send({
+      species: "poultry", targetId: batch.body.id, targetName: "Ledger flock",
+      eventType: "death", count: 3, date: today,
+    });
+    assert.equal(event.status, 201, JSON.stringify(event.body));
+    assert.equal((await alice.get("/api/farm/poultry")).body.poultry[0].current_count, 17);
+    const summary = await alice.get(`/api/farm/survivor-summary?species=poultry&targetId=${batch.body.id}`);
+    assert.equal(summary.body.targets[0].survivors, 17);
+
+    const blockedDelete = await alice.delete(`/api/farm/poultry/${batch.body.id}`);
+    assert.equal(blockedDelete.status, 409);
+    const undo = await alice.post(`/api/farm/population-events/${event.body.id}/undo`);
+    assert.equal(undo.status, 200);
+    assert.equal((await alice.get("/api/farm/poultry")).body.poultry[0].current_count, 20);
+  });
+
+  it("rejects direct poultry-count edits, invalid targets, and event histories that go negative", async () => {
+    const batch = await alice.post("/api/farm/poultry").send({
+      breed: "Protected flock", purpose: "Layers", initialCount: 20, currentCount: 20,
+      ageWeeks: 30, dateAdded: today,
+    });
+    assert.equal(batch.status, 201);
+    const ownerId = store.findUserByEmail("alice@example.com")!.id;
+    store.db.prepare("UPDATE poultry_batches SET current_count = 19 WHERE id = ? AND owner_id = ?").run(batch.body.id, ownerId);
+    const needsBackfill = await alice.post("/api/farm/population-events").send({
+      species: "poultry", targetId: batch.body.id, targetName: "Protected flock",
+      eventType: "death", count: 1, date: today,
+    });
+    assert.equal(needsBackfill.status, 409);
+    await sqliteStore.createPopulationEvent(crypto.randomUUID(), ownerId, {
+      species: "poultry", target_id: batch.body.id, target_name: "Protected flock",
+      event_type: "death", count: 1, date: today,
+      reason: "Backfill test", notes: "Explicitly classified in test",
+    }, { allowSnapshotReconciliation: true });
+    assert.equal((await alice.get("/api/farm/poultry")).body.poultry.find((row: { id: string }) => row.id === batch.body.id).current_count, 19);
+    const appliedEvent = (await sqliteStore.listPopulationEvents(ownerId, "poultry", batch.body.id))[0];
+    assert.equal((await sqliteStore.deletePopulationEvent(appliedEvent.id, ownerId, "undo")).changes, 1);
+    assert.equal((await alice.get("/api/farm/poultry")).body.poultry.find((row: { id: string }) => row.id === batch.body.id).current_count, 20);
+
+    const directEdit = await alice.put(`/api/farm/poultry/${batch.body.id}`).send({
+      breed: "Protected flock", purpose: "Layers", initialCount: 20, currentCount: 19,
+      ageWeeks: 30, dateAdded: today,
+    });
+    assert.equal(directEdit.status, 409);
+
+    const untrackedCreate = await alice.post("/api/farm/poultry").send({
+      breed: "Untracked flock", purpose: "Layers", initialCount: 20, currentCount: 19,
+      ageWeeks: 30, dateAdded: today,
+    });
+    assert.equal(untrackedCreate.status, 400);
+
+    const unknownTarget = await alice.post("/api/farm/population-events").send({
+      species: "poultry", targetId: "not-owned", targetName: "Unknown",
+      eventType: "death", count: 1, date: today,
+    });
+    assert.equal(unknownTarget.status, 404);
+
+    const add = await alice.post("/api/farm/population-events").send({
+      species: "poultry", targetId: batch.body.id, targetName: "Protected flock",
+      eventType: "addition", count: 5, date: today,
+    });
+    assert.equal(add.status, 201);
+    const death = await alice.post("/api/farm/population-events").send({
+      species: "poultry", targetId: batch.body.id, targetName: "Protected flock",
+      eventType: "death", count: 24, date: today,
+    });
+    assert.equal(death.status, 201);
+    const unsafeUndo = await alice.delete(`/api/farm/population-events/${add.body.id}`);
+    assert.equal(unsafeUndo.status, 409);
+  });
+
+  it("derives cattle active status from ledger sales and restores it when the event is undone", async () => {
+    const animal = await alice.post("/api/farm/livestock").send({
+      name: "Ledger cow", type: "Cattle", breed: "Jersey", ageYears: 3,
+      dateOfBirth: "2023-01-01", dateAdded: today, sex: "female",
+    });
+    assert.equal(animal.status, 201);
+    const directStatusChange = await alice.put(`/api/farm/livestock/${animal.body.id}`).send({
+      name: "Ledger cow", type: "Cattle", breed: "Jersey", ageYears: 3,
+      dateOfBirth: "2023-01-01", dateAdded: today, sex: "female", status: "sold",
+    });
+    assert.equal(directStatusChange.status, 400);
+    const sale = await alice.post("/api/farm/population-events").send({
+      species: "cattle", targetId: animal.body.id, targetName: "Ledger cow",
+      eventType: "sale", count: 1, date: today,
+    });
+    assert.equal(sale.status, 201, JSON.stringify(sale.body));
+    assert.equal((await alice.get("/api/farm/livestock")).body.livestock[0].status, "sold");
+    const soldSummary = await alice.get(`/api/farm/survivor-summary?species=cattle&targetId=${animal.body.id}`);
+    assert.equal(soldSummary.body.targets.find((target: { targetId: string }) => target.targetId === animal.body.id).survivors, 0);
+    assert.equal((await alice.post(`/api/farm/population-events/${sale.body.id}/undo`)).status, 200);
+    assert.equal((await alice.get("/api/farm/livestock")).body.livestock[0].status, "active");
   });
 
   it("stores a full ISO timestamp as a YYYY-MM-DD date", async () => {
@@ -244,6 +396,16 @@ describe("AI advisor", () => {
   it("validates chat questions", async () => {
     assert.equal((await bob.post("/api/farm-chat").send({ question: "" })).status, 400);
     assert.equal((await bob.post("/api/farm-chat").send({ question: "x".repeat(1001) })).status, 400);
+  });
+
+  it("answers a simple expense question deterministically without AI", async () => {
+    const res = await bob.post("/api/farm-chat").send({ question: "Which expenses were highest?", periodDays: 1 });
+    assert.equal(res.status, 200);
+    assert.equal(res.body.fallback, false);
+    assert.equal(res.body.provider, "database");
+    assert.equal(res.body.intent, "expenses");
+    assert.ok(typeof res.body.answer === "string" && res.body.answer.length > 0);
+    assert.doesNotMatch(res.body.answer, /[*#`]/);
   });
 
   it("returns a database fallback answer when all AI providers fail", async () => {

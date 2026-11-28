@@ -225,7 +225,7 @@ function SurvivorView() {
               <div className="kf-form-grid">
                 <div className="kf-field">
                   <label className="kf-label">Species</label>
-                  <select value={formSpecies} onChange={(e) => { setFormSpecies(e.target.value as "poultry" | "cattle"); setFormTargetId(""); setFormTargetName(""); }}>
+                  <select value={formSpecies} onChange={(e) => { const species = e.target.value as "poultry" | "cattle"; setFormSpecies(species); setFormTargetId(""); setFormTargetName(""); setFormEventType(species === "cattle" ? "death" : "addition"); }}>
                     <option value="poultry">Poultry</option>
                     <option value="cattle">Livestock (Cattle)</option>
                   </select>
@@ -247,9 +247,9 @@ function SurvivorView() {
                 <div className="kf-field">
                   <label className="kf-label">Event Type</label>
                   <select value={formEventType} onChange={(e) => setFormEventType(e.target.value as PopulationEvent["eventType"])}>
-                    {Object.entries(EVENT_LABELS).map(([val, label]) => (
-                      <option key={val} value={val}>{label}</option>
-                    ))}
+                    {Object.entries(EVENT_LABELS)
+                      .filter(([value]) => formSpecies === "poultry" || value !== "addition")
+                      .map(([val, label]) => <option key={val} value={val}>{label}</option>)}
                   </select>
                 </div>
                 <div className="kf-field">

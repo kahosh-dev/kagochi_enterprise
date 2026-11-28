@@ -13,6 +13,8 @@ export interface LifeStageConfig {
     growerMaxWeeks: number;
     /** Layer stage: growerMaxWeeks and older (default: 18+ weeks) */
     layerMinWeeks: number;
+    /** Dual-purpose poultry begins laying around this age (default: 20 weeks). */
+    dualPurposePointOfLayWeeks: number;
     /** Broilers: marked 'ready for sale' around this age (default: 6 weeks) */
     broilerReadyForSaleWeeks: number;
   };
@@ -31,6 +33,7 @@ export const LIFE_STAGE_CONFIG: LifeStageConfig = {
     chickMaxWeeks: 8,
     growerMaxWeeks: 18,
     layerMinWeeks: 18,
+    dualPurposePointOfLayWeeks: 20,
     broilerReadyForSaleWeeks: 6,
   },
   cattle: {

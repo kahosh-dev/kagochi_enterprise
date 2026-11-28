@@ -1,6 +1,8 @@
 import { after, before, describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { sanitizeToPlainText, aiProviderConfig } from "../src/aiProvider.js";
+
+process.env.JWT_SECRET = "test-secret-that-is-at-least-32-characters-long";
+const { executeWithFallback, sanitizeToPlainText, aiProviderConfig } = await import("../src/aiProvider.js");
 
 // Ensure no AI provider keys are set so env-driven config reads are deterministic.
 before(() => {
@@ -26,6 +28,31 @@ describe("sanitizeToPlainText", () => {
   it("collapses blank lines and trims", () => {
     assert.equal(sanitizeToPlainText("a\n\n\n\nb"), "a\n\nb");
     assert.equal(sanitizeToPlainText("  spaced  "), "spaced");
+  });
+
+  it("removes remaining markdown marker characters", () => {
+    const out = sanitizeToPlainText("* bullet\n### Heading\nplain *marked* text");
+    assert.ok(!/[*#]/.test(out));
+    assert.match(out, /- bullet/);
+  });
+});
+
+describe("provider fallback", () => {
+  it("retries a transient primary error once before using the fallback", async () => {
+    const calls: string[] = [];
+    const result = await executeWithFallback(
+      ["groq", "gemini"],
+      1000,
+      () => true,
+      async (provider) => {
+        calls.push(provider);
+        if (provider === "groq") throw Object.assign(new Error("temporary busy"), { status: 503 });
+        return "fallback answer";
+      },
+    );
+    assert.deepEqual(calls, ["groq", "groq", "gemini"]);
+    assert.equal(result.provider, "gemini");
+    assert.equal(result.value, "fallback answer");
   });
 });
 

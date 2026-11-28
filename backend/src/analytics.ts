@@ -7,6 +7,8 @@ import {
   getCalendarMonthsBetween,
 } from "./age.js";
 import { LIFE_STAGE_CONFIG } from "./lifeStages.js";
+import { populationAtDate } from "./population.js";
+import type { PopulationEventRow } from "./store.js";
 
 /*
  * Farm analytics and rule-based decision support.
@@ -31,6 +33,7 @@ export interface FarmRecords {
   income?: Row[];
   vaccinations?: Row[];
   vaccination_schedules?: Row[];
+  populationEvents?: PopulationEventRow[];
 }
 
 export interface Period {
@@ -147,9 +150,19 @@ function countPossibleDuplicates(rows: CleanRow[], fields: string[]): number {
 /* Population (a snapshot: current counts, not limited to the period) */
 
 export function summarizePopulation(records: FarmRecords, thresholds: Thresholds = DEFAULT_THRESHOLDS) {
+  const eventsByTarget = new Map<string, NonNullable<FarmRecords["populationEvents"]>>();
+  for (const event of records.populationEvents ?? []) {
+    const key = `${event.species}:${event.target_id}`;
+    const group = eventsByTarget.get(key) ?? [];
+    group.push(event);
+    eventsByTarget.set(key, group);
+  }
   const batches = records.poultry.map((row) => {
     const initial = positiveNumber(row.initial_count) ?? 0;
-    const current = positiveNumber(row.current_count) ?? 0;
+    const events = eventsByTarget.get(`poultry:${String(row.id ?? "")}`) ?? [];
+    const current = events.length > 0
+      ? Math.max(0, populationAtDate(initial, events))
+      : positiveNumber(row.current_count) ?? 0;
     const losses = Math.max(initial - current, 0);
     const hatchDate = row.hatch_date ? String(row.hatch_date).slice(0, 10) : "";
     const isEstimated = Boolean(row.is_hatch_date_estimated);
@@ -199,7 +212,12 @@ export function summarizePopulation(records: FarmRecords, thresholds: Thresholds
   let calvesOldEnoughCount = 0;
   let heifersOldEnoughCount = 0;
 
-  for (const row of records.livestock) {
+  const activeLivestock = records.livestock.filter((row) => {
+    const events = eventsByTarget.get(`cattle:${String(row.id ?? "")}`) ?? [];
+    if (events.length > 0) return populationAtDate(1, events) > 0;
+    return !["sold", "deceased", "transferred"].includes(key(row.status));
+  });
+  for (const row of activeLivestock) {
     const k = key(row.type);
     const entry = livestockByType.get(k) ?? { type: label(row.type), count: 0 };
     entry.count++;
@@ -262,7 +280,7 @@ export function summarizePopulation(records: FarmRecords, thresholds: Thresholds
       batchesAboveLossThreshold: batches.filter((b) => b.lossPercent !== null && b.lossPercent >= thresholds.birdLossPercent).length,
     },
     livestock: {
-      animalCount: records.livestock.length,
+      animalCount: activeLivestock.length,
       calvesCount,
       heifersCount,
       cowsCount,
@@ -776,13 +794,14 @@ export function buildSurvivorSummary(
   totalLivestockAnimals: number;
 } {
   // Build lookup maps
-  const poultryMap = new Map<string, number>();
+  const poultryMap = new Map<string, { initial: number; current: number }>();
   for (const b of poultryBatches) {
     const id = String(b.id ?? '');
-    const count = typeof b.initial_count === 'number' ? b.initial_count : Number(b.initial_count ?? 0);
-    poultryMap.set(id, count);
+    const initial = typeof b.initial_count === 'number' ? b.initial_count : Number(b.initial_count ?? 0);
+    const current = typeof b.current_count === 'number' ? b.current_count : Number(b.current_count ?? initial);
+    poultryMap.set(id, { initial, current });
   }
-  const livestockSet = new Set(livestock.map((l) => String(l.id ?? '')));
+  const livestockMap = new Map(livestock.map((row) => [String(row.id ?? ''), key(row.status || 'active')]));
 
   // Group events by target_id
   const targetMap = new Map<string, {
@@ -829,14 +848,16 @@ export function buildSurvivorSummary(
   let totalLivestockAnimals = 0;
 
   for (const t of targetMap.values()) {
+    const poultry = t.species === 'poultry' ? poultryMap.get(t.targetId) : undefined;
+    const hasLedger = events.some((event) => event.target_id === t.targetId && event.species === t.species);
     const initialCount = t.species === 'poultry'
-      ? (poultryMap.get(t.targetId) ?? 0)
-      : (livestockSet.has(t.targetId) ? 1 : 0);
-
-    const survivors = Math.max(
-      0,
-      initialCount + t.additions + t.transfersIn - t.deaths - t.sales - t.transfersOut,
-    );
+      ? (poultry?.initial ?? 0)
+      : (livestockMap.has(t.targetId) ? 1 : 0);
+    const eventDerived = initialCount + t.additions + t.transfersIn - t.deaths - t.sales - t.transfersOut;
+    const legacyCurrent = t.species === 'poultry'
+      ? (poultry?.current ?? 0)
+      : (livestockMap.get(t.targetId) && !['sold', 'deceased', 'transferred'].includes(livestockMap.get(t.targetId)!) ? 1 : 0);
+    const survivors = Math.max(0, hasLedger ? eventDerived : legacyCurrent);
     const denominator = initialCount + t.additions + t.transfersIn;
     const survivorRatePercent = denominator > 0 ? round((survivors / denominator) * 100, 1) : null;
 
