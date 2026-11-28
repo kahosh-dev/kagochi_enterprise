@@ -1,0 +1,10 @@
+{
+  "description": "Prepares newly imported Figma projects for deployment by setting up and verifying production and preview configurations.",
+  "robots": {
+    "index": false
+  },
+  "accessibility": {
+    "addBypassLinks": false,
+    "ignoreReducedMotion": false
+  }
+}
